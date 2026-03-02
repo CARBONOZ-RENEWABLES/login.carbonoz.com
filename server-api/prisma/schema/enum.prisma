@@ -1,0 +1,42 @@
+enum ERole {
+  USER
+  ADMIN
+  SUB_ADMIN
+}
+
+enum EFuelType {
+  SOLAR
+  WIND
+  HYDRO
+}
+
+enum ESteps {
+  REDEX_FORM
+  UPLOAD_FORM
+  LAST_STEP
+  REDEX_FIELDS
+}
+
+enum EPartner {
+  REDEX
+}
+
+enum ESystemSteps {
+  USER_INFORMATION
+  ASSET
+  METERING_EVIDENCE
+  CERTIFICATION
+  PROJECT
+  LAST_STEP
+}
+
+enum ELogType {
+  LOGIN
+  LOGOUT
+  ERROR
+  SYSTEM_EVENT
+  DATA_CHANGE
+  SECURITY_ALERT
+  API_REQUEST
+  SOCKET_EVENT
+}

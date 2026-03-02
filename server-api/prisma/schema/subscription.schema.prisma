@@ -1,0 +1,59 @@
+model SubscriptionPlan {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  description   String?
+  features      String[]       @default([])
+  priceMonthly  Float
+  priceYearly   Float?
+  currency      String         @default("USD")
+  active        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  Subscription  Subscription[]
+}
+
+model Subscription {
+  id        String             @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String             @db.ObjectId
+  user      User               @relation(fields: [userId], references: [id])
+  planId    String             @db.ObjectId
+  plan      SubscriptionPlan   @relation(fields: [planId], references: [id])
+  status    ESubscriptionStatus @default(INACTIVE)
+  startDate DateTime
+  endDate   DateTime
+  autoRenew Boolean            @default(true)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  Payment   Payment[]
+}
+
+model Payment {
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String         @db.ObjectId
+  user            User           @relation(fields: [userId], references: [id])
+  subscriptionId  String?        @db.ObjectId
+  subscription    Subscription?  @relation(fields: [subscriptionId], references: [id])
+  amount          Float
+  currency        String
+  provider        EPaymentProvider
+  providerRefId   String         @unique
+  status          EPaymentStatus
+  createdAt       DateTime       @default(now())
+}
+
+enum ESubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum EPaymentProvider {
+  PAYPAL
+  STRIPE
+}
+
+enum EPaymentStatus {
+  SUCCESS
+  FAILED
+  PENDING
+}

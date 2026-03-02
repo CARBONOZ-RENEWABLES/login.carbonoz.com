@@ -1,0 +1,58 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["prismaSchemaFolder"]
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Partners {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  userId    String   @db.ObjectId
+  user      User?    @relation(fields: [userId], references: [id])
+  partner   String[]
+  status    Boolean  @default(false)
+  choice    Boolean  @default(false)
+}
+
+model SystemSteps {
+  id        String       @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @default(now())
+  step      ESystemSteps @default(USER_INFORMATION)
+  status    Boolean      @default(false)
+  userId    String       @db.ObjectId
+  user      User?        @relation(fields: [userId], references: [id])
+}
+
+model UserSteps {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @db.ObjectId
+  user       User?    @relation(fields: [userId], references: [id])
+  step       ESteps   @default(REDEX_FORM)
+  isFile     Boolean? @default(false)
+  status     Boolean  @default(false)
+  hasSkipped Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+}
+
+model Logs {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt    DateTime @default(now())
+  userId       String?  @db.ObjectId
+  user         User?    @relation(fields: [userId], references: [id])
+  eventType    ELogType
+  description  String
+  metadata     String?
+  ipAddress    String?
+  userAgent    String?
+  requestUrl   String?
+  method       String?
+  responseTime String?
+  statusCode   String?
+}

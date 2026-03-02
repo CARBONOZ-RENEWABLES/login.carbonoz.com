@@ -1,0 +1,64 @@
+model RedexInformation {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String   @db.ObjectId
+  user             User?    @relation(fields: [userId], references: [id])
+  redexFileId      String?
+  ValidationCode   String?
+  remoteInvIds     String[]
+  deviceRegistered Boolean? @default(false)
+}
+
+model RedexRegisterDevice {
+  id                      String   @id @default(auto()) @map("_id") @db.ObjectId
+  countryCode             String
+  groupedEnglishName      String
+  groupedLocalName        String
+  province                String
+  timezone                String? // Optional
+  generationDataFrequency String? // Optional
+  deviceRegistered        Boolean? @default(false)
+  userId                  String?  @db.ObjectId
+  user                    User?    @relation(fields: [userId], references: [id])
+  devices                 Device[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Device {
+  id                         String     @id @default(auto()) @map("_id") @db.ObjectId
+  installationName           String
+  address                    String
+  postalCode                 String
+  longitude                  Float
+  latitude                   Float
+  gridConnectionDate         DateTime
+  ownersDeclarationStartDate DateTime
+  ownersDeclarationEndDate   DateTime?
+  domestic                   Boolean
+  feedInTariff               Boolean? // Optional
+  declarationFormFileId      String
+  percentageRenewable        Int? // Optional
+  inverters                  Inverter[]
+
+  redexRegisterDeviceId String              @db.ObjectId
+  redexRegisterDevice   RedexRegisterDevice @relation(fields: [redexRegisterDeviceId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Inverter {
+  id                     String  @id @default(auto()) @map("_id") @db.ObjectId
+  remoteInvId            String
+  electronicSerialNumber String
+  brandCode              String
+  otherBrandName         String? // Optional
+  installedCapacity      Float
+
+  deviceId String @db.ObjectId
+  device   Device @relation(fields: [deviceId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

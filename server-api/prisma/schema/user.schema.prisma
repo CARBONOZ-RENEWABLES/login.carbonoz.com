@@ -1,0 +1,148 @@
+model User {
+  id                   String                 @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @default(now())
+  active               Boolean                @default(false)
+  activeStatus         Boolean                @default(true)
+  manualAccessOverride Boolean                @default(false)
+  manualAccessExpiry   DateTime?
+  role                 ERole                  @default(USER)
+  email                String?                @unique
+  defaultPassword      Boolean                @default(false)
+  password             String?
+  Topic                Topic[]
+  Box                  Box[]
+  TotalEnergy          TotalEnergy[]
+  UserAssetInformation UserAssetInformation[]
+  UserSteps            UserSteps[]
+  RedexInformation     RedexInformation[]
+  UserPorts            UserPorts[]
+  Partners             Partners[]
+  UserInformation      UserInformation[]
+  Asset                Asset[]
+  MeteringEvidence     MeteringEvidence[]
+  Certification        Certification[]
+  Project              Project[]
+  SystemSteps          SystemSteps[]
+  UserCredentials      UserCredentials[]
+  Logs                 Logs[]
+  RedexRegisterDevice  RedexRegisterDevice[]
+  Subscription         Subscription[]
+  Payment              Payment[]
+}
+
+model UserInformation {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now())
+  userId           String   @db.ObjectId
+  user             User?    @relation(fields: [userId], references: [id])
+  firstName        String?
+  lastName         String?
+  street           String?
+  city             String?
+  telephone        String?
+  customerLanguage String?
+  customerTimezone String?
+}
+
+model Asset {
+  id                       String   @id @default(auto()) @map("_id") @db.ObjectId
+  assetName                String
+  assetOwner               String
+  fuelType                 String
+  country                  String
+  latitude                 Float
+  longitude                Float
+  capacityKwp              Float
+  service                  String
+  codDate                  DateTime
+  amountOfInverters        Int
+  amountOfPanels           Int
+  panelBrand               String
+  panelPower               Int
+  amountOfBatteries        Int?
+  batteryBrand             String?
+  batteryModel             String?
+  inverterModel            String
+  monitoringSystemName     String
+  monitoringSystemURL      String
+  buildingPhotoUpload      String
+  inverterSetupPhotoUpload String
+  solarPanelsPhotoUpload   String
+  inverterBrand            String?
+  BatterySerialNumber1     String?
+  BatterySerialNumber2     String?
+  BatterySerialNumber3     String?
+  InverterSerielnumber1    String?
+  InverterSerialnumber1    String?
+  InverterSerialnumber2    String?
+  InverterSerialnumber3    String?
+  userId                   String   @db.ObjectId
+  user                     User     @relation(fields: [userId], references: [id])
+}
+
+model MeteringEvidence {
+  id                          String  @id @default(auto()) @map("_id") @db.ObjectId
+  meterId                     String?
+  meterBrand                  String?
+  meterType                   String?
+  meteringEvidencePhotoUpload String
+  userId                      String  @db.ObjectId
+  user                        User    @relation(fields: [userId], references: [id])
+}
+
+model Certification {
+  id                                     String  @id @default(auto()) @map("_id") @db.ObjectId
+  powerPurchaseAgreement                 String?
+  interconnectionAgreement               String?
+  commissioningCertificationToGrid       String?
+  commissioningCertificationOrInspection String?
+  powerQualityTest                       String?
+  IDPhotoUploadorCompanyCertificate      String?
+  userId                                 String  @db.ObjectId
+  user                                   User    @relation(fields: [userId], references: [id])
+}
+
+model Project {
+  id                 String  @id @default(auto()) @map("_id") @db.ObjectId
+  projectBackground  String?
+  projectDescription String?
+  projectImpact      String?
+  userId             String  @db.ObjectId
+  user               User    @relation(fields: [userId], references: [id])
+}
+
+model UserCredentials {
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String @db.ObjectId
+  user         User   @relation(fields: [userId], references: [id])
+  clientId     String
+  clientSecret String
+}
+
+model UserAssetInformation {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  assetOwner String?
+  assetName  String?
+  fuelType   EFuelType @default(SOLAR)
+  country    String?
+  address    String?
+  latitude   Float?
+  longitude  Float?
+  capacity   Float?
+  userId     String    @db.ObjectId
+  user       User?     @relation(fields: [userId], references: [id])
+}
+
+model UserPorts {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now())
+  userId       String   @db.ObjectId
+  user         User?    @relation(fields: [userId], references: [id])
+  port         String
+  mqttUsername String?
+  mqttPassword String?
+  mqttPort     Int?
+}
