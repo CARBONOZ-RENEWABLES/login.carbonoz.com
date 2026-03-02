@@ -15,6 +15,7 @@ interface CustomButtonProps {
   form?: string
   background?: string
   variant?: 'primary' | 'secondary' | 'ghost' | 'destructive'
+  style?: React.CSSProperties
 }
 
 const CustomButton: FC<CustomButtonProps> = ({
@@ -27,6 +28,7 @@ const CustomButton: FC<CustomButtonProps> = ({
   loading,
   form,
   variant = 'primary',
+  style,
 }) => {
   const getStyles = () => {
     const base = 'inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#DEAF0B]/40'
@@ -55,7 +57,7 @@ const CustomButton: FC<CustomButtonProps> = ({
       disabled={disabled || loading}
       form={form}
       className={`${getStyles()} ${className} ${disabled || loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-      style={{ color: variant === 'primary' ? '#000' : undefined }}
+      style={{ ...style, color: variant === 'primary' ? '#000' : undefined }}
     >
       {loading && (
         <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

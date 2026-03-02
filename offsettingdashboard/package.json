@@ -17,6 +17,7 @@
     "@stripe/stripe-js": "^8.8.0",
     "@types/react-select-country-list": "^2.2.3",
     "antd": "^5.17.0",
+    "axios": "^1.13.6",
     "dayjs": "^1.11.11",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.34.3",
