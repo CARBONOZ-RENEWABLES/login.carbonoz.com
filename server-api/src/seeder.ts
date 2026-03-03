@@ -22,11 +22,6 @@ export class SeedData implements OnModuleInit {
 
   async seedOnInit() {
     try {
-      const admin = await this.prismaService.user.findFirst({
-        where: { role: ERole.ADMIN },
-      });
-
-      if (admin) return;
       const adminEmail = this.config.get('admin').email;
 
       const isUserExist = await this.prismaService.user.findUnique({
