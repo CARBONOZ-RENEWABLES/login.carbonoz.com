@@ -22,26 +22,31 @@ export class SeedData implements OnModuleInit {
 
   async seedOnInit() {
     try {
-      const adminEmail = this.config.get('admin').email;
+      const adminConfig = this.config.get('admin');
+      if (!adminConfig?.email) {
+        console.log('Admin email not configured, skipping seed');
+        return;
+      }
 
       const isUserExist = await this.prismaService.user.findUnique({
         where: {
-          email: adminEmail,
+          email: adminConfig.email,
         },
       });
       if (isUserExist) return;
 
-      const password = await argon.hash(`${this.config.get('admin').password}`);
+      const password = await argon.hash(adminConfig.password);
 
       await this.prismaService.user.create({
         data: {
-          email: adminEmail,
+          email: adminConfig.email,
           password,
           role: ERole.ADMIN,
           active: true,
         },
       });
     } catch (error) {
+      console.error('Seeder error:', error);
       throw new InternalServerErrorException(error);
     }
   }
