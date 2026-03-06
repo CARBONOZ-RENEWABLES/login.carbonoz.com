@@ -19,10 +19,23 @@ export function appConfig(): IAppConfig {
       clientSecret: process.env.REDEX_CLIENT_SECRET,
     },
     frontedUrl: process.env.FRONTED_URL,
+    backendUrl: process.env.BACKEND_URL || 'http://192.168.160.190:3000/api/v1',
     admin: {
       email: process.env.ADMIN_EMAIL,
       password: process.env.ADMIN_PASSWORD,
     },
+    smtp: {
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT ? +process.env.SMTP_PORT : undefined,
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    googleClientId: process.env.GOOGLE_CLIENT_ID,
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    appleClientId: process.env.APPLE_CLIENT_ID,
+    appleTeamId: process.env.APPLE_TEAM_ID,
+    appleKeyId: process.env.APPLE_KEY_ID,
+    applePrivateKey: process.env.APPLE_PRIVATE_KEY,
   };
 }
 

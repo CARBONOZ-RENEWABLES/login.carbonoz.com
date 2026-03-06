@@ -6,7 +6,15 @@ export interface IAppConfig {
   swaggerEnabled?: boolean;
   redex?: IRedexConfig;
   frontedUrl: string;
+  backendUrl: string;
   admin: amdinConfig;
+  smtp?: SmtpConfig;
+  googleClientId?: string;
+  googleClientSecret?: string;
+  appleClientId?: string;
+  appleTeamId?: string;
+  appleKeyId?: string;
+  applePrivateKey?: string;
 }
 
 interface JwtConfig {
@@ -23,4 +31,11 @@ interface IRedexConfig {
 interface amdinConfig {
   email: string;
   password: string;
+}
+
+interface SmtpConfig {
+  host?: string;
+  port?: number;
+  user?: string;
+  pass?: string;
 }

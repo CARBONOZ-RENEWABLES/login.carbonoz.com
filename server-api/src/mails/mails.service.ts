@@ -24,7 +24,7 @@ export class MailsService {
       });
       if (emailSent) return { message: 'Email sent successfully' };
     } catch (error) {
-      throw new InternalServerErrorException({ error });
+      return { message: 'Email service not configured' };
     }
   }
 }

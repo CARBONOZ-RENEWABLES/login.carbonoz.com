@@ -112,13 +112,14 @@ export class AuthService {
       throw new ConflictException('User with this email already exists');
     const password = await argon.hash(dto.password);
     dto.password = password;
+    const smtpEnabled = this.config.get('smtp')?.host && this.config.get('smtp')?.user;
     const user = await this.prismaService.user.create({
       data: {
         ...dto,
-        active: this.config.get('env') === 'development' ? true : false,
+        active: !smtpEnabled || this.config.get('env') === 'development',
       },
     });
-    if (this.config.get('env') === 'development') {
+    if (!smtpEnabled || this.config.get('env') === 'development') {
       return this.generateToken(user, null);
     }
     const token = this.generateToken(user, null, true);
@@ -152,8 +153,9 @@ export class AuthService {
         throw new ForbiddenException('User is disabled');
       }
 
+      const smtpEnabled = this.config.get('smtp')?.host && this.config.get('smtp')?.user;
       if (user.active === false) {
-        if (this.config.get('env') === 'development') {
+        if (!smtpEnabled || this.config.get('env') === 'development') {
           await this.prismaService.user.update({
             where: { id: user.id },
             data: { active: true },
