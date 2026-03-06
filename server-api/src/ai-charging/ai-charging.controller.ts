@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import { AiChargingService } from './ai-charging.service';
 
-@Controller('v1/ai-charging')
+@Controller('ai-charging')
 export class AiChargingController {
   constructor(private readonly aiChargingService: AiChargingService) {}
 
