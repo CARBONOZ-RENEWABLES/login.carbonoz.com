@@ -74,7 +74,8 @@ export class RedexService {
   async generateRedexToken() {
     const redexConfig = this.configService.get('redex');
     if (!redexConfig?.url || !redexConfig?.apiKey) {
-      throw new BadRequestException('Redex configuration is missing');
+      this.logger.warn('Redex configuration is missing - skipping Redex integration');
+      return null;
     }
 
     const body = {
@@ -110,15 +111,16 @@ export class RedexService {
       } else {
         this.logger.error('Axios error:', error.message);
       }
-      throw new BadRequestException({
-        message: 'Failed to generate Redex token',
-        error: error.message,
-      });
+      return null;
     }
   }
 
   async uplaodFile(file: Express.Multer.File, user: User): Promise<string> {
     const token = await this.generateRedexToken();
+    if (!token) {
+      this.logger.warn('Redex not configured - skipping file upload');
+      return null;
+    }
     const formData = new FormData();
     formData.append('File', file.buffer, {
       filename: file.originalname,
@@ -314,6 +316,12 @@ export class RedexService {
   }
 
   async getMonthlyData() {
+    const redexToken = await this.generateRedexToken();
+    if (!redexToken) {
+      this.logger.warn('Redex not configured - skipping monthly data sync');
+      return;
+    }
+
     const remoteInvIds = await this.prismaService.redexInformation.findMany({
       include: {
         user: {
@@ -394,8 +402,6 @@ export class RedexService {
       });
     }
 
-    const token = await this.generateRedexToken();
-
     const body = responses;
 
     try {
@@ -409,7 +415,7 @@ export class RedexService {
             {
               headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
+                Authorization: `Bearer ${redexToken}`,
               },
             },
           ),
@@ -448,7 +454,11 @@ export class RedexService {
   }
 
   async sendRegisteredDeviceToRedex() {
-    const token = await this.generateRedexToken();
+    const redexToken = await this.generateRedexToken();
+    if (!redexToken) {
+      this.logger.warn('Redex not configured - skipping device registration');
+      return;
+    }
 
     const allDevices = await this.prismaService.redexRegisterDevice.findMany({
       where: {
@@ -516,7 +526,7 @@ export class RedexService {
               {
                 headers: {
                   'Content-Type': 'application/json',
-                  Authorization: `Bearer ${token}`,
+                  Authorization: `Bearer ${redexToken}`,
                 },
               },
             ),
