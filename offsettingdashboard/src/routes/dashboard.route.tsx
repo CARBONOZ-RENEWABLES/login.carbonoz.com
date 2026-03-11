@@ -14,6 +14,7 @@ import Profile from '../components/dashboard/profile/profile'
 import Settings from '../components/dashboard/settings/settings'
 import SubscribePage from '../components/subscription/SubscribePage'
 import AiChargingDashboard from '../components/AiChargingDashboard'
+import DiagnosticsPage from '../pages/DiagnosticsPage'
 import NotFound from '../components/notfound/notFound'
 import { useGetBoxesQuery } from '../lib/api/box/boxEndPoints'
 import { useGetPartnersQuery } from '../lib/api/partners/partnersEndPoints'
@@ -177,6 +178,7 @@ export const DashboardRoutes: FC = (): ReactElement => {
               />
               <Route path='/subscribe' element={<SubscribePage />} />
               <Route path='/ai-charging' element={<AiChargingDashboard userId={data?.data?.id} />} />
+              <Route path='/diagnostics' element={<DiagnosticsPage />} />
               <Route path='*' element={<NotFound />} />
             </Routes>
           </ContentWrapper>

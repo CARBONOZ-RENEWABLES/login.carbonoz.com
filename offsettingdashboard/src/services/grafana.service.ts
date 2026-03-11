@@ -32,7 +32,7 @@ export const getGrafanaDashboardUrl = (
 
   if (kiosk) params.append('kiosk', 'tv')
 
-  return `${GRAFANA_API_URL}/d-solo/${dashboardUid}?${params.toString()}`
+  return `${GRAFANA_API_URL}/d/${dashboardUid}?${params.toString()}`
 }
 
 export const checkGrafanaHealth = async (): Promise<boolean> => {

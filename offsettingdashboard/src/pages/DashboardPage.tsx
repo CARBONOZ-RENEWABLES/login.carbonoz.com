@@ -1,12 +1,19 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import GrafanaDashboard from '../components/GrafanaDashboard'
+import { getFromLocal } from '../helpers/handleStorage'
 
 export const DashboardPage = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [activeTab, setActiveTab] = useState<'gauges' | 'charts'>('gauges')
+  const [userId, setUserId] = useState<string>('')
   
-  // Get userId from your auth context/store
-  const userId = 'user123' // Replace with actual user ID from auth
+  useEffect(() => {
+    // Get userId from localStorage (set during login)
+    const user = getFromLocal<{ _id?: string; id?: string }>('user')
+    if (user) {
+      setUserId(user._id || user.id || '')
+    }
+  }, [])
 
   return (
     <div className={`min-h-screen ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
