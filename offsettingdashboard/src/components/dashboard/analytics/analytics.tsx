@@ -22,6 +22,8 @@ import { AdditionalInfoInt } from '../../../lib/api/user/userEndPoints'
 import Last7DaysGraph from '../charts/7days/PastSevenDays'
 import Last30DaysGraph from '../charts/30days/PastThirtyDays'
 import Last12MonthGraph from '../charts/12months/PastTwelveMonth'
+import AdvancedAreaChart from '../charts/AdvancedAreaChart'
+import ComprehensiveAreaChart from '../charts/ComprehensiveAreaChart'
 
 interface CustomInputProps {
   Timezone: string
@@ -59,7 +61,9 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
     refetch: decadeRefetch,
   } = useGetEnergyForLast10YearsQuery()
 
-  const pastThirtyDays = monthlyData ? [...monthlyData.data].reverse() : []
+  const pastThirtyDays = monthlyData ? [...monthlyData.data] : []
+  const past7Days = data ? [...data.data] : []
+  const past12Months = yearlyData ? [...yearlyData.data] : []
 
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -106,6 +110,7 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
           7: 'CSV-report-for-last-7-days',
           30: 'CSV-report-for-last-30-days',
           12: 'CSV-report-for-last-12-months',
+          10: 'CSV-report-for-last-10-years',
         }
         handleFileDownload({
           name: fileNames[period as keyof typeof fileNames],
@@ -177,7 +182,7 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
           <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Last 7 days</p>
         </div>
         <div className='p-6'>
-          <Last7DaysGraph data={data?.data || []} />
+          <AdvancedAreaChart data={past7Days} />
         </div>
       </motion.div>
 
@@ -220,7 +225,7 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
         </div>
         <div className='p-6'>
           <EnergyTable
-            data={pastThirtyDays.slice(0, 7)}
+            data={past7Days}
             isFetching={isFetching}
           />
         </div>
@@ -238,7 +243,7 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
           <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Last 30 days</p>
         </div>
         <div className='p-6'>
-          <Last30DaysGraph data={monthlyData?.data || []} />
+          <ComprehensiveAreaChart data={pastThirtyDays} dateFormat='DD/MM' />
         </div>
       </motion.div>
 
@@ -301,7 +306,7 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
           <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Last 12 months</p>
         </div>
         <div className='p-6'>
-          <Last12MonthGraph data={yearlyData?.data || []} />
+          <ComprehensiveAreaChart data={past12Months} dateFormat='MMM YY' />
         </div>
       </motion.div>
 
@@ -344,7 +349,7 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
         </div>
         <div className='p-6'>
           <EnergyTable
-            data={yearlyData?.data}
+            data={past12Months}
             isFetching={isFetching}
             type='yearly'
           />
@@ -366,15 +371,26 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            disabled={true}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 opacity-40 cursor-not-allowed'
+            onClick={() => onDownload(10)}
+            disabled={isLoading && downloadingPeriod === 10}
+            className='flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
             style={{
-              background: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
-              color: '#ffffff'
+              background: 'linear-gradient(135deg, #DEAF0B 0%, #c99d0a 100%)',
+              color: '#ffffff',
+              boxShadow: '0 2px 8px rgba(222,175,11,0.3)'
             }}
           >
-            <Download size={16} />
-            <span>Not Available</span>
+            {isLoading && downloadingPeriod === 10 ? (
+              <>
+                <div className='w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin' />
+                <span>Downloading...</span>
+              </>
+            ) : (
+              <>
+                <Download size={16} />
+                <span>Download CSV</span>
+              </>
+            )}
           </motion.button>
         </div>
         <div className='p-6'>

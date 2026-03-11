@@ -17,14 +17,15 @@ export const DiagnosticsPage = () => {
     }
 
     // Check Grafana health
-    fetch('https://login.carbonoz.com/grafana/api/health')
+    const grafanaUrl = import.meta.env.VITE_GRAFANA_URL || 'http://localhost:3001'
+    fetch(`${grafanaUrl}/api/health`)
       .then(res => res.json())
       .then(data => setGrafanaHealth(JSON.stringify(data, null, 2)))
       .catch(err => setGrafanaHealth(`Error: ${err.message}`))
 
     // Check InfluxDB data
     const testUserId = userData?._id || userData?.id || '69aacf12fe464cb9d11fa083'
-    fetch(`https://login.carbonoz.com/grafana/api/datasources/proxy/1/query?db=home_assistant&q=SELECT * FROM "battery_voltage" WHERE "userId" = '${testUserId}' AND time > now() - 1h LIMIT 5`)
+    fetch(`${grafanaUrl}/api/datasources/proxy/1/query?db=home_assistant&q=SELECT * FROM "battery_voltage" WHERE "userId" = '${testUserId}' AND time > now() - 1h LIMIT 5`)
       .then(res => res.json())
       .then(data => setInfluxData(JSON.stringify(data, null, 2)))
       .catch(err => setInfluxData(`Error: ${err.message}`))
@@ -62,22 +63,22 @@ export const DiagnosticsPage = () => {
           <div className="space-y-2 text-sm">
             <p><strong>Gauges:</strong></p>
             <a 
-              href={`https://login.carbonoz.com/grafana/d-solo/solar_power_dashboard?orgId=1&var-userId=${userId}&theme=dark&refresh=10s&from=now-24h&to=now&kiosk=tv`}
+              href={`${import.meta.env.VITE_GRAFANA_URL || 'http://localhost:3001'}/d-solo/solar_power_dashboard?orgId=1&var-userId=${userId}&theme=dark&refresh=10s&from=now-24h&to=now&kiosk=tv`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-400 hover:underline block break-all"
             >
-              {`https://login.carbonoz.com/grafana/d-solo/solar_power_dashboard?orgId=1&var-userId=${userId}&theme=dark&refresh=10s&from=now-24h&to=now&kiosk=tv`}
+              {`${import.meta.env.VITE_GRAFANA_URL || 'http://localhost:3001'}/d-solo/solar_power_dashboard?orgId=1&var-userId=${userId}&theme=dark&refresh=10s&from=now-24h&to=now&kiosk=tv`}
             </a>
             
             <p className="mt-4"><strong>Charts:</strong></p>
             <a 
-              href={`https://login.carbonoz.com/grafana/d-solo/solar_charts_dashboard?orgId=1&var-userId=${userId}&theme=dark&refresh=10s&from=now-24h&to=now&kiosk=tv`}
+              href={`${import.meta.env.VITE_GRAFANA_URL || 'http://localhost:3001'}/d-solo/solar_charts_dashboard?orgId=1&var-userId=${userId}&theme=dark&refresh=10s&from=now-24h&to=now&kiosk=tv`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-400 hover:underline block break-all"
             >
-              {`https://login.carbonoz.com/grafana/d-solo/solar_charts_dashboard?orgId=1&var-userId=${userId}&theme=dark&refresh=10s&from=now-24h&to=now&kiosk=tv`}
+              {`${import.meta.env.VITE_GRAFANA_URL || 'http://localhost:3001'}/d-solo/solar_charts_dashboard?orgId=1&var-userId=${userId}&theme=dark&refresh=10s&from=now-24h&to=now&kiosk=tv`}
             </a>
           </div>
         </div>

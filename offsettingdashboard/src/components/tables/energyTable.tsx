@@ -69,6 +69,8 @@ const EnergyTable: FC<Props> = ({
         title='Date'
         key='date'
         {...getColumnProps('Date')}
+        sorter={(a: energyInt, b: energyInt) => new Date(b.date).getTime() - new Date(a.date).getTime()}
+        defaultSortOrder='ascend'
         render={(record: energyInt) => (
           <span className='text-gray-500 font-bold '>
             {dayjs(record?.date).format(dateFormat)}

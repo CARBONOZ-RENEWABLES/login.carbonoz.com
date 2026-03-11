@@ -10,6 +10,7 @@ import {
   useGetCarbonIntensityFor30DaysQuery,
   useGetCarbonIntensityFor12MonthsQuery,
 } from '../../../lib/api/carbonIntensity/carbonIntensityEndpoints'
+import CarbonIntensityChart from '../charts/CarbonIntensityChart'
 
 const { Option } = Select
 
@@ -129,9 +130,29 @@ const CarbonIntensity: FC<CarbonIntensityProps> = ({ additionalData }): ReactEle
         className='mt-8 border rounded-xl overflow-hidden shadow-md transition-all duration-200 hover:shadow-lg'
         style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
       >
+        <div className='p-6 border-b border-l-4' style={{ borderBottomColor: 'var(--border)', borderLeftColor: '#22c55e' }}>
+          <h2 className='text-lg font-bold' style={{ color: 'var(--text-primary)' }}>Carbon Emissions Chart</h2>
+          <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Last 7 days</p>
+        </div>
+        <div className='p-6'>
+          {fetching7Days ? (
+            <GeneralContentLoader />
+          ) : (
+            <CarbonIntensityChart data={data7Days?.data?.last7Days || []} dateFormat='DD/MM' />
+          )}
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className='mt-8 border rounded-xl overflow-hidden shadow-md transition-all duration-200 hover:shadow-lg'
+        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
+      >
         <div className='flex justify-between items-center p-6 border-b border-l-4' style={{ borderBottomColor: 'var(--border)', borderLeftColor: '#22c55e' }}>
           <div>
-            <h2 className='text-lg font-bold' style={{ color: 'var(--text-primary)' }}>Carbon Emissions</h2>
+            <h2 className='text-lg font-bold' style={{ color: 'var(--text-primary)' }}>Carbon Emissions Data</h2>
             <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Last 7 days</p>
           </div>
           <motion.button
@@ -165,9 +186,29 @@ const CarbonIntensity: FC<CarbonIntensityProps> = ({ additionalData }): ReactEle
         className='mt-8 border rounded-xl overflow-hidden shadow-md transition-all duration-200 hover:shadow-lg'
         style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
       >
+        <div className='p-6 border-b border-l-4' style={{ borderBottomColor: 'var(--border)', borderLeftColor: '#22c55e' }}>
+          <h2 className='text-lg font-bold' style={{ color: 'var(--text-primary)' }}>Carbon Emissions Chart</h2>
+          <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Last 30 days</p>
+        </div>
+        <div className='p-6'>
+          {fetching30Days ? (
+            <GeneralContentLoader />
+          ) : (
+            <CarbonIntensityChart data={data30Days?.data?.last30Days || []} dateFormat='DD/MM' />
+          )}
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+        className='mt-8 border rounded-xl overflow-hidden shadow-md transition-all duration-200 hover:shadow-lg'
+        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
+      >
         <div className='flex justify-between items-center p-6 border-b border-l-4' style={{ borderBottomColor: 'var(--border)', borderLeftColor: '#22c55e' }}>
           <div>
-            <h2 className='text-lg font-bold' style={{ color: 'var(--text-primary)' }}>Carbon Emissions</h2>
+            <h2 className='text-lg font-bold' style={{ color: 'var(--text-primary)' }}>Carbon Emissions Data</h2>
             <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Last 30 days</p>
           </div>
           <motion.button
@@ -201,9 +242,29 @@ const CarbonIntensity: FC<CarbonIntensityProps> = ({ additionalData }): ReactEle
         className='mt-8 border rounded-xl overflow-hidden shadow-md transition-all duration-200 hover:shadow-lg'
         style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
       >
+        <div className='p-6 border-b border-l-4' style={{ borderBottomColor: 'var(--border)', borderLeftColor: '#22c55e' }}>
+          <h2 className='text-lg font-bold' style={{ color: 'var(--text-primary)' }}>Carbon Emissions Chart</h2>
+          <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Last 12 months</p>
+        </div>
+        <div className='p-6'>
+          {fetching12Months ? (
+            <GeneralContentLoader />
+          ) : (
+            <CarbonIntensityChart data={data12Months?.data?.last12Months || []} dateFormat='MMM YY' />
+          )}
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+        className='mt-8 border rounded-xl overflow-hidden shadow-md transition-all duration-200 hover:shadow-lg'
+        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
+      >
         <div className='flex justify-between items-center p-6 border-b border-l-4' style={{ borderBottomColor: 'var(--border)', borderLeftColor: '#22c55e' }}>
           <div>
-            <h2 className='text-lg font-bold' style={{ color: 'var(--text-primary)' }}>Carbon Emissions</h2>
+            <h2 className='text-lg font-bold' style={{ color: 'var(--text-primary)' }}>Carbon Emissions Data</h2>
             <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Last 12 months</p>
           </div>
           <motion.button
@@ -296,6 +357,9 @@ const CarbonTable: FC<{ data: any[] }> = ({ data }) => {
     )
   }
 
+  // Sort data by date, newest first
+  const sortedData = [...data].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
   return (
     <div className='overflow-x-auto'>
       <table className='w-full'>
@@ -311,7 +375,7 @@ const CarbonTable: FC<{ data: any[] }> = ({ data }) => {
           </tr>
         </thead>
         <tbody>
-          {data.map((row, index) => (
+          {sortedData.map((row, index) => (
             <tr key={index} className='border-b hover:bg-opacity-50 transition-colors' style={{ borderColor: 'var(--border)' }}>
               <td className='p-3 text-sm' style={{ color: 'var(--text-primary)' }}>{row.date}</td>
               <td className='p-3 text-sm text-right' style={{ color: 'var(--text-secondary)' }}>{row.carbonIntensity} gCO₂/kWh</td>
