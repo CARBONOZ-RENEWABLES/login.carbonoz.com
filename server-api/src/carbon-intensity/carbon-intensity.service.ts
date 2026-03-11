@@ -12,22 +12,14 @@ export class CarbonIntensityService {
   async getCarbonIntensityData(user: User, dto: CarbonIntensityQueryDTO, days: number) {
     const { zone, timezone = 'UTC' } = dto;
 
-    // Get carbon intensity API key from Redis
     const carbonApiKey = await this.getCarbonApiKeyFromRedis(user.id);
     if (!carbonApiKey) {
       throw new Error('Carbon intensity API key not configured');
     }
 
-    // Fetch carbon intensity history from Electricity Map API
     const carbonIntensityHistory = await this.fetchCarbonIntensityHistory(zone, carbonApiKey, days);
-
-    // Get energy data from database
     const energyData = await this.getEnergyData(user.id, days, timezone);
-
-    // Calculate emissions using the same logic as Home Assistant/Docker/Desktop apps
     const emissionsData = this.calculateEmissions(carbonIntensityHistory, energyData);
-
-    // Calculate summary statistics
     const summary = this.calculateSummary(emissionsData);
 
     return {
@@ -63,11 +55,11 @@ export class CarbonIntensityService {
 
   private async fetchCarbonIntensityHistory(zone: string, apiKey: string, days: number): Promise<any[]> {
     const historyData = [];
-    const today = moment();
-    const startDate = moment().subtract(days, 'days');
+    const today = moment().startOf('day');
+    const startDate = moment().subtract(days, 'days').startOf('day');
 
     try {
-      for (let m = moment(startDate); m.isBefore(today); m.add(1, 'day')) {
+      for (let m = moment(startDate); m.isSameOrBefore(today, 'day'); m.add(1, 'day')) {
         const date = m.format('YYYY-MM-DD');
         try {
           const response = await axios.get('https://api.electricitymap.org/v3/carbon-intensity/history', {
@@ -116,20 +108,20 @@ export class CarbonIntensityService {
       return [];
     }
 
-    const sortedEnergy = [...energyData].sort((a, b) => 
+    const sortedEnergy = [...energyData].sort((a, b) =>
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
     const results = [];
-    
+
     for (let i = 1; i < sortedEnergy.length; i++) {
       const current = sortedEnergy[i];
       const previous = sortedEnergy[i - 1];
       const currentDate = moment(current.date).format('YYYY-MM-DD');
-      
+
       const carbonData = carbonIntensityHistory.find(c => c.date === currentDate);
       if (!carbonData) continue;
-      
+
       const carbonIntensity = carbonData.carbonIntensity || 0;
       const currentPvPower = parseFloat(current.pvPower || '0');
       const previousPvPower = parseFloat(previous.pvPower || '0');
