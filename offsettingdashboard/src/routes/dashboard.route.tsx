@@ -6,7 +6,6 @@ import NavBar from '../components/common/header/header'
 import { GeneralContentLoader } from '../components/common/loader/loader'
 import Sidebar from '../components/common/sidebar/sidebar'
 import MobileBottomNav from '../components/common/mobileNav/MobileBottomNav'
-import SubscriptionToast from '../components/common/toast/SubscriptionToast'
 import Analytics from '../components/dashboard/analytics/analytics'
 import BoxInformation from '../components/dashboard/boxes/boxesInformation'
 import CarbonIntensity from '../components/dashboard/carbonIntensity/carbonIntensity'
@@ -28,7 +27,6 @@ import Private from './private'
 export const DashboardRoutes: FC = (): ReactElement => {
   const navigate = useNavigate()
   const [subscription, setSubscription] = useState<any>(null)
-  const [showToast, setShowToast] = useState(false)
 
   const {
     data: boxesData,
@@ -77,7 +75,6 @@ export const DashboardRoutes: FC = (): ReactElement => {
         if (response.ok) {
           const data = await response.json()
           setSubscription(data)
-          setShowToast(true)
         }
       } catch (error) {
         console.error('Error fetching subscription:', error)
@@ -173,7 +170,7 @@ export const DashboardRoutes: FC = (): ReactElement => {
       <div className='flex h-[100%] w-[100%] '>
         <Sidebar boxesData={boxesData?.data} />
         <div className='flex-1 h-[100%] flex flex-col mb-16 w-[100%] md:mb-0'>
-          <NavBar data={data?.data} boxesData={boxesData?.data} />
+          <NavBar data={data?.data} boxesData={boxesData?.data} subscription={subscription} />
           <ContentWrapper>
             <Routes>
               <Route
@@ -220,7 +217,6 @@ export const DashboardRoutes: FC = (): ReactElement => {
           </ContentWrapper>
         </div>
         <MobileBottomNav />
-        <SubscriptionToast subscription={subscription} show={showToast} />
       </div>
     </div>
   )

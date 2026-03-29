@@ -52,8 +52,8 @@ const AiChargingDashboard: FC<AiChargingDashboardProps> = ({ userId }): ReactEle
               <Zap size={24} style={{ color: '#DEAF0B' }} />
             </div>
             <div>
-              <h1 className='text-2xl sm:text-3xl font-bold tracking-tight' style={{ color: 'var(--text-primary)' }}>AI Charging</h1>
-              <p className='text-xs sm:text-sm' style={{ color: 'var(--text-secondary)' }}>Intelligent battery optimization</p>
+              <h1 className='text-3xl font-bold tracking-tight' style={{ color: 'var(--text-primary)' }}>AI Charging</h1>
+              <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Intelligent battery optimization</p>
             </div>
           </div>
         </motion.div>
@@ -85,14 +85,14 @@ const AiChargingDashboard: FC<AiChargingDashboardProps> = ({ userId }): ReactEle
         animate={{ opacity: 1, y: 0 }}
         className='w-[100%] mb-8'
       >
-        <div className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-2'>
+        <div className='flex items-center justify-between mb-2'>
           <div className='flex items-center gap-3'>
             <div className='w-10 h-10 rounded-xl flex items-center justify-center' style={{ background: 'rgba(222,175,11,0.1)' }}>
               <Zap size={24} style={{ color: '#DEAF0B' }} />
             </div>
             <div>
-              <h1 className='text-2xl sm:text-3xl font-bold tracking-tight' style={{ color: 'var(--text-primary)' }}>AI Charging</h1>
-              <p className='text-xs sm:text-sm' style={{ color: 'var(--text-secondary)' }}>Intelligent battery optimization in action</p>
+              <h1 className='text-3xl font-bold tracking-tight' style={{ color: 'var(--text-primary)' }}>AI Charging</h1>
+              <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Intelligent battery optimization in action</p>
             </div>
           </div>
           <motion.div

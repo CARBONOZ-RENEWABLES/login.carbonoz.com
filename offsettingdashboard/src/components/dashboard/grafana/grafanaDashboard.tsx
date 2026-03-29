@@ -43,14 +43,14 @@ const GrafanaDashboard: FC<GrafanaDashboardProps> = ({ additionalData }): ReactE
         animate={{ opacity: 1, y: 0 }}
         className='mb-6'
       >
-        <div className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4'>
+        <div className='flex items-center justify-between'>
           <div className='flex items-center gap-3'>
             <div className='w-10 h-10 rounded-xl flex items-center justify-center' style={{ background: 'rgba(222,175,11,0.1)' }}>
               <BarChart3 size={24} style={{ color: '#DEAF0B' }} />
             </div>
             <div>
-              <h1 className='text-2xl sm:text-3xl font-bold tracking-tight' style={{ color: 'var(--text-primary)' }}>Dashboard</h1>
-              <p className='text-xs sm:text-sm' style={{ color: 'var(--text-secondary)' }}>Real-time solar power monitoring</p>
+              <h1 className='text-3xl font-bold tracking-tight' style={{ color: 'var(--text-primary)' }}>Dashboard</h1>
+              <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Real-time solar power monitoring</p>
             </div>
           </div>
           <CustomButton
@@ -70,7 +70,7 @@ const GrafanaDashboard: FC<GrafanaDashboardProps> = ({ additionalData }): ReactE
         style={{ 
           background: 'var(--surface-raised)', 
           border: '1px solid var(--border)',
-          height: '400px'
+          height: '550px'
         }}
       >
         <iframe
@@ -84,7 +84,7 @@ const GrafanaDashboard: FC<GrafanaDashboardProps> = ({ additionalData }): ReactE
         />
       </motion.div>
 
-      <div className='grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6'>
+      <div className='grid grid-cols-1 gap-6'>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -93,7 +93,7 @@ const GrafanaDashboard: FC<GrafanaDashboardProps> = ({ additionalData }): ReactE
           style={{ 
             background: 'var(--surface-raised)', 
             border: '1px solid var(--border)',
-            height: '350px'
+            height: '400px'
           }}
         >
           <iframe
@@ -115,7 +115,7 @@ const GrafanaDashboard: FC<GrafanaDashboardProps> = ({ additionalData }): ReactE
           style={{ 
             background: 'var(--surface-raised)', 
             border: '1px solid var(--border)',
-            height: '350px'
+            height: '400px'
           }}
         >
           <iframe

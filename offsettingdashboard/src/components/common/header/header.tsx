@@ -1,6 +1,6 @@
 import { Drawer, Dropdown } from 'antd'
 import { FC, ReactElement, useState } from 'react'
-import { User, LogOut, Menu, ChevronDown } from 'lucide-react'
+import { User, LogOut, ChevronDown } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import Logo from '../../../assets/1.jpg'
@@ -11,12 +11,14 @@ import AdminSidebar from '../../admin/sidebar'
 import CustomImage from '../image/customImage'
 import Sidebar from '../sidebar/sidebar'
 import SubscriptionStatus from '../../subscription/SubscriptionStatus'
+import MobileHeaderIcons from './MobileHeaderIcons'
 
 interface props {
   data?: AdditionalInfoInt | undefined
   additional?: boolean
   boxesData?: Array<boxInterface> | undefined
   isAdmin?: boolean
+  subscription?: any
 }
 
 const NavBar: FC<props> = ({
@@ -24,6 +26,7 @@ const NavBar: FC<props> = ({
   additional,
   boxesData,
   isAdmin,
+  subscription,
 }): ReactElement => {
   const navigate = useNavigate()
 
@@ -118,20 +121,17 @@ const NavBar: FC<props> = ({
           </motion.div>
         ) : (
           <div className='flex items-center gap-4 flex-1'>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={toggleDrawer}
-              className='p-2 rounded-lg hover:bg-[var(--surface-overlay)] transition-colors duration-200 lg:hidden'
-            >
-              <Menu size={24} style={{ color: '#DEAF0B' }} />
-            </motion.button>
             {!isAdmin && (
               <div className='flex-1 max-w-md hidden md:block'>
                 <SubscriptionStatus />
               </div>
             )}
           </div>
+        )}
+
+        {/* Mobile Header Icons - Subscription & Theme Toggle */}
+        {!isAdmin && !additional && (
+          <MobileHeaderIcons subscription={subscription} />
         )}
 
         <Dropdown overlay={ProfileDropdown} trigger={['click']} placement='bottomRight'>
