@@ -85,7 +85,7 @@ const Sidebar: FC<SideBarProps> = ({
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       className={`lg:w-[280px] 2xl:w-[280px] ${
         isDrawer ? 'flex w-[280px]' : 'hidden'
-      } h-[100%] lg:flex flex-col py-6 px-4 bg-[var(--surface-base)] border-r border-[var(--border)]`}
+      } h-[100%] lg:flex flex-col py-6 px-4 bg-[var(--surface-base)] border-r border-[var(--border)] max-md:hidden`}
       style={{ background: 'var(--surface-base)', borderColor: 'var(--border)' }}
     >
       <motion.div

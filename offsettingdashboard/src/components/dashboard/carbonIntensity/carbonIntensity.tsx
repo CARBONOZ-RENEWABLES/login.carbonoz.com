@@ -64,8 +64,8 @@ const CarbonIntensity: FC<CarbonIntensityProps> = ({ additionalData }): ReactEle
             <Leaf size={24} style={{ color: '#22c55e' }} />
           </div>
           <div>
-            <h1 className='text-3xl font-bold tracking-tight' style={{ color: 'var(--text-primary)' }}>Carbon Intensity</h1>
-            <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Monitor your carbon emissions and environmental impact</p>
+            <h1 className='text-2xl sm:text-3xl font-bold tracking-tight' style={{ color: 'var(--text-primary)' }}>Carbon Intensity</h1>
+            <p className='text-xs sm:text-sm' style={{ color: 'var(--text-secondary)' }}>Monitor your carbon emissions and environmental impact</p>
           </div>
         </div>
       </motion.div>
@@ -159,15 +159,16 @@ const CarbonIntensity: FC<CarbonIntensityProps> = ({ additionalData }): ReactEle
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => {}}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200'
+            className='flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 text-xs sm:text-sm'
             style={{
               background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
               color: '#ffffff',
               boxShadow: '0 2px 8px rgba(34,197,94,0.3)'
             }}
           >
-            <Download size={16} />
-            <span>Download CSV</span>
+            <Download size={14} className='sm:w-4 sm:h-4' />
+            <span className='hidden sm:inline'>Download CSV</span>
+            <span className='sm:hidden'>CSV</span>
           </motion.button>
         </div>
         <div className='p-6'>
@@ -215,15 +216,16 @@ const CarbonIntensity: FC<CarbonIntensityProps> = ({ additionalData }): ReactEle
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => {}}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200'
+            className='flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 text-xs sm:text-sm'
             style={{
               background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
               color: '#ffffff',
               boxShadow: '0 2px 8px rgba(34,197,94,0.3)'
             }}
           >
-            <Download size={16} />
-            <span>Download CSV</span>
+            <Download size={14} className='sm:w-4 sm:h-4' />
+            <span className='hidden sm:inline'>Download CSV</span>
+            <span className='sm:hidden'>CSV</span>
           </motion.button>
         </div>
         <div className='p-6'>
@@ -271,15 +273,16 @@ const CarbonIntensity: FC<CarbonIntensityProps> = ({ additionalData }): ReactEle
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => {}}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200'
+            className='flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 text-xs sm:text-sm'
             style={{
               background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
               color: '#ffffff',
               boxShadow: '0 2px 8px rgba(34,197,94,0.3)'
             }}
           >
-            <Download size={16} />
-            <span>Download CSV</span>
+            <Download size={14} className='sm:w-4 sm:h-4' />
+            <span className='hidden sm:inline'>Download CSV</span>
+            <span className='sm:hidden'>CSV</span>
           </motion.button>
         </div>
         <div className='p-6'>

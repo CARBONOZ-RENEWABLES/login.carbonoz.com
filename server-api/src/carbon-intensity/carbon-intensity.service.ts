@@ -54,35 +54,36 @@ export class CarbonIntensityService {
   }
 
   private async fetchCarbonIntensityHistory(zone: string, apiKey: string, days: number): Promise<any[]> {
-    const historyData = [];
     const today = moment().startOf('day');
     const startDate = moment().subtract(days, 'days').startOf('day');
 
-    try {
-      for (let m = moment(startDate); m.isSameOrBefore(today, 'day'); m.add(1, 'day')) {
-        const date = m.format('YYYY-MM-DD');
-        try {
-          const response = await axios.get('https://api.electricitymap.org/v3/carbon-intensity/history', {
-            params: { zone, datetime: date },
-            headers: { 'auth-token': apiKey },
-            timeout: 10000,
-          });
-
+    const datePromises = [];
+    for (let m = moment(startDate); m.isSameOrBefore(today, 'day'); m.add(1, 'day')) {
+      const date = m.format('YYYY-MM-DD');
+      datePromises.push(
+        axios.get('https://api.electricitymap.org/v3/carbon-intensity/history', {
+          params: { zone, datetime: date },
+          headers: { 'auth-token': apiKey },
+          timeout: 10000,
+        })
+        .then(response => {
           if (response.data.history && response.data.history.length > 0) {
-            historyData.push({
+            return {
               date,
               carbonIntensity: response.data.history[0].carbonIntensity,
-            });
+            };
           }
-        } catch (error) {
+          return null;
+        })
+        .catch(error => {
           console.error(`Error fetching carbon intensity for ${date}:`, error.message);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching carbon intensity history:', error);
+          return null;
+        })
+      );
     }
 
-    return historyData;
+    const results = await Promise.all(datePromises);
+    return results.filter(item => item !== null);
   }
 
   private async getEnergyData(userId: string, days: number, timezone: string) {

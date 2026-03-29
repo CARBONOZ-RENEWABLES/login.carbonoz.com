@@ -127,7 +127,7 @@ const NavBar: FC<props> = ({
               <Menu size={24} style={{ color: '#DEAF0B' }} />
             </motion.button>
             {!isAdmin && (
-              <div className='flex-1 max-w-md'>
+              <div className='flex-1 max-w-md hidden md:block'>
                 <SubscriptionStatus />
               </div>
             )}

@@ -138,8 +138,8 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
             <BarChart3 size={24} style={{ color: '#DEAF0B' }} />
           </div>
           <div>
-            <h1 className='text-3xl font-bold tracking-tight' style={{ color: 'var(--text-primary)' }}>Analytics</h1>
-            <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Monitor your energy consumption and performance metrics</p>
+            <h1 className='text-2xl sm:text-3xl font-bold tracking-tight' style={{ color: 'var(--text-primary)' }}>Analytics</h1>
+            <p className='text-xs sm:text-sm' style={{ color: 'var(--text-secondary)' }}>Monitor your energy consumption and performance metrics</p>
           </div>
         </div>
       </motion.div>
@@ -203,7 +203,7 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
             whileTap={{ scale: 0.95 }}
             onClick={() => onDownload(7)}
             disabled={isLoading && downloadingPeriod === 7}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
+            className='flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm'
             style={{
               background: 'linear-gradient(135deg, #DEAF0B 0%, #c99d0a 100%)',
               color: '#ffffff',
@@ -212,13 +212,15 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
           >
             {isLoading && downloadingPeriod === 7 ? (
               <>
-                <div className='w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin' />
-                <span>Downloading...</span>
+                <div className='w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin' />
+                <span className='hidden sm:inline'>Downloading...</span>
+                <span className='sm:hidden'>...</span>
               </>
             ) : (
               <>
-                <Download size={16} />
-                <span>Download CSV</span>
+                <Download size={14} className='sm:w-4 sm:h-4' />
+                <span className='hidden sm:inline'>Download CSV</span>
+                <span className='sm:hidden'>CSV</span>
               </>
             )}
           </motion.button>
@@ -264,7 +266,7 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
             whileTap={{ scale: 0.95 }}
             onClick={() => onDownload(30)}
             disabled={isLoading && downloadingPeriod === 30}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
+            className='flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm'
             style={{
               background: 'linear-gradient(135deg, #DEAF0B 0%, #c99d0a 100%)',
               color: '#ffffff',
@@ -273,13 +275,15 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
           >
             {isLoading && downloadingPeriod === 30 ? (
               <>
-                <div className='w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin' />
-                <span>Downloading...</span>
+                <div className='w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin' />
+                <span className='hidden sm:inline'>Downloading...</span>
+                <span className='sm:hidden'>...</span>
               </>
             ) : (
               <>
-                <Download size={16} />
-                <span>Download CSV</span>
+                <Download size={14} className='sm:w-4 sm:h-4' />
+                <span className='hidden sm:inline'>Download CSV</span>
+                <span className='sm:hidden'>CSV</span>
               </>
             )}
           </motion.button>
@@ -327,7 +331,7 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
             whileTap={{ scale: 0.95 }}
             onClick={() => onDownload(12)}
             disabled={isLoading && downloadingPeriod === 12}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
+            className='flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm'
             style={{
               background: 'linear-gradient(135deg, #DEAF0B 0%, #c99d0a 100%)',
               color: '#ffffff',
@@ -336,13 +340,15 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
           >
             {isLoading && downloadingPeriod === 12 ? (
               <>
-                <div className='w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin' />
-                <span>Downloading...</span>
+                <div className='w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin' />
+                <span className='hidden sm:inline'>Downloading...</span>
+                <span className='sm:hidden'>...</span>
               </>
             ) : (
               <>
-                <Download size={16} />
-                <span>Download CSV</span>
+                <Download size={14} className='sm:w-4 sm:h-4' />
+                <span className='hidden sm:inline'>Download CSV</span>
+                <span className='sm:hidden'>CSV</span>
               </>
             )}
           </motion.button>
@@ -373,7 +379,7 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
             whileTap={{ scale: 0.95 }}
             onClick={() => onDownload(10)}
             disabled={isLoading && downloadingPeriod === 10}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
+            className='flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm'
             style={{
               background: 'linear-gradient(135deg, #DEAF0B 0%, #c99d0a 100%)',
               color: '#ffffff',
@@ -382,13 +388,15 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
           >
             {isLoading && downloadingPeriod === 10 ? (
               <>
-                <div className='w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin' />
-                <span>Downloading...</span>
+                <div className='w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin' />
+                <span className='hidden sm:inline'>Downloading...</span>
+                <span className='sm:hidden'>...</span>
               </>
             ) : (
               <>
-                <Download size={16} />
-                <span>Download CSV</span>
+                <Download size={14} className='sm:w-4 sm:h-4' />
+                <span className='hidden sm:inline'>Download CSV</span>
+                <span className='sm:hidden'>CSV</span>
               </>
             )}
           </motion.button>

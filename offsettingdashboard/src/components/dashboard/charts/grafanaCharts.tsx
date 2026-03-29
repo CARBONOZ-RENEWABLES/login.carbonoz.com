@@ -41,14 +41,14 @@ const GrafanaCharts: FC<GrafanaChartsProps> = ({ additionalData }): ReactElement
         animate={{ opacity: 1, y: 0 }}
         className='mb-6'
       >
-        <div className='flex items-center justify-between'>
+        <div className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4'>
           <div className='flex items-center gap-3'>
             <div className='w-10 h-10 rounded-xl flex items-center justify-center' style={{ background: 'rgba(222,175,11,0.1)' }}>
               <TrendingUp size={24} style={{ color: '#DEAF0B' }} />
             </div>
             <div>
-              <h1 className='text-3xl font-bold tracking-tight' style={{ color: 'var(--text-primary)' }}>Charts</h1>
-              <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Time-series visualization and trends</p>
+              <h1 className='text-2xl sm:text-3xl font-bold tracking-tight' style={{ color: 'var(--text-primary)' }}>Charts</h1>
+              <p className='text-xs sm:text-sm' style={{ color: 'var(--text-secondary)' }}>Time-series visualization and trends</p>
             </div>
           </div>
           <CustomButton

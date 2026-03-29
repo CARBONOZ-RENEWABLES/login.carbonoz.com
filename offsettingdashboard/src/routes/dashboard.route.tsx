@@ -5,6 +5,8 @@ import ContentWrapper from '../components/common/contentwrapper/contentwrapper'
 import NavBar from '../components/common/header/header'
 import { GeneralContentLoader } from '../components/common/loader/loader'
 import Sidebar from '../components/common/sidebar/sidebar'
+import MobileBottomNav from '../components/common/mobileNav/MobileBottomNav'
+import SubscriptionToast from '../components/common/toast/SubscriptionToast'
 import Analytics from '../components/dashboard/analytics/analytics'
 import BoxInformation from '../components/dashboard/boxes/boxesInformation'
 import CarbonIntensity from '../components/dashboard/carbonIntensity/carbonIntensity'
@@ -25,6 +27,8 @@ import Private from './private'
 
 export const DashboardRoutes: FC = (): ReactElement => {
   const navigate = useNavigate()
+  const [subscription, setSubscription] = useState<any>(null)
+  const [showToast, setShowToast] = useState(false)
 
   const {
     data: boxesData,
@@ -50,6 +54,38 @@ export const DashboardRoutes: FC = (): ReactElement => {
     isFetching: isSystemFetching,
     refetch: stepsRefetch,
   } = useGetSystemStepsQuery()
+
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      try {
+        let token = localStorage.getItem('token')
+        if (!token) return
+        
+        try {
+          token = JSON.parse(token)
+        } catch {
+          // Token is already a string
+        }
+        
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/v1/billing/me/subscription`, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          setSubscription(data)
+          setShowToast(true)
+        }
+      } catch (error) {
+        console.error('Error fetching subscription:', error)
+      }
+    }
+
+    fetchSubscription()
+  }, [])
 
   useEffect(() => {
     if (!partnerFetching) {
@@ -136,7 +172,7 @@ export const DashboardRoutes: FC = (): ReactElement => {
     <div className='h-[100vh] bg-white overflow-y-hidden w-[100%]'>
       <div className='flex h-[100%] w-[100%] '>
         <Sidebar boxesData={boxesData?.data} />
-        <div className='flex-1 h-[100%] flex flex-col  mb-16 w-[100%] '>
+        <div className='flex-1 h-[100%] flex flex-col mb-16 w-[100%] md:mb-0'>
           <NavBar data={data?.data} boxesData={boxesData?.data} />
           <ContentWrapper>
             <Routes>
@@ -183,6 +219,8 @@ export const DashboardRoutes: FC = (): ReactElement => {
             </Routes>
           </ContentWrapper>
         </div>
+        <MobileBottomNav />
+        <SubscriptionToast subscription={subscription} show={showToast} />
       </div>
     </div>
   )

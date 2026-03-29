@@ -143,9 +143,9 @@ const SubscriptionStatus: FC<SubscriptionStatusProps> = (): ReactElement => {
   }
 
   const daysLeft = subscription?.manualAccessExpiry
-    ? Math.ceil((new Date(subscription.manualAccessExpiry).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    ? Math.max(0, Math.floor((new Date(subscription.manualAccessExpiry).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
     : subscription?.subscription?.endDate 
-    ? Math.ceil((new Date(subscription.subscription.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    ? Math.max(0, Math.floor((new Date(subscription.subscription.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
     : null
 
   return (
