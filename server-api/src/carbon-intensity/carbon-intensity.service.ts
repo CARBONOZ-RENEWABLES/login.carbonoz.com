@@ -7,27 +7,50 @@ import * as moment from 'moment-timezone';
 
 @Injectable()
 export class CarbonIntensityService {
+  private cache: Map<string, { data: any; timestamp: number }> = new Map();
+  private readonly CACHE_TTL = 3600000; // 1 hour in milliseconds
+
   constructor(private readonly prisma: PrismaService) {}
 
   async getCarbonIntensityData(user: User, dto: CarbonIntensityQueryDTO, days: number) {
     const { zone, timezone = 'UTC' } = dto;
+
+    // Create cache key
+    const cacheKey = `${user.id}-${zone}-${days}-${timezone}`;
+    
+    // Check cache
+    const cached = this.cache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+      console.log(`Cache hit for ${cacheKey}`);
+      return cached.data;
+    }
 
     const carbonApiKey = await this.getCarbonApiKeyFromRedis(user.id);
     if (!carbonApiKey) {
       throw new Error('Carbon intensity API key not configured');
     }
 
-    const carbonIntensityHistory = await this.fetchCarbonIntensityHistory(zone, carbonApiKey, days);
-    const energyData = await this.getEnergyData(user.id, days, timezone);
+    // Fetch data in parallel
+    const [carbonIntensityHistory, energyData] = await Promise.all([
+      this.fetchCarbonIntensityHistory(zone, carbonApiKey, days),
+      this.getEnergyData(user.id, days, timezone)
+    ]);
+
     const emissionsData = this.calculateEmissions(carbonIntensityHistory, energyData);
     const summary = this.calculateSummary(emissionsData);
 
-    return {
+    const result = {
       ...summary,
       last7Days: days === 7 ? emissionsData : [],
       last30Days: days === 30 ? emissionsData : [],
       last12Months: days === 365 ? emissionsData : [],
     };
+
+    // Store in cache
+    this.cache.set(cacheKey, { data: result, timestamp: Date.now() });
+    console.log(`Cache stored for ${cacheKey}`);
+
+    return result;
   }
 
   private async getCarbonApiKeyFromRedis(userId: string): Promise<string | null> {
@@ -57,14 +80,24 @@ export class CarbonIntensityService {
     const today = moment().startOf('day');
     const startDate = moment().subtract(days, 'days').startOf('day');
 
+    // Limit concurrent requests to avoid overwhelming the API
+    const BATCH_SIZE = 10;
     const datePromises = [];
+    const dates = [];
+
     for (let m = moment(startDate); m.isSameOrBefore(today, 'day'); m.add(1, 'day')) {
-      const date = m.format('YYYY-MM-DD');
-      datePromises.push(
+      dates.push(m.format('YYYY-MM-DD'));
+    }
+
+    // Process in batches
+    const results = [];
+    for (let i = 0; i < dates.length; i += BATCH_SIZE) {
+      const batch = dates.slice(i, i + BATCH_SIZE);
+      const batchPromises = batch.map(date =>
         axios.get('https://api.electricitymap.org/v3/carbon-intensity/history', {
           params: { zone, datetime: date },
           headers: { 'auth-token': apiKey },
-          timeout: 10000,
+          timeout: 5000, // Reduced timeout
         })
         .then(response => {
           if (response.data.history && response.data.history.length > 0) {
@@ -80,9 +113,11 @@ export class CarbonIntensityService {
           return null;
         })
       );
+
+      const batchResults = await Promise.all(batchPromises);
+      results.push(...batchResults);
     }
 
-    const results = await Promise.all(datePromises);
     return results.filter(item => item !== null);
   }
 
