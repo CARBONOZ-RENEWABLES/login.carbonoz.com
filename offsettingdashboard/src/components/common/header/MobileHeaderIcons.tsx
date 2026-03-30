@@ -118,24 +118,37 @@ const MobileHeaderIcons: FC<MobileHeaderIconsProps> = ({ subscription }): ReactE
                     {subscription?.subscription?.plan?.name || 'Manual Access'}
                   </p>
                   {timeRemaining && timeRemaining.total > 0 && (
-                    <div className='grid grid-cols-2 gap-2'>
-                      <div className='flex flex-col items-center px-2 py-2 rounded-md' style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
-                        <span className='text-xl font-bold tabular-nums' style={{ color: '#22c55e' }}>{timeRemaining.days}</span>
-                        <span className='text-xs font-medium' style={{ color: 'var(--text-secondary)' }}>days</span>
+                    <>
+                      <div className='grid grid-cols-2 gap-2 mb-3'>
+                        <div className='flex flex-col items-center px-2 py-2 rounded-md' style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
+                          <span className='text-xl font-bold tabular-nums' style={{ color: '#22c55e' }}>{timeRemaining.days}</span>
+                          <span className='text-xs font-medium' style={{ color: 'var(--text-secondary)' }}>days</span>
+                        </div>
+                        <div className='flex flex-col items-center px-2 py-2 rounded-md' style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
+                          <span className='text-xl font-bold tabular-nums' style={{ color: '#22c55e' }}>{String(timeRemaining.hours).padStart(2, '0')}</span>
+                          <span className='text-xs font-medium' style={{ color: 'var(--text-secondary)' }}>hours</span>
+                        </div>
+                        <div className='flex flex-col items-center px-2 py-2 rounded-md' style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
+                          <span className='text-xl font-bold tabular-nums' style={{ color: '#22c55e' }}>{String(timeRemaining.minutes).padStart(2, '0')}</span>
+                          <span className='text-xs font-medium' style={{ color: 'var(--text-secondary)' }}>minutes</span>
+                        </div>
+                        <div className='flex flex-col items-center px-2 py-2 rounded-md' style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
+                          <span className='text-xl font-bold tabular-nums' style={{ color: '#22c55e' }}>{String(timeRemaining.seconds).padStart(2, '0')}</span>
+                          <span className='text-xs font-medium' style={{ color: 'var(--text-secondary)' }}>seconds</span>
+                        </div>
                       </div>
-                      <div className='flex flex-col items-center px-2 py-2 rounded-md' style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
-                        <span className='text-xl font-bold tabular-nums' style={{ color: '#22c55e' }}>{String(timeRemaining.hours).padStart(2, '0')}</span>
-                        <span className='text-xs font-medium' style={{ color: 'var(--text-secondary)' }}>hours</span>
-                      </div>
-                      <div className='flex flex-col items-center px-2 py-2 rounded-md' style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
-                        <span className='text-xl font-bold tabular-nums' style={{ color: '#22c55e' }}>{String(timeRemaining.minutes).padStart(2, '0')}</span>
-                        <span className='text-xs font-medium' style={{ color: 'var(--text-secondary)' }}>minutes</span>
-                      </div>
-                      <div className='flex flex-col items-center px-2 py-2 rounded-md' style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
-                        <span className='text-xl font-bold tabular-nums' style={{ color: '#22c55e' }}>{String(timeRemaining.seconds).padStart(2, '0')}</span>
-                        <span className='text-xs font-medium' style={{ color: 'var(--text-secondary)' }}>seconds</span>
-                      </div>
-                    </div>
+                      <motion.a
+                        href='/ds/subscribe'
+                        whileTap={{ scale: 0.98 }}
+                        className='flex items-center justify-center gap-2 w-full py-2 px-3 rounded-lg text-sm font-medium transition-colors'
+                        style={{
+                          background: 'rgba(34, 197, 94, 0.15)',
+                          color: '#22c55e'
+                        }}
+                      >
+                        <span>→ Go to subscription page</span>
+                      </motion.a>
+                    </>
                   )}
                 </>
               ) : (
