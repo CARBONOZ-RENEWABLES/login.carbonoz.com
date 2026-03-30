@@ -7,16 +7,54 @@ interface MobileHeaderIconsProps {
   subscription?: any
 }
 
+interface TimeRemaining {
+  days: number
+  hours: number
+  minutes: number
+  seconds: number
+  total: number
+}
+
 const MobileHeaderIcons: FC<MobileHeaderIconsProps> = ({ subscription }): ReactElement => {
   const { isDark, toggle } = useTheme()
   const [showSubscriptionPopup, setShowSubscriptionPopup] = useState(false)
+  const [timeRemaining, setTimeRemaining] = useState<TimeRemaining | null>(null)
 
   const isActive = subscription?.hasAccess
-  const daysLeft = subscription?.manualAccessExpiry
-    ? Math.max(0, Math.ceil((new Date(subscription.manualAccessExpiry).setHours(23, 59, 59, 999) - new Date().getTime()) / (1000 * 60 * 60 * 24)))
-    : subscription?.subscription?.endDate 
-    ? Math.max(0, Math.ceil((new Date(subscription.subscription.endDate).setHours(23, 59, 59, 999) - new Date().getTime()) / (1000 * 60 * 60 * 24)))
-    : null
+
+  const calculateTimeRemaining = (expiryDate: Date): TimeRemaining => {
+    const now = new Date().getTime()
+    const expiry = new Date(expiryDate).setHours(23, 59, 59, 999)
+    const total = expiry - now
+
+    if (total <= 0) {
+      return { days: 0, hours: 0, minutes: 0, seconds: 0, total: 0 }
+    }
+
+    const days = Math.floor(total / (1000 * 60 * 60 * 24))
+    const hours = Math.floor((total % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+    const minutes = Math.floor((total % (1000 * 60 * 60)) / (1000 * 60))
+    const seconds = Math.floor((total % (1000 * 60)) / 1000)
+
+    return { days, hours, minutes, seconds, total }
+  }
+
+  useEffect(() => {
+    if (!subscription?.hasAccess) return
+
+    const expiryDate = subscription?.manualAccessExpiry || subscription?.subscription?.endDate
+    if (!expiryDate) return
+
+    // Update countdown every second
+    const interval = setInterval(() => {
+      setTimeRemaining(calculateTimeRemaining(expiryDate))
+    }, 1000)
+
+    // Initial calculation
+    setTimeRemaining(calculateTimeRemaining(expiryDate))
+
+    return () => clearInterval(interval)
+  }, [subscription])
 
   useEffect(() => {
     const handleClickOutside = () => {
@@ -60,7 +98,7 @@ const MobileHeaderIcons: FC<MobileHeaderIconsProps> = ({ subscription }): ReactE
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.2 }}
-              className='absolute right-0 top-12 w-64 rounded-xl shadow-xl border p-4 z-50'
+              className='absolute right-0 top-12 w-72 rounded-xl shadow-xl border p-4 z-50'
               style={{ 
                 background: 'var(--surface-raised)', 
                 borderColor: 'var(--border)',
@@ -76,13 +114,28 @@ const MobileHeaderIcons: FC<MobileHeaderIconsProps> = ({ subscription }): ReactE
                       Active Subscription
                     </p>
                   </div>
-                  <p className='text-sm' style={{ color: 'var(--text-primary)' }}>
+                  <p className='text-sm mb-3' style={{ color: 'var(--text-primary)' }}>
                     {subscription?.subscription?.plan?.name || 'Manual Access'}
                   </p>
-                  {daysLeft !== null && (
-                    <p className='text-xs mt-1' style={{ color: 'var(--text-secondary)' }}>
-                      {daysLeft} days remaining
-                    </p>
+                  {timeRemaining && timeRemaining.total > 0 && (
+                    <div className='grid grid-cols-2 gap-2'>
+                      <div className='flex flex-col items-center px-2 py-2 rounded-md' style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
+                        <span className='text-xl font-bold tabular-nums' style={{ color: '#22c55e' }}>{timeRemaining.days}</span>
+                        <span className='text-xs font-medium' style={{ color: 'var(--text-secondary)' }}>days</span>
+                      </div>
+                      <div className='flex flex-col items-center px-2 py-2 rounded-md' style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
+                        <span className='text-xl font-bold tabular-nums' style={{ color: '#22c55e' }}>{String(timeRemaining.hours).padStart(2, '0')}</span>
+                        <span className='text-xs font-medium' style={{ color: 'var(--text-secondary)' }}>hours</span>
+                      </div>
+                      <div className='flex flex-col items-center px-2 py-2 rounded-md' style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
+                        <span className='text-xl font-bold tabular-nums' style={{ color: '#22c55e' }}>{String(timeRemaining.minutes).padStart(2, '0')}</span>
+                        <span className='text-xs font-medium' style={{ color: 'var(--text-secondary)' }}>minutes</span>
+                      </div>
+                      <div className='flex flex-col items-center px-2 py-2 rounded-md' style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
+                        <span className='text-xl font-bold tabular-nums' style={{ color: '#22c55e' }}>{String(timeRemaining.seconds).padStart(2, '0')}</span>
+                        <span className='text-xs font-medium' style={{ color: 'var(--text-secondary)' }}>seconds</span>
+                      </div>
+                    </div>
                   )}
                 </>
               ) : (

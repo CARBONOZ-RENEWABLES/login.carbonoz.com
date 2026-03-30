@@ -8,15 +8,58 @@ interface SubscriptionStatusProps {
   userId?: string
 }
 
+interface TimeRemaining {
+  days: number
+  hours: number
+  minutes: number
+  seconds: number
+  total: number
+}
+
 const SubscriptionStatus: FC<SubscriptionStatusProps> = (): ReactElement => {
   const [subscription, setSubscription] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [timeRemaining, setTimeRemaining] = useState<TimeRemaining | null>(null)
   const navigate = useNavigate()
+
+  const calculateTimeRemaining = (expiryDate: Date): TimeRemaining => {
+    const now = new Date().getTime()
+    const expiry = new Date(expiryDate).setHours(23, 59, 59, 999)
+    const total = expiry - now
+
+    if (total <= 0) {
+      return { days: 0, hours: 0, minutes: 0, seconds: 0, total: 0 }
+    }
+
+    const days = Math.floor(total / (1000 * 60 * 60 * 24))
+    const hours = Math.floor((total % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+    const minutes = Math.floor((total % (1000 * 60 * 60)) / (1000 * 60))
+    const seconds = Math.floor((total % (1000 * 60)) / 1000)
+
+    return { days, hours, minutes, seconds, total }
+  }
 
   useEffect(() => {
     fetchSubscription()
   }, [])
+
+  useEffect(() => {
+    if (!subscription?.hasAccess) return
+
+    const expiryDate = subscription?.manualAccessExpiry || subscription?.subscription?.endDate
+    if (!expiryDate) return
+
+    // Update countdown every second
+    const interval = setInterval(() => {
+      setTimeRemaining(calculateTimeRemaining(expiryDate))
+    }, 1000)
+
+    // Initial calculation
+    setTimeRemaining(calculateTimeRemaining(expiryDate))
+
+    return () => clearInterval(interval)
+  }, [subscription])
 
   const fetchSubscription = async (manual = false) => {
     try {
@@ -142,12 +185,6 @@ const SubscriptionStatus: FC<SubscriptionStatusProps> = (): ReactElement => {
     )
   }
 
-  const daysLeft = subscription?.manualAccessExpiry
-    ? Math.max(0, Math.ceil((new Date(subscription.manualAccessExpiry).setHours(23, 59, 59, 999) - new Date().getTime()) / (1000 * 60 * 60 * 24)))
-    : subscription?.subscription?.endDate 
-    ? Math.max(0, Math.ceil((new Date(subscription.subscription.endDate).setHours(23, 59, 59, 999) - new Date().getTime()) / (1000 * 60 * 60 * 24)))
-    : null
-
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
@@ -165,9 +202,29 @@ const SubscriptionStatus: FC<SubscriptionStatusProps> = (): ReactElement => {
           <h4 className='font-semibold text-sm mb-1' style={{ color: '#22c55e' }}>
             Active Subscription
           </h4>
-          <p className='text-xs' style={{ color: 'var(--text-secondary)' }}>
-            {subscription?.subscription?.plan?.name || 'Manual Access'} {daysLeft ? `• ${daysLeft} days remaining` : ''}
+          <p className='text-xs mb-2' style={{ color: 'var(--text-secondary)' }}>
+            {subscription?.subscription?.plan?.name || 'Manual Access'}
           </p>
+          {timeRemaining && timeRemaining.total > 0 && (
+            <div className='flex items-center gap-2 flex-wrap'>
+              <div className='flex items-center gap-1.5 px-2 py-1 rounded-md' style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
+                <span className='text-lg font-bold tabular-nums' style={{ color: '#22c55e' }}>{timeRemaining.days}</span>
+                <span className='text-xs font-medium' style={{ color: 'var(--text-secondary)' }}>days</span>
+              </div>
+              <div className='flex items-center gap-1.5 px-2 py-1 rounded-md' style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
+                <span className='text-lg font-bold tabular-nums' style={{ color: '#22c55e' }}>{String(timeRemaining.hours).padStart(2, '0')}</span>
+                <span className='text-xs font-medium' style={{ color: 'var(--text-secondary)' }}>hrs</span>
+              </div>
+              <div className='flex items-center gap-1.5 px-2 py-1 rounded-md' style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
+                <span className='text-lg font-bold tabular-nums' style={{ color: '#22c55e' }}>{String(timeRemaining.minutes).padStart(2, '0')}</span>
+                <span className='text-xs font-medium' style={{ color: 'var(--text-secondary)' }}>min</span>
+              </div>
+              <div className='flex items-center gap-1.5 px-2 py-1 rounded-md' style={{ background: 'rgba(34, 197, 94, 0.15)' }}>
+                <span className='text-lg font-bold tabular-nums' style={{ color: '#22c55e' }}>{String(timeRemaining.seconds).padStart(2, '0')}</span>
+                <span className='text-xs font-medium' style={{ color: 'var(--text-secondary)' }}>sec</span>
+              </div>
+            </div>
+          )}
         </div>
         <button
           onClick={() => fetchSubscription(true)}
