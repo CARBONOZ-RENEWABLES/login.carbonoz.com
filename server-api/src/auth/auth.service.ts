@@ -241,6 +241,38 @@ export class AuthService {
     if (!userCredentials) {
       return null;
     }
+
+    // Check if user has active subscription or manual access
+    const user = await this.prismaService.user.findUnique({
+      where: { id: userCredentials.userId },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    const now = new Date();
+    const hasManualAccess = user.manualAccessOverride && 
+                           (!user.manualAccessExpiry || user.manualAccessExpiry > now);
+
+    if (hasManualAccess) {
+      return { userId: userCredentials.userId };
+    }
+
+    // Check for active subscription
+    const subscription = await this.prismaService.subscription.findFirst({
+      where: { 
+        userId: userCredentials.userId,
+        status: 'ACTIVE',
+        endDate: { gt: now }
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!subscription) {
+      return null;
+    }
+
     return { userId: userCredentials.userId };
   }
 
