@@ -122,15 +122,15 @@ export class CarbonIntensityService {
   }
 
   private async getEnergyData(userId: string, days: number, timezone: string) {
-    const endDate = moment().tz(timezone).endOf('day').toDate();
-    const startDate = moment().tz(timezone).subtract(days, 'days').startOf('day').toDate();
+    const endDate = moment().tz(timezone).endOf('day').format('YYYY-MM-DD');
+    const startDate = moment().tz(timezone).subtract(days, 'days').startOf('day').format('YYYY-MM-DD');
 
     const energyRecords = await this.prisma.totalEnergy.findMany({
       where: {
         userId,
         date: {
-          gte: startDate.toISOString(),
-          lte: endDate.toISOString(),
+          gte: startDate,
+          lte: endDate,
         },
       },
       orderBy: { date: 'asc' },
