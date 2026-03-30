@@ -144,28 +144,40 @@ export class CarbonIntensityService {
       return [];
     }
 
+    const energyMap = new Map();
+    energyData.forEach(record => {
+      energyMap.set(moment(record.date).format('YYYY-MM-DD'), record);
+    });
+
     const sortedEnergy = [...energyData].sort((a, b) =>
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
     const results = [];
 
-    for (let i = 1; i < sortedEnergy.length; i++) {
-      const current = sortedEnergy[i];
-      const previous = sortedEnergy[i - 1];
+    for (const current of sortedEnergy) {
       const currentDate = moment(current.date).format('YYYY-MM-DD');
+      const yesterdayDate = moment(current.date).subtract(1, 'day').format('YYYY-MM-DD');
 
       const carbonData = carbonIntensityHistory.find(c => c.date === currentDate);
       if (!carbonData) continue;
 
       const carbonIntensity = carbonData.carbonIntensity || 0;
       const currentPvPower = parseFloat(current.pvPower || '0');
-      const previousPvPower = parseFloat(previous.pvPower || '0');
       const currentGridIn = parseFloat(current.gridIn || '0');
-      const previousGridIn = parseFloat(previous.gridIn || '0');
 
-      const dailyPvPower = currentPvPower > previousPvPower ? currentPvPower - previousPvPower : currentPvPower;
-      const dailyGridUsed = currentGridIn > previousGridIn ? currentGridIn - previousGridIn : currentGridIn;
+      let dailyPvPower, dailyGridUsed;
+
+      const yesterday = energyMap.get(yesterdayDate);
+      if (yesterday) {
+        const yesterdayPvPower = parseFloat(yesterday.pvPower || '0');
+        const yesterdayGridIn = parseFloat(yesterday.gridIn || '0');
+        dailyPvPower = currentPvPower > yesterdayPvPower ? currentPvPower - yesterdayPvPower : currentPvPower;
+        dailyGridUsed = currentGridIn > yesterdayGridIn ? currentGridIn - yesterdayGridIn : currentGridIn;
+      } else {
+        dailyPvPower = currentPvPower;
+        dailyGridUsed = currentGridIn;
+      }
 
       const unavoidableEmissions = (dailyGridUsed * carbonIntensity) / 1000;
       const avoidedEmissions = (dailyPvPower * carbonIntensity) / 1000;
