@@ -100,7 +100,7 @@ const NavBar: FC<props> = ({
         </section>
       </Drawer>
       <nav
-        className='px-6 py-4 flex justify-between items-center border-b transition-all duration-200'
+        className='px-4 md:px-6 py-3 md:py-4 flex justify-between items-center border-b transition-all duration-200'
         style={{ 
           background: 'var(--surface-base)', 
           borderColor: 'var(--border)',
@@ -121,6 +121,21 @@ const NavBar: FC<props> = ({
           </motion.div>
         ) : (
           <div className='flex items-center gap-4 flex-1'>
+            {/* Mobile Logo + Brand (YouTube-style) */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className='flex items-center gap-2 md:hidden'
+              onClick={() => navigate('/ds/')}
+            >
+              <div className="relative flex-shrink-0">
+                <CustomImage src={Logo} width={28} className='rounded-lg' />
+                <div className="absolute -inset-0.5 bg-[#DEAF0B]/20 rounded-lg blur-sm -z-10" />
+              </div>
+              <h1 className='text-base font-bold tracking-tight' style={{ color: '#DEAF0B' }}>CARBONOZ</h1>
+            </motion.div>
+
+            {/* Desktop Subscription Status */}
             {!isAdmin && (
               <div className='flex-1 max-w-md hidden md:block'>
                 <SubscriptionStatus />
