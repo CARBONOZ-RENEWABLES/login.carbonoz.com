@@ -13,9 +13,9 @@ const MobileHeaderIcons: FC<MobileHeaderIconsProps> = ({ subscription }): ReactE
 
   const isActive = subscription?.hasAccess
   const daysLeft = subscription?.manualAccessExpiry
-    ? Math.max(0, Math.floor((new Date(subscription.manualAccessExpiry).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+    ? Math.max(0, Math.ceil((new Date(subscription.manualAccessExpiry).setHours(23, 59, 59, 999) - new Date().getTime()) / (1000 * 60 * 60 * 24)))
     : subscription?.subscription?.endDate 
-    ? Math.max(0, Math.floor((new Date(subscription.subscription.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+    ? Math.max(0, Math.ceil((new Date(subscription.subscription.endDate).setHours(23, 59, 59, 999) - new Date().getTime()) / (1000 * 60 * 60 * 24)))
     : null
 
   useEffect(() => {
