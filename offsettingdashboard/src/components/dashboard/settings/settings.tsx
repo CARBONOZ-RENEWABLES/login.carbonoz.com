@@ -3,12 +3,11 @@ import { Copy, Eye, EyeOff, Key, Settings as SettingsIcon, CheckCircle } from 'l
 import { motion } from 'framer-motion'
 import { useGetTopicsQuery } from '../../../lib/api/topic/topicEndpints'
 import { useGetCredentialsQuery } from '../../../lib/api/user/userEndPoints'
-import { GeneralContentLoader } from '../../common/loader/loader'
 import Notify from '../../common/notification/notification'
 
 const Settings: FC = (): ReactElement => {
-  const { data, isFetching } = useGetTopicsQuery()
-  const { data: credentials, isFetching: fetching } = useGetCredentialsQuery()
+  const { data } = useGetTopicsQuery()
+  const { data: credentials } = useGetCredentialsQuery()
   const [showClientSecret, setShowClientSecret] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
 
@@ -22,8 +21,6 @@ const Settings: FC = (): ReactElement => {
       type: 'success',
     })
   }
-
-  if (isFetching || fetching) return <GeneralContentLoader />
 
   return (
     <div className='space-y-6'>
