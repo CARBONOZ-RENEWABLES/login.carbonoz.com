@@ -187,7 +187,6 @@ export const DashboardRoutes: FC = (): ReactElement => {
                 element={
                   <Profile
                     additionalData={data?.data}
-                    loading={fetchingBoxes || isFetching}
                   />
                 }
               />
