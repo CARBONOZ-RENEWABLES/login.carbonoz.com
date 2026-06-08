@@ -12,17 +12,14 @@ dayjs.extend(timezone)
 
 interface Props {
   data: Array<energyInt> | undefined
-  isFetching: boolean
   type?: 'monthly' | 'daily' | 'yearly' | 'decade'
   pagination?: TablePaginationConfig
-  loading?: boolean
 }
 
 const { Column } = Table
 
 const EnergyTable: FC<Props> = ({
   data,
-  isFetching,
   type = 'daily',
   pagination,
 }): ReactElement => {
@@ -61,7 +58,6 @@ const EnergyTable: FC<Props> = ({
       rowKey={(record) => record?.id}
       rowClassName='shadow'
       pagination={pagination ? pagination : false}
-      loading={isFetching}
       bordered={false}
       scroll={{ x: 0 }}
     >

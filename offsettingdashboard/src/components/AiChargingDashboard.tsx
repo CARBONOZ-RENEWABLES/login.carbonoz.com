@@ -1,7 +1,6 @@
 import { FC, ReactElement, useState, useEffect } from 'react';
 import { Battery, Zap, TrendingUp, Clock, DollarSign, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { GeneralContentLoader } from './common/loader/loader';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -11,7 +10,6 @@ interface AiChargingDashboardProps {
 
 const AiChargingDashboard: FC<AiChargingDashboardProps> = ({ userId }): ReactElement => {
   const [chargingData, setChargingData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchChargingStatus = async () => {
@@ -21,8 +19,6 @@ const AiChargingDashboard: FC<AiChargingDashboardProps> = ({ userId }): ReactEle
         setChargingData(data);
       } catch (error) {
         console.error('Error fetching charging status:', error);
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -30,14 +26,6 @@ const AiChargingDashboard: FC<AiChargingDashboardProps> = ({ userId }): ReactEle
     const interval = setInterval(fetchChargingStatus, 5000);
     return () => clearInterval(interval);
   }, [userId]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <GeneralContentLoader />
-      </div>
-    );
-  }
 
   if (!chargingData) {
     return (

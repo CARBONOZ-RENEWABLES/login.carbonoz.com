@@ -71,10 +71,13 @@ const BoxInformation: FC<BoxInformationInterfaceProps> = ({
     })
   }
 
-  if (isFetching) {
-    return <GeneralContentLoader />
-  } else {
-    return (
+  if (boxesData) {
+    if (boxesData.length) {
+      navigate('/ds')
+    }
+  }
+
+  return (
       <div className='p-6'>
         <h1 className=' text-xl  text-[#DEAF0B] font-bold mb-4 '>
           MQTT information
@@ -166,8 +169,8 @@ const BoxInformation: FC<BoxInformationInterfaceProps> = ({
           Submit
         </CustomButton>
       </div>
-    )
-  }
+    </>
+  )
 }
 
 export default BoxInformation

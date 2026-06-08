@@ -3,7 +3,6 @@ import { Form, Select } from 'antd'
 import { FC, ReactElement, useState } from 'react'
 import { Download, Leaf } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { GeneralContentLoader } from '../../common/loader/loader'
 import CustomButton from '../../common/button/button'
 import {
   useGetCarbonIntensityFor7DaysQuery,
@@ -36,17 +35,15 @@ const CarbonIntensity: FC<CarbonIntensityProps> = ({ additionalData }): ReactEle
   const [selectedZone, setSelectedZone] = useState<string>('DE')
   const timeZone = additionalData?.customerTimezone
 
-  const { data: data7Days, isFetching: fetching7Days } = useGetCarbonIntensityFor7DaysQuery(
+  const { data: data7Days } = useGetCarbonIntensityFor7DaysQuery(
     { zone: selectedZone, timeZone }
   )
-  const { data: data30Days, isFetching: fetching30Days } = useGetCarbonIntensityFor30DaysQuery(
+  const { data: data30Days } = useGetCarbonIntensityFor30DaysQuery(
     { zone: selectedZone, timeZone }
   )
-  const { data: data12Months, isFetching: fetching12Months } = useGetCarbonIntensityFor12MonthsQuery(
+  const { data: data12Months } = useGetCarbonIntensityFor12MonthsQuery(
     { zone: selectedZone, timeZone }
   )
-
-  const loading = fetching7Days || fetching30Days || fetching12Months
 
   const onZoneChange = (value: string) => {
     setSelectedZone(value)
@@ -97,28 +94,24 @@ const CarbonIntensity: FC<CarbonIntensityProps> = ({ additionalData }): ReactEle
           data={data7Days?.data?.totalUnavoidableEmissions?.toFixed(2)}
           title='Unavoidable Emissions'
           unit='kg CO₂'
-          loading={loading}
           color='#ef4444'
         />
         <CarbonCard
           data={data7Days?.data?.totalAvoidedEmissions?.toFixed(2)}
           title='Avoided Emissions'
           unit='kg CO₂'
-          loading={loading}
           color='#22c55e'
         />
         <CarbonCard
           data={data7Days?.data?.avgCarbonIntensity?.toFixed(1)}
           title='Avg Carbon Intensity'
           unit='gCO₂/kWh'
-          loading={loading}
           color='#DEAF0B'
         />
         <CarbonCard
           data={data7Days?.data?.selfSufficiencyScore?.toFixed(1)}
           title='Self-Sufficiency'
           unit='%'
-          loading={loading}
           color='#3b82f6'
         />
       </section>
@@ -135,11 +128,7 @@ const CarbonIntensity: FC<CarbonIntensityProps> = ({ additionalData }): ReactEle
           <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Last 7 days</p>
         </div>
         <div className='p-6'>
-          {fetching7Days ? (
-            <GeneralContentLoader />
-          ) : (
-            <CarbonIntensityChart data={data7Days?.data?.last7Days || []} dateFormat='DD/MM' />
-          )}
+          <CarbonIntensityChart data={data7Days?.data?.last7Days || []} dateFormat='DD/MM' />
         </div>
       </motion.div>
 
@@ -172,11 +161,7 @@ const CarbonIntensity: FC<CarbonIntensityProps> = ({ additionalData }): ReactEle
           </motion.button>
         </div>
         <div className='p-6'>
-          {fetching7Days ? (
-            <GeneralContentLoader />
-          ) : (
-            <CarbonTable data={data7Days?.data?.last7Days || []} />
-          )}
+          <CarbonTable data={data7Days?.data?.last7Days || []} />
         </div>
       </motion.div>
 
@@ -192,11 +177,7 @@ const CarbonIntensity: FC<CarbonIntensityProps> = ({ additionalData }): ReactEle
           <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Last 30 days</p>
         </div>
         <div className='p-6'>
-          {fetching30Days ? (
-            <GeneralContentLoader />
-          ) : (
-            <CarbonIntensityChart data={data30Days?.data?.last30Days || []} dateFormat='DD/MM' />
-          )}
+          <CarbonIntensityChart data={data30Days?.data?.last30Days || []} dateFormat='DD/MM' />
         </div>
       </motion.div>
 
@@ -229,11 +210,7 @@ const CarbonIntensity: FC<CarbonIntensityProps> = ({ additionalData }): ReactEle
           </motion.button>
         </div>
         <div className='p-6'>
-          {fetching30Days ? (
-            <GeneralContentLoader />
-          ) : (
-            <CarbonTable data={data30Days?.data?.last30Days || []} />
-          )}
+          <CarbonTable data={data30Days?.data?.last30Days || []} />
         </div>
       </motion.div>
 
@@ -249,11 +226,7 @@ const CarbonIntensity: FC<CarbonIntensityProps> = ({ additionalData }): ReactEle
           <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Last 12 months</p>
         </div>
         <div className='p-6'>
-          {fetching12Months ? (
-            <GeneralContentLoader />
-          ) : (
-            <CarbonIntensityChart data={data12Months?.data?.last12Months || []} dateFormat='MMM YY' />
-          )}
+          <CarbonIntensityChart data={data12Months?.data?.last12Months || []} dateFormat='MMM YY' />
         </div>
       </motion.div>
 
@@ -286,18 +259,14 @@ const CarbonIntensity: FC<CarbonIntensityProps> = ({ additionalData }): ReactEle
           </motion.button>
         </div>
         <div className='p-6'>
-          {fetching12Months ? (
-            <GeneralContentLoader />
-          ) : (
-            <CarbonTable data={data12Months?.data?.last12Months || []} />
-          )}
+          <CarbonTable data={data12Months?.data?.last12Months || []} />
         </div>
       </motion.div>
     </section>
   )
 }
 
-const CarbonCard: FC<{ data: string | undefined, title: string, unit: string, loading: boolean, color: string }> = ({ data, title, unit, loading, color }) => {
+const CarbonCard: FC<{ data: string | undefined, title: string, unit: string, color: string }> = ({ data, title, unit, color }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -313,40 +282,36 @@ const CarbonCard: FC<{ data: string | undefined, title: string, unit: string, lo
     >
       <div className='absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300' style={{ background: `linear-gradient(135deg, ${color}10 0%, transparent 100%)` }} />
       
-      {loading ? (
-        <GeneralContentLoader height='10px' />
-      ) : (
-        <div className='relative z-10 flex flex-col h-full justify-between'>
-          <div className='flex items-start justify-between'>
-            <motion.div
-              whileHover={{ rotate: 360, scale: 1.1 }}
-              transition={{ duration: 0.5 }}
-              className='w-12 h-12 rounded-xl flex items-center justify-center border-2 transition-colors duration-200'
-              style={{ 
-                background: `${color}10`, 
-                borderColor: `${color}20` 
-              }}
-            >
-              <Leaf size={24} style={{ color }} strokeWidth={2.5} />
-            </motion.div>
-          </div>
-
-          <div>
-            <motion.p
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              className='text-3xl font-bold mb-1 flex items-baseline gap-2'
-              style={{ color: 'var(--text-primary)' }}
-            >
-              {data || '0'}
-              <span className='text-lg font-semibold' style={{ color: 'var(--text-secondary)' }}>{unit}</span>
-            </motion.p>
-            <p className='text-sm font-medium' style={{ color: 'var(--text-secondary)' }}>
-              {title}
-            </p>
-          </div>
+      <div className='relative z-10 flex flex-col h-full justify-between'>
+        <div className='flex items-start justify-between'>
+          <motion.div
+            whileHover={{ rotate: 360, scale: 1.1 }}
+            transition={{ duration: 0.5 }}
+            className='w-12 h-12 rounded-xl flex items-center justify-center border-2 transition-colors duration-200'
+            style={{ 
+              background: `${color}10`, 
+              borderColor: `${color}20` 
+            }}
+          >
+            <Leaf size={24} style={{ color }} strokeWidth={2.5} />
+          </motion.div>
         </div>
-      )}
+
+        <div>
+          <motion.p
+            initial={{ scale: 0.9 }}
+            animate={{ scale: 1 }}
+            className='text-3xl font-bold mb-1 flex items-baseline gap-2'
+            style={{ color: 'var(--text-primary)' }}
+          >
+            {data || '0'}
+            <span className='text-lg font-semibold' style={{ color: 'var(--text-secondary)' }}>{unit}</span>
+          </motion.p>
+          <p className='text-sm font-medium' style={{ color: 'var(--text-secondary)' }}>
+            {title}
+          </p>
+        </div>
+      </div>
     </motion.div>
   )
 }

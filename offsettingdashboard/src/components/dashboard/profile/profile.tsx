@@ -12,13 +12,11 @@ import {
 } from '../../../lib/api/user/userEndPoints'
 import CustomButton from '../../common/button/button'
 import CustomImage from '../../common/image/customImage'
-import { GeneralContentLoader } from '../../common/loader/loader'
 import CustomModal from '../../common/modal/customModal'
 import EditUserInformationForm from '../../forms/edituserInfo'
 
 interface props {
   additionalData: AdditionalInfoInt | undefined
-  loading: boolean
 }
 
 const InfoRow: FC<{ icon: ReactElement; label: string; value: string | undefined }> = ({ icon, label, value }) => (
@@ -41,7 +39,7 @@ const InfoRow: FC<{ icon: ReactElement; label: string; value: string | undefined
 const Profile: FC<props> = ({ additionalData }): ReactElement => {
   const { data, refetch: refetchPort } = useGetUserPortsQuery()
   const [isVisible, setIsVisible] = useState<boolean>(false)
-  const { data: assetsData, isFetching: isAssetsFetching, refetch } = useGetAssetsQuery()
+  const { data: assetsData, refetch } = useGetAssetsQuery()
 
   useEffect(() => {
     refetchPort()
@@ -59,8 +57,6 @@ const Profile: FC<props> = ({ additionalData }): ReactElement => {
       onSuccess: handleCancel,
     })
   }
-
-  if (isAssetsFetching) return <GeneralContentLoader />
 
   return (
     <>

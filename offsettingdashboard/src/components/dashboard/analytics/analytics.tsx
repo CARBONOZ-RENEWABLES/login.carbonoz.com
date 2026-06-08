@@ -36,7 +36,7 @@ interface AnalyticsProps {
 const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
   const [form] = Form.useForm()
   const [timeZone, setTimeZone] = useState<string | null>(null)
-  const { data, isFetching, refetch } = useGetEnergyQuery(
+  const { data, refetch } = useGetEnergyQuery(
     timeZone ? { timeZone } : {}
   )
   const [downloadingPeriod, setDownloadingPeriod] = useState<number | null>(
@@ -45,19 +45,16 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
   const [downloadCsv, { isLoading }] = useDownloadCSVMutation()
   const {
     data: monthlyData,
-    isFetching: fetching,
     refetch: refechMonthly,
   } = useGetEnergyFor30DaysQuery(timeZone ? { timeZone } : {})
 
   const {
     data: yearlyData,
-    isFetching: yearlyFetching,
     refetch: yearlyRefetch,
   } = useGetEnergyFor12MonthsQuery(timeZone ? { timeZone } : {})
 
   const {
     data: decadeData,
-    isFetching: decadeFetching,
     refetch: decadeRefetch,
   } = useGetEnergyForLast10YearsQuery()
 
@@ -148,17 +145,14 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
         <AnalyticsCard
           data={totalLoadPower?.toFixed(1)}
           title='For past 7 days'
-          loading={isFetching || fetching || yearlyFetching || decadeFetching}
         />
         <AnalyticsCard
           data={totalLoadPower30?.toFixed(1)}
           title='For past 30 days'
-          loading={isFetching || fetching || yearlyFetching || decadeFetching}
         />
         <AnalyticsCard
           data={totalLoadPowerMonthly?.toFixed(1)}
           title='For past 12 months'
-          loading={isFetching || fetching || yearlyFetching || decadeFetching}
         />
       </section>
 
@@ -228,7 +222,6 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
         <div className='p-6'>
           <EnergyTable
             data={past7Days}
-            isFetching={isFetching}
           />
         </div>
       </motion.div>
@@ -291,7 +284,6 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
         <div className='p-6'>
           <EnergyTable
             data={pastThirtyDays}
-            isFetching={isFetching}
             type='monthly'
             pagination={paginationConfig}
           />
@@ -356,7 +348,6 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
         <div className='p-6'>
           <EnergyTable
             data={past12Months}
-            isFetching={isFetching}
             type='yearly'
           />
         </div>
@@ -404,7 +395,6 @@ const Analytics: FC<AnalyticsProps> = ({ additionalData }): ReactElement => {
         <div className='p-6'>
           <EnergyTable
             data={decadeData?.data}
-            isFetching={isFetching}
             type='decade'
           />
         </div>
