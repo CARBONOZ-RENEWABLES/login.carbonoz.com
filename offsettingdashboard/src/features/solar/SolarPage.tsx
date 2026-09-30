@@ -9,7 +9,7 @@ import { BatteryCard, BMSCard, InverterCard, MetricCard, MetricList, StatusCard 
 import { ICONS } from './components/icons'
 import { ForecastChart, HistoryChart } from './components/charts'
 import { DataTable, EventTable } from './components/tables'
-import { batteryHint, buildSite, deviceKey, formatMetric, freshness, gridHint, headline, metricCardProps, metricMeta, seriesKey, SiteModel, solarFlow } from './model'
+import { allMetricRows, batteryHint, buildSite, deviceKey, formatMetric, MetricRow, freshness, gridHint, headline, metricCardProps, metricMeta, seriesKey, SiteModel, solarFlow } from './model'
 import { EnergyFlowCard } from '../dashboard/EnergyFlow'
 
 type TabId = 'overview' | 'energy' | 'battery' | 'bms' | 'inverters' | 'history' | 'forecast' | 'events' | 'system'
@@ -32,8 +32,11 @@ const RANGES: { id: RangeId; label: string }[] = [
 ]
 const POLL_MS = 15_000
 
-/** Solar dashboard: /ds/solar/:siteId?/:tab? — data-driven from the normalized Solar API. */
-export default function SolarPage() {
+/**
+ * Solar dashboard: /ds/solar/:siteId?/:tab? — data-driven from the normalized Solar API.
+ * The admin panel mounts the same page under its own shell (`basePath`).
+ */
+export default function SolarPage({ basePath = '/ds/solar' }: { basePath?: string }) {
   const params = useParams()
   // /ds/solar/<tab> (no site id) opens that tab on the first site.
   const firstIsTab = TABS.some((t) => t.id === params.siteId)
@@ -44,7 +47,7 @@ export default function SolarPage() {
   const list = sites.data?.data ?? []
   const siteId = list.find((s) => s.id === routeSite)?.id ?? list[0]?.id
   const tab: TabId = TABS.some((t) => t.id === routeTab) ? (routeTab as TabId) : 'overview'
-  const go = (s: string | undefined, t: TabId) => navigate(`/ds/solar/${s ?? ''}${t === 'overview' ? '' : `/${t}`}`, { replace: true })
+  const go = (s: string | undefined, t: TabId) => navigate(`${basePath}/${s ?? ''}${t === 'overview' ? '' : `/${t}`}`, { replace: true })
 
   if (sites.isLoading) return <LoadingState rows={3} />
   if (sites.isError) return <ErrorState title='Could not load your sites' onRetry={sites.refetch} />
@@ -421,6 +424,7 @@ function SystemTab({ o, site }: { o: SolarOverview; site: SiteModel }) {
           ]}
         />
       </div>
+      <AllValues o={o} site={site} />
       <div>
         <p className='mb-2 text-[15px] font-semibold text-fg'>Reported metrics</p>
         <DataTable
@@ -435,6 +439,54 @@ function SystemTab({ o, site }: { o: SolarOverview; site: SiteModel }) {
           ]}
         />
       </div>
+    </div>
+  )
+}
+
+/** Every current value of every device, searchable — covers metrics no card was designed for. */
+function AllValues({ o, site }: { o: SolarOverview; site: SiteModel }) {
+  const [q, setQ] = useState('')
+  const rows = useMemo(() => allMetricRows(o.devices, q), [o.devices, q])
+  return (
+    <div>
+      <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
+        <p className='text-[15px] font-semibold text-fg'>All reported values</p>
+        <input type='search' aria-label='Filter values' placeholder='Filter values' value={q} onChange={(e) => setQ(e.target.value)} className={`${inputClass} sm:w-60`} />
+      </div>
+      <DataTable<MetricRow>
+        rows={rows}
+        rowKey={(r) => `${deviceKey(r.device)}:${r.key}`}
+        pageSize={25}
+        empty={{ title: q ? 'No value matches' : 'No values reported yet' }}
+        columns={[
+          { title: 'Device', key: 'device', render: (_, r) => <span className='text-fg-2'>{site.labelOf(r.device)}</span> },
+          { title: 'Value', key: 'label', render: (_, r) => <span className='font-medium text-fg'>{metricMeta(r.key).label}</span> },
+          {
+            title: 'Current',
+            key: 'value',
+            render: (_, r) => {
+              const f = formatMetric(r.key, r.value, site.unitOf(r.device.kind, r.key))
+              return (
+                <span className='tabular-nums text-fg'>
+                  {f.value}
+                  {f.unit && <span className='ml-1 text-muted'>{f.unit}</span>}
+                </span>
+              )
+            },
+          },
+          { title: 'Key', key: 'key', render: (_, r) => <span className='font-mono text-[12px] text-fg-2'>{r.key}</span> },
+          {
+            title: 'Updated',
+            key: 'ts',
+            render: (_, r) => (
+              <span className='flex items-center gap-2 whitespace-nowrap'>
+                {relativeTime(Date.parse(r.ts))}
+                {r.stale && <StatusBadge tone='warning'>Delayed</StatusBadge>}
+              </span>
+            ),
+          },
+        ]}
+      />
     </div>
   )
 }

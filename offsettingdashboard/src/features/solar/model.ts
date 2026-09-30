@@ -78,10 +78,32 @@ export interface Formatted {
   unit: string
 }
 
+const ISO_TS = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/
+const TS_KEY = /(^|_)(ts|timestamp|time|at|date)$/
+
+/** Epoch seconds/milliseconds under a time-like key → Date; anything else → undefined. */
+function epochOf(key: string, v: number): Date | undefined {
+  if (!TS_KEY.test(key)) return undefined
+  const ms = v > 1e12 && v < 1e14 ? v : v > 1e9 && v < 1e11 ? v * 1000 : undefined
+  return ms ? new Date(ms) : undefined
+}
+
+const formatTime = (d: Date) => d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+
+/**
+ * Generic rendering for any metric, including ones SolarBMS adds later:
+ * numbers with their unit, booleans as Yes/No, ISO or epoch timestamps as
+ * local date/time, other strings as they are.
+ */
 export function formatMetric(key: string, v: MetricValue | null | undefined, unit?: string | null): Formatted {
   if (v == null || v === '') return { value: '—', unit: '' }
   if (typeof v === 'boolean') return { value: v ? 'Yes' : 'No', unit: '' }
-  if (typeof v === 'string') return { value: v, unit: '' }
+  if (typeof v === 'string') {
+    if (ISO_TS.test(v.trim()) && !Number.isNaN(Date.parse(v))) return { value: formatTime(new Date(v)), unit: '' }
+    return { value: v, unit: '' }
+  }
+  const at = epochOf(key, v)
+  if (at) return { value: formatTime(at), unit: '' }
   const u = unitOf(key, unit)
   if (u === 'W') {
     // Same W/kW presentation as the rest of the dashboard; sign kept as reported.
@@ -99,6 +121,32 @@ export function deviceTitle(d: Pick<SolarDevice, 'kind' | 'externalId' | 'name' 
   const what = [d.manufacturer, d.model].filter(Boolean).join(' ')
   const kind = { SYSTEM: 'System', INVERTER: 'Inverter', BATTERY: 'Battery', BMS: 'BMS' }[d.kind]
   return what ? `${what}` : `${kind} ${d.externalId}`
+}
+
+export interface MetricRow {
+  device: SolarDevice
+  key: string
+  value: MetricValue
+  /** Time of the reading this value comes from. */
+  ts: string
+  stale: boolean
+}
+
+/**
+ * Every value every device currently reports, one row each — the generic view
+ * that makes new SolarBMS fields visible without a dedicated card.
+ */
+export function allMetricRows(devices: SolarDevice[], filter = ''): MetricRow[] {
+  const f = filter.trim().toLowerCase()
+  const rows: MetricRow[] = []
+  for (const d of devices) {
+    if (!d.latest) continue
+    for (const [key, value] of orderedMetrics(d.latest.metrics)) {
+      if (f && !key.includes(f) && !metricMeta(key).label.toLowerCase().includes(f)) continue
+      rows.push({ device: d, key, value, ts: d.latest.ts, stale: d.latest.stale })
+    }
+  }
+  return rows
 }
 
 /** Headline metrics first (curated order), then every other metric alphabetically. */

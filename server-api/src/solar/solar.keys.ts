@@ -18,7 +18,17 @@ export const SolarKeys = {
   deadLetters: 'solar:ingest:dead',
   /** Set of `<KIND>|<metricKey>` already in the SolarMetric catalogue. */
   metrics: (siteId: string) => `solar:metrics:${siteId}`,
+  /** Set while the metric catalogue's lastSeenAt was refreshed recently. */
+  metricsTouched: (siteId: string) => `solar:metrics-touched:${siteId}`,
+  /** Hash per installation: accepted / duplicate counters (admin monitoring only). */
+  stats: (installationId: string) => `solar:stats:${installationId}`,
 };
+
+/** SolarMetric.lastSeenAt is refreshed at most this often per site. */
+export const METRIC_TOUCH_SECONDS = 3600;
+
+/** A reading older than this is "delayed"; an installation without one is offline. */
+export const LIVE_STALE_MS = 5 * 60_000;
 
 export const DEDUPE_TTL_SECONDS = 24 * 3600;
 /** Distinct metric names catalogued per site; beyond this new names stay in the raw payload only. */

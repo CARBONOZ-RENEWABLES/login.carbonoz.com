@@ -103,7 +103,7 @@ Send everything the SolarBMS API has. **Unknown fields are accepted and stored**
 | `inverters` | – | Array, or an object keyed by id. |
 | `batteries` | – | Array, or an object keyed by id. Each may contain a `bms` object (or array). A top-level `bms` array with `batteryId` also works. |
 | `cells` | – | Numbers (`[3.31, 3.32]`) or objects `{id, voltage, temperature?, balancing?, timestamp?}`. Any other per-cell field (e.g. `cellResistance`, `balancingCurrentMa`) is kept too. Voltages above 100 are read as millivolts. Also accepted as `cellVoltages`. Each BMS may report a different number of cells. |
-| `alarms` / `warnings` | – | Strings, objects `{code, message, severity, active}`, or flags `{ "overTemp": true }`. Carbonoz records when an alarm appears and when it clears. |
+| `alarms` / `warnings` | – | On a device (inverter, battery, BMS) or at the top level for the whole system. Strings, objects `{code, message, severity, active}`, or flags `{ "overTemp": true }`. Carbonoz records when an alarm appears and when it clears (it clears when a newer reading of that device no longer reports it). |
 | `events` | – | One-off events. |
 | `forecast` | – | `points` / `values` / `hours` with a timestamp each. |
 

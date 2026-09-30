@@ -36,11 +36,18 @@ function Sidebar({ nav, pathname, onNavigate }: { nav: NavItem[]; pathname: stri
       </button>
       <nav className='px-3 pt-1'>
         <ul className='space-y-1'>
-          {nav.map((item) => {
+          {nav.map((item, i) => {
             const isActive = active?.to === item.to
             const Icon = item.icon
+            const newSection = item.section && item.section !== nav[i - 1]?.section
             return (
               <li key={item.to}>
+                {newSection && (
+                  <>
+                    {i > 0 && <span className='mx-2 my-2 block border-t border-line xl:hidden' aria-hidden />}
+                    <p className={cn('hidden px-3 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-subtle xl:block', i > 0 && 'pt-4')}>{item.section}</p>
+                  </>
+                )}
                 <button
                   type='button'
                   onClick={() => onNavigate(item.to)}

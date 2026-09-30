@@ -147,12 +147,15 @@ All under `/api/v1`.
 | Tenancy | `GET customers/me` · `GET sites` · `GET sites/:siteId` |
 | Solar (customer) | `GET solar/sites/:siteId/{overview, devices, inverters, batteries, bms, cells, metrics, history, events, forecast, access}` |
 | Ingestion (machine) | `POST ingest/solarbms` |
-| Admin | `GET/POST admin/customers` · `POST/DELETE admin/customers/:id/members` · `POST admin/customers/:id/sites` · `GET/POST admin/sites/:id/installations` · `POST admin/installations/:id/credentials` · `DELETE admin/credentials/:id` · `GET admin/solar/sites/:id/ingests` · `POST admin/solar/ingests/:id/reprocess` · `GET admin/solar/dead-letters` · `POST admin/solar/dead-letters/:id/requeue` |
+| Admin · tenancy | `GET/POST admin/customers` (list with member/site/installation counts, status, last activity; `?q=`) · `GET/PATCH admin/customers/:id` · `POST/DELETE admin/customers/:id/members` · `POST admin/customers/:id/sites` · `GET admin/sites` (`?q=&customerId=`) · `GET/POST admin/sites/:id/installations` · `GET admin/installations` (`?q=&siteId=&customerId=`) · `PATCH admin/installations/:id` (name, systemId, active) |
+| Admin · machine credentials | `GET admin/credentials` (`?installationId=&status=&q=`, never secrets) · `POST admin/installations/:id/credentials` · `POST admin/credentials/:id/rotate` (API keys) · `DELETE admin/credentials/:id` |
+| Admin · SolarBMS | `GET admin/solar/health` · `GET admin/solar/installations` (per-installation ingestion stats) · `GET admin/solar/ingests` (`?status=&installationId=&siteId=&q=&page=&size=`) · `GET admin/solar/ingests/:id` · `POST admin/solar/ingests/:id/reprocess` · `GET admin/solar/sites/:id/ingests` · `GET admin/solar/{devices,events,metrics}` · `GET admin/solar/dead-letters` · `POST admin/solar/dead-letters/:id/requeue` |
 | Onboarding / business | `partners`, `steps`, `systemsteps`, `user/*` (information, asset, meter, project, certification, Redex file), `redex/*`, `admin/*` (users, logs, Redex) |
 
 - **Site authorization.** Every Solar endpoint checks access server-side (`SiteAccessGuard` → CustomerMember, or ADMIN); inaccessible sites return **404**.
 - **History.** Raw samples, time-bucketed, at most **31 days** per request (the dashboard offers up to 30), with a 10 s server-side limit. It uses the `siteId, deviceKind, ts` index. Longer ranges would need pre-aggregated rollups.
 - **Swagger** runs only with `SWAGGER_ENABLED=true`. Keep it off in production.
+- **Admin routes** require the ADMIN role on the server (`JwtGuard` + `RolesGuard`): customers get 403, anonymous callers and machine credentials 401. Query values are checked to be plain strings/ids/enums, so `?x[$ne]=` is a 400, never a MongoDB operator.
 
 ## 6. Redex production reporting
 
@@ -171,16 +174,36 @@ All under `/api/v1`.
   - Headline totals never mix delayed installations into current values; excluded installations are named.
   - When everything is delayed, the last values are shown as such.
 - **Cells.** Any number per BMS, with every per-cell field (voltage, temperature, balancing, time, and any new field) plus a full cell table.
-- **New metrics appear on their own:** device cards, the History picker, and the System tab's metric table.
+- **New metrics appear on their own:** device cards, the History picker, and the System tab's *All reported values* table (every current value of every device, searchable, with its update time) and metric table. Numbers get their unit, booleans Yes/No, ISO or epoch timestamps a local date/time. Only important canonical metrics get curated cards.
 - **Empty states.** A customer without a site, or a site without an installation, sees "No SolarBMS system connected".
+
+## 7a. Admin panel — `offsettingdashboard/src/features/admin`
+
+Same shell and design system as the rest of the app; the sidebar groups the admin menu into **SolarBMS** and **Carbonoz**. Every page calls the admin API above — no local data.
+
+| Page | Route | What an admin does there |
+|---|---|---|
+| Overview | `/admin/overview` | Pipeline health: installations online/offline, messages in the last 24 h, stream backlog and workers, dead letters, MongoDB/Redis. |
+| Customers | `/admin/customers`, `/admin/customers/:id` | Create/edit customers; add members by email (Owner/Admin/Viewer) and remove them; create sites. |
+| Sites | `/admin/sites` | Every site with customer, installations and live status; links to its dashboard, installations, ingestion and data. |
+| Installations | `/admin/installations` | Create SolarBMS installations (with `systemId`), edit, deactivate; issue machine credentials. |
+| Machine credentials | `/admin/credentials` | List, rotate (API keys) and revoke. A new API key is shown once, with copy button and a confirmation before the dialog closes. |
+| Ingestion | `/admin/solar` | Per installation: last received/processed, 24 h counts, accepted/duplicates, failed, queued, devices, cells, active alarms, latest status. Message list with filters and pagination, message inspector (stored payload, failure reason, original text) with **Reprocess**, dead letters with **Requeue**. |
+| Devices & metrics | `/admin/solar/data` | Per site: devices, events (filters) and the metric catalogue (unit, type, first/last seen). |
+| Solar dashboard | `/admin/dashboard/:siteId?/:tab?` | The customer dashboard (`SolarPage`) for any site, inside the admin shell. |
+| Redex · Users · Logs | `/admin`, `/admin/users`, `/admin/logs` | Unchanged. |
+
+- **Status rules** (server): an installation is *online* if it reported within 5 min, *offline* after that, *no data yet* if it never did, *deactivated* when switched off. A deactivated installation's credentials are rejected immediately.
+- **Counters.** Accepted/duplicate counts are kept per installation in Redis (`solar:stats:<installationId>`) from the deployment of this version on; they are best-effort and never affect ingestion.
+- **Metric "last seen"** is refreshed at most hourly per site, so the catalogue costs no extra write per message.
 
 ## 8. Tests
 
 | Suite | Command | Covers |
 |---|---|---|
-| Backend unit | `npm test` | Normalizer (contract example from `solarbms-ingestion.md`, fixtures, robustness), MongoDB-safe keys, return-address allowlist |
-| Backend e2e | `npm run test:e2e` | Disposable MongoDB replica set, `redis-server` and mock Keycloak; the real API in-process: Keycloak login and login-CSRF, email-takeover regression, CSRF, refresh revocation/back-off, legacy cut-over, tenant isolation, machine auth, ingestion and dynamic data, out-of-order state, outage drills (Redis/MongoDB kill and restart, dead-letter, locking, two workers) |
-| Frontend unit | `npm test` (offsettingdashboard) | Headline totals (fresh/stale/mixed/none), site model, formatting, energy flow |
+| Backend unit | `npm test` | Normalizer (contract example from `solarbms-ingestion.md`, fixtures, robustness, system-level alarms), MongoDB-safe keys, return-address allowlist, exact email matching |
+| Backend e2e | `npm run test:e2e` | Disposable MongoDB replica set, `redis-server` and mock Keycloak; the real API in-process: Keycloak login and login-CSRF, email-takeover regression, CSRF, refresh revocation/back-off, legacy cut-over, tenant isolation, machine auth, ingestion and dynamic data, out-of-order state, outage drills (Redis/MongoDB kill and restart, dead-letter, locking, two workers), admin panel API (provisioning, members, rotation/revocation, deactivation, ingestion stats, failed-then-reprocessed messages, alarms kept through reprocess, metric catalogue, non-admin denial) |
+| Frontend unit | `npm test` (offsettingdashboard) | Headline totals (fresh/stale/mixed/none), site model, formatting, energy flow, dynamic metrics (types, timestamps, all-values list), 16/24/32 cells, admin status and formatting helpers |
 
 CI (`.github/workflows/ci.yml`) runs type checks, lint of the platform code, both unit suites, both builds and the e2e suite.
 
@@ -190,13 +213,17 @@ Backend env: `server-api/.env.example`. Frontend: `VITE_API_URL=/api`, `VITE_AUT
 
 1. **Deploy.** Keep `KEYCLOAK_ENABLED=false` at first (legacy login unchanged); the site and Solar APIs are live.
 2. **Audit admins.** Run `npm run audit:admins` against production (read-only). Review every ADMIN/SUB_ADMIN that isn't the seeded admin, and resolve case-duplicate emails.
-3. **Provision.** Customer → site → installation → credential for each SolarBMS system.
+3. **Provision** in the admin panel: Customers → New customer (owner) → New site → Installations → New installation (`systemId`) → Issue credential. Give the API key to the Pi and watch it appear under Ingestion.
 4. **Keycloak.**
    - Realm `customers`: confidential client `carbonoz-login`, redirect `https://login.carbonoz.com/api/v1/auth/oidc/callback`, email verification required, no identity provider trusted for email.
    - Realm `machines`: one client per device, audience mapper `carbonoz-ingest`, role `solarbms-ingest`.
 5. **Switch on SSO.** Build the frontend with `VITE_AUTH_MODE=keycloak` and set `KEYCLOAK_ENABLED=true`. Existing users are linked by their verified email.
 6. **Cut over.** Once everyone uses Keycloak, set `LEGACY_AUTH_ENABLED=false`.
 7. **Solar host.** Set `SESSION_COOKIE_DOMAIN=.carbonoz.com` and `AUTH_RETURN_ORIGINS=https://solar.carbonoz.com`.
+8. **Redis** (6.2+, AOF on, `maxmemory-policy noeviction`). With ACLs, the API's user needs keys `~session:* ~session-refresh:* ~oidc-pending:* ~solar:*` and these commands:
+   `ping hello auth select client|setinfo info get set setex del expire getdel hset hgetall hmget hincrby sadd srem smembers smismember xadd xlen xack xclaim xreadgroup xpending xrevrange xtrim xgroup xinfo`.
+   Without `hincrby` the admin counters show "—"; without `xrevrange` the Redis dead-letter fallback isn't listed. Ingestion works either way.
+9. **Indexes.** After deploying a new schema version, run `npx prisma db push --skip-generate` once (it creates the new indexes; take a `mongodump` first).
 
 ## 10. Open items
 

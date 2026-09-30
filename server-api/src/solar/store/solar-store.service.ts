@@ -11,7 +11,11 @@ import {
   normalizeSolarBms,
 } from '../normalize/solarbms.normalizer';
 import { toMongoSafe } from '../normalize/mongo-safe';
-import { MAX_METRICS_PER_SITE, SolarKeys } from '../solar.keys';
+import {
+  MAX_METRICS_PER_SITE,
+  METRIC_TOUCH_SECONDS,
+  SolarKeys,
+} from '../solar.keys';
 
 export interface LiveDevice {
   installationId: string;
@@ -351,7 +355,23 @@ export class SolarStoreService {
     );
 
     for (const [id, e] of reported) {
-      if (known.has(id)) continue;
+      // Known in Redis normally means its active row exists. A reprocess or
+      // retry deletes this ingest's derived rows first, so check and restore.
+      if (
+        known.has(id) &&
+        (await this.prisma.solarEvent.findFirst({
+          where: {
+            siteId,
+            installationId,
+            deviceKind: e.kind,
+            deviceExternalId: e.externalId,
+            code: e.code,
+            active: true,
+          },
+          select: { id: true },
+        }))
+      )
+        continue;
       await this.prisma.solarEvent.create({
         data: {
           siteId,
@@ -424,6 +444,7 @@ export class SolarStoreService {
       ids,
     )) as unknown as number[];
     let fresh = ids.filter((_, i) => !known[i]);
+    await this.touchMetrics(siteId, seen, fresh);
     if (!fresh.length) return rejected;
     // A broken device inventing names (e.g. timestamps in keys) can't grow the
     // catalogue — and the normalized samples — without bound.
@@ -460,6 +481,43 @@ export class SolarStoreService {
     );
     await this.redis.raw.sAdd(key, fresh);
     return rejected;
+  }
+
+  /**
+   * Keeps SolarMetric.lastSeenAt meaningful without a write per message: at
+   * most once an hour per site, known metrics of this message are touched.
+   * Best effort — the catalogue itself never depends on it.
+   */
+  private async touchMetrics(
+    siteId: string,
+    seen: Map<string, { kind: ESolarDeviceKind; key: string }>,
+    fresh: string[],
+  ) {
+    const known = [...seen.entries()].filter(([id]) => !fresh.includes(id));
+    if (!known.length) return;
+    try {
+      if (
+        !(await this.redis.setIfAbsent(
+          SolarKeys.metricsTouched(siteId),
+          '1',
+          METRIC_TOUCH_SECONDS,
+        ))
+      )
+        return;
+      const byKind = new Map<ESolarDeviceKind, string[]>();
+      for (const [, m] of known)
+        byKind.set(m.kind, [...(byKind.get(m.kind) ?? []), m.key]);
+      await Promise.all(
+        [...byKind].map(([deviceKind, keys]) =>
+          this.prisma.solarMetric.updateMany({
+            where: { siteId, deviceKind, key: { in: keys } },
+            data: { lastSeenAt: new Date() },
+          }),
+        ),
+      );
+    } catch (e) {
+      this.logger.warn(`Metric lastSeenAt refresh skipped: ${e.message}`);
+    }
   }
 
   private async updateLive(

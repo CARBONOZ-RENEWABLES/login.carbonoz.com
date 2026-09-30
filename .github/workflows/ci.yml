@@ -57,8 +57,8 @@ jobs:
       - run: npm ci
       - name: Type check
         run: npm run typecheck
-      - name: Lint (Solar dashboard, auth, layout)
-        run: npx eslint src/features/solar src/lib/auth src/layout src/routes src/services
+      - name: Lint (Solar dashboard, admin panel, auth, layout)
+        run: npx eslint src/features/solar src/features/admin src/lib/auth src/layout src/routes src/services
       - name: Unit tests
         run: npm test
       - name: Build

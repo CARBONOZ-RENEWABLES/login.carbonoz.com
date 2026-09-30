@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DeviceKind, SolarDevice, SolarOverview } from './api'
-import { buildSite, formatMetric, freshness, headline, metricMeta, solarFlow } from './model'
+import { allMetricRows, buildSite, formatMetric, freshness, headline, metricMeta, solarFlow } from './model'
 
 let seq = 0
 function dev(installationId: string, kind: DeviceKind, externalId: string, metrics: Record<string, number | string>, opts: { stale?: boolean; parent?: string; cells?: number } = {}): SolarDevice {
@@ -102,5 +102,50 @@ describe('formatting and flow', () => {
     expect(f.load).toBe(2500)
     expect(f.battery_state).toBe('charging')
     expect(f.grid_state).toBe('importing')
+  })
+})
+
+describe('dynamic metrics', () => {
+  it('renders metrics no card was designed for, by value type', () => {
+    expect(formatMetric('future_metric', 123)).toEqual({ value: '123', unit: '' })
+    expect(formatMetric('heatsink_temperature_c', 41.52)).toEqual({ value: '41.5', unit: '°C' })
+    expect(formatMetric('fan_running', true)).toEqual({ value: 'Yes', unit: '' })
+    expect(formatMetric('operating_mode', 'Battery first')).toEqual({ value: 'Battery first', unit: '' })
+    // Timestamps: ISO strings and epoch seconds/ms under a time-like key.
+    const iso = formatMetric('last_balancing_at', '2026-09-30T08:00:00Z').value
+    expect(iso).not.toContain('T08')
+    expect(iso).toMatch(/2026/)
+    expect(formatMetric('last_update_ts', 1790755200).value).toMatch(/2026/)
+    expect(formatMetric('last_update_ts', 1790755200000).value).toMatch(/2026/)
+    // A number that is not a timestamp stays a number, even under a time-like key.
+    expect(formatMetric('uptime', 1790755200).value).toBe('1790755200')
+    expect(formatMetric('charge_time', 42).value).toBe('42')
+    expect(metricMeta('future_metric').label).toBe('Future metric')
+  })
+
+  it('lists every reported value of every device, including new ones, and filters them', () => {
+    const devices = [
+      dev('A', 'SYSTEM', 'sys', { pv_power_w: 1000, future_metric: 7 }),
+      dev('A', 'BMS', 'bms-1', { soc_pct: 60, cell_count: 16 }, { stale: true }),
+    ]
+    const rows = allMetricRows(devices)
+    expect(rows.map((r) => r.key)).toEqual(['pv_power_w', 'future_metric', 'soc_pct', 'cell_count'])
+    expect(rows.find((r) => r.key === 'soc_pct')?.stale).toBe(true)
+    expect(allMetricRows(devices, 'future').map((r) => r.key)).toEqual(['future_metric'])
+    expect(allMetricRows(devices, 'solar').map((r) => r.key)).toEqual(['pv_power_w'])
+    expect(allMetricRows([dev('A', 'SYSTEM', 'sys', {})])).toEqual([])
+  })
+
+  it('keeps any number of cells per BMS', () => {
+    for (const n of [16, 24, 32]) {
+      const site = buildSite(overview([dev('A', 'BATTERY', 'b1', { soc_pct: 50 }), dev('A', 'BMS', 'bms-1', { cell_count: n }, { parent: 'b1', cells: n })]))
+      expect(site.batteries[0].bms[0].latest?.cells).toHaveLength(n)
+    }
+  })
+
+  it('flags stale and missing data', () => {
+    expect(freshness(overview([dev('A', 'SYSTEM', 'sys', { pv_power_w: 1 }, { stale: true })]))).toEqual({ tone: 'warning', label: 'Delayed' })
+    expect(freshness(overview([]))).toEqual({ tone: 'neutral', label: 'No data yet' })
+    expect(freshness(undefined).label).toBe('No data yet')
   })
 })

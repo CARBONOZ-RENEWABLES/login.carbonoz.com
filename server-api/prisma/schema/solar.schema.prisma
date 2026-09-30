@@ -42,6 +42,10 @@ model SolarIngest {
 
   @@unique([installationId, messageId])
   @@index([siteId, receivedAt])
+  // Admin monitoring: per-installation history, failures, recent traffic.
+  @@index([installationId, receivedAt])
+  @@index([status, receivedAt])
+  @@index([receivedAt])
 }
 
 // Device registry: inverters, batteries and their BMS, per installation.
@@ -99,6 +103,8 @@ model SolarEvent {
   raw              Json?
 
   @@index([siteId, ts])
+  // Admin monitoring across sites.
+  @@index([ts])
 }
 
 model SolarForecast {

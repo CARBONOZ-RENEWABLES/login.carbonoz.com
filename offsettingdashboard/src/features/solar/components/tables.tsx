@@ -7,7 +7,7 @@ import { RootState } from '../../../lib/redux/store'
 import { SolarEvent } from '../api'
 
 /** Thin wrapper so every Solar table uses the app's existing antd table styling. */
-export function DataTable<T extends object>({ rows, columns, rowKey, loading, empty }: { rows: T[] | undefined; columns: ColumnsType<T>; rowKey: (r: T) => string; loading?: boolean; empty?: { title: string; description?: string } }) {
+export function DataTable<T extends object>({ rows, columns, rowKey, loading, empty, pageSize }: { rows: T[] | undefined; columns: ColumnsType<T>; rowKey: (r: T) => string; loading?: boolean; empty?: { title: string; description?: string }; pageSize?: number }) {
   const darkMode = useSelector((s: RootState) => s.theme.darkMode)
   if (!loading && !rows?.length) return <EmptyState title={empty?.title ?? 'No data available'} description={empty?.description} />
   return (
@@ -17,7 +17,7 @@ export function DataTable<T extends object>({ rows, columns, rowKey, loading, em
       columns={columns}
       rowKey={rowKey}
       loading={loading}
-      pagination={false}
+      pagination={pageSize ? { pageSize, hideOnSinglePage: true, showSizeChanger: false } : false}
       bordered={false}
       scroll={{ x: 'max-content' }}
       size='small'

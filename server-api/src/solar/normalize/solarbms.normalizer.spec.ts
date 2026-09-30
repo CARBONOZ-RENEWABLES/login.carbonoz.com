@@ -187,6 +187,38 @@ describe('normalizeSolarBms', () => {
     expect(n.events.map((e) => e.code)).toEqual(['over_temp']);
   });
 
+  it('records top-level alarms and warnings on the SYSTEM device', () => {
+    const n = normalizeSolarBms({
+      systemId: 'sys-1',
+      measurements: { pvPower: 100 },
+      alarms: [
+        { code: 'GRID_LOSS', message: 'Grid lost', severity: 'critical' },
+      ],
+      warnings: ['Fan dusty'],
+    });
+    expect(n.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'SYSTEM',
+          externalId: 'sys-1',
+          code: 'grid_loss',
+          severity: 'CRITICAL',
+          isAlarm: true,
+        }),
+        expect.objectContaining({
+          kind: 'SYSTEM',
+          externalId: 'sys-1',
+          code: 'fan_dusty',
+          severity: 'WARNING',
+          isAlarm: true,
+        }),
+      ]),
+    );
+    // Structural fields never leak into metrics.
+    const sys = n.samples.find((s) => s.kind === 'SYSTEM');
+    expect(Object.keys(sys.metrics)).toEqual(['pv_power_w']);
+  });
+
   it('handles missing data without throwing', () => {
     expect(() => normalizeSolarBms(null)).not.toThrow();
     const n = normalizeSolarBms({

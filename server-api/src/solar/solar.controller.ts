@@ -17,7 +17,21 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { ERole, Site } from '@prisma/client';
+import {
+  ERole,
+  ESolarDeviceKind,
+  ESolarEventSeverity,
+  ESolarIngestStatus,
+  Site,
+} from '@prisma/client';
+import {
+  queryBool,
+  queryEnum,
+  queryId,
+  queryInt,
+  queryString,
+} from 'src/__shared__/utils/query';
+import { SolarAdminService } from './admin/solar-admin.service';
 import { GenericResponse } from 'src/__shared__/dto';
 import { AllowRoles } from 'src/auth/decorators';
 import { JwtGuard } from 'src/auth/guard/jwt.guard';
@@ -181,9 +195,132 @@ export class AdminSolarController {
     private readonly prisma: PrismaService,
     private readonly store: SolarStoreService,
     private readonly redis: RedisService,
+    private readonly admin: SolarAdminService,
     config: ConfigService<IAppConfig>,
   ) {
     this.solarStreamKey = config.get('solar').streamKey;
+  }
+
+  @ApiOperation({
+    summary:
+      'Pipeline health: MongoDB, Redis, stream backlog, worker group, dead letters, last 24 h',
+  })
+  @Get('health')
+  async health() {
+    return new GenericResponse('solar-health', await this.admin.health());
+  }
+
+  @ApiOperation({
+    summary:
+      'Per-installation ingestion: last received/processed, counts, devices, cells, alarms',
+  })
+  @Get('installations')
+  async installationStats(
+    @Query('siteId') siteId?: unknown,
+    @Query('customerId') customerId?: unknown,
+  ) {
+    return new GenericResponse(
+      'solar-installations',
+      await this.admin.installationStats({
+        siteId: queryId(siteId, 'siteId'),
+        customerId: queryId(customerId, 'customerId'),
+      }),
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Raw ingest records (without payload), newest first',
+  })
+  @Get('ingests')
+  async ingestList(
+    @Query('status') status?: unknown,
+    @Query('installationId') installationId?: unknown,
+    @Query('siteId') siteId?: unknown,
+    @Query('q') q?: unknown,
+    @Query('page') page?: unknown,
+    @Query('size') size?: unknown,
+  ) {
+    return new GenericResponse(
+      'solar-ingests',
+      await this.admin.ingests({
+        status: queryEnum(status, 'status', Object.values(ESolarIngestStatus)),
+        installationId: queryId(installationId, 'installationId'),
+        siteId: queryId(siteId, 'siteId'),
+        q: queryString(q, 'q', 128),
+        page: queryInt(page, 'page', { def: 0, min: 0, max: 100_000 }),
+        size: queryInt(size, 'size', { def: 25, min: 1, max: 100 }),
+      }),
+    );
+  }
+
+  @ApiOperation({ summary: 'One ingest record with its stored payload' })
+  @Get('ingests/:ingestId')
+  async ingestDetail(@Param('ingestId') ingestId: string) {
+    if (!isObjectId(ingestId)) throw new NotFoundException('Ingest not found');
+    return new GenericResponse(
+      'solar-ingest',
+      await this.admin.ingest(ingestId),
+    );
+  }
+
+  @Get('devices')
+  async deviceList(
+    @Query('siteId') siteId?: unknown,
+    @Query('installationId') installationId?: unknown,
+    @Query('kind') kind?: unknown,
+  ) {
+    return new GenericResponse(
+      'solar-devices',
+      await this.admin.devices({
+        siteId: queryId(siteId, 'siteId'),
+        installationId: queryId(installationId, 'installationId'),
+        kind: queryEnum(kind, 'kind', Object.values(ESolarDeviceKind)),
+      }),
+    );
+  }
+
+  @Get('events')
+  async eventList(
+    @Query('siteId') siteId?: unknown,
+    @Query('installationId') installationId?: unknown,
+    @Query('severity') severity?: unknown,
+    @Query('active') active?: unknown,
+    @Query('limit') limit?: unknown,
+  ) {
+    return new GenericResponse(
+      'solar-events',
+      await this.admin.events({
+        siteId: queryId(siteId, 'siteId'),
+        installationId: queryId(installationId, 'installationId'),
+        severity: queryEnum(
+          severity,
+          'severity',
+          Object.values(ESolarEventSeverity),
+        ),
+        active: queryBool(active, 'active'),
+        limit: queryInt(limit, 'limit', { def: 100, min: 1, max: 500 }),
+      }),
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Metric catalogue: every key seen, with unit, type, first/last seen',
+  })
+  @Get('metrics')
+  async metricList(
+    @Query('siteId') siteId?: unknown,
+    @Query('kind') kind?: unknown,
+    @Query('q') q?: unknown,
+  ) {
+    return new GenericResponse(
+      'solar-metrics',
+      await this.admin.metrics({
+        siteId: queryId(siteId, 'siteId'),
+        kind: queryEnum(kind, 'kind', Object.values(ESolarDeviceKind)),
+        q: queryString(q, 'q', 100),
+      }),
+    );
   }
 
   private readonly solarStreamKey: string;
