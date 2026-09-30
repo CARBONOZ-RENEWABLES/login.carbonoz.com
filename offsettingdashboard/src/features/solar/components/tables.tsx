@@ -2,7 +2,7 @@ import { formatDate, translate as t } from '../../../i18n'
 import { Table } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useSelector } from 'react-redux'
-import { EmptyState, StatusBadge, Tone } from '../../../design'
+import { EmptyState, SkeletonRows, StatusBadge, Tone } from '../../../design'
 import { RootState } from '../../../lib/redux/store'
 import { SolarEvent } from '../api'
 
@@ -10,7 +10,8 @@ import { SolarEvent } from '../api'
 export function DataTable<T extends object>({ rows, columns, rowKey, loading, empty, pageSize }: { rows: T[] | undefined; columns: ColumnsType<T>; rowKey: (r: T) => string; loading?: boolean; empty?: { title: string; description?: string }; pageSize?: number }) {
   const darkMode = useSelector((s: RootState) => s.theme.darkMode)
   // No rows yet: keep the space quietly; the page loader is the only spinner.
-  if (loading && !rows?.length) return <div className='min-h-[120px]' aria-busy='true' />
+  if (loading && !rows?.length)
+    return <SkeletonRows />
   if (!loading && !rows?.length) return <EmptyState title={empty?.title ?? 'No data available'} description={empty?.description} />
   return (
     <Table<T>

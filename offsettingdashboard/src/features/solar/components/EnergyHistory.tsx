@@ -1,38 +1,19 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { ReactNode, useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Button, Card, CardHeader, EmptyState, ErrorState, Segmented, StatusBadge, useChartTheme } from '../../../design'
-import { SERIES } from '../../../design/theme'
-import { formatNumber, MessageKey, useT } from '../../../i18n'
+import { Button, Card, CardHeader, EmptyState, ErrorState, Segmented, useChartTheme } from '../../../design'
+import { formatNumber, useT } from '../../../i18n'
 import { EnergyRange, useGetSolarEnergyQuery } from '../api'
 import { bucketLabel, EnergyRow, formatKwh, formatPct, periodLabel, Resolution, toRow, totals } from '../energy'
-import { DataTable } from './tables'
 import { GrafanaChart } from './GrafanaChart'
-
-const COLORS = {
-  pv: SERIES.pv,
-  consumption: SERIES.load,
-  gridImport: SERIES.grid,
-  batteryCharged: SERIES.soc,
-  batteryDischarged: SERIES.temp,
-  coverage: SERIES.export,
-}
-
-type Series = 'pv' | 'consumption' | 'gridImport' | 'batteryCharged' | 'batteryDischarged'
-const SERIES_LABEL: Record<Series | 'coverage', MessageKey> = {
-  pv: 'energy.pv',
-  consumption: 'energy.consumption',
-  gridImport: 'energy.gridImport',
-  batteryCharged: 'energy.batteryCharged',
-  batteryDischarged: 'energy.batteryDischarged',
-  coverage: 'energy.coverage',
-}
+import { COLORS, Series, SERIES_LABEL } from './energyStyle'
+import { EnergyTable } from './EnergyTable'
 
 /**
  * Energy history from the Carbonoz API: 30 days (daily), 1 year (monthly) and
  * 10 years (yearly), with charts suited to each resolution and a table.
  */
-export function EnergyHistory({ siteId }: { siteId: string }) {
+export function EnergyHistory({ siteId, siteName }: { siteId: string; siteName?: string }) {
   const t = useT()
   const [range, setRange] = useState<EnergyRange>('30d')
   const [anchors, setAnchors] = useState<Partial<Record<EnergyRange, string>>>({})
@@ -40,7 +21,6 @@ export function EnergyHistory({ siteId }: { siteId: string }) {
   const data = q.data?.data
   const rows = useMemo(() => (data ? data.buckets.map((b) => toRow(b)) : []), [data])
   const res: Resolution = data?.resolution ?? (range === '30d' ? 'day' : range === '1y' ? 'month' : 'year')
-  const sum = useMemo(() => totals(rows), [rows])
   const anyData = rows.some((r) => r.hasData)
   const go = (anchor: string | null | undefined) => anchor && setAnchors((a) => ({ ...a, [range]: anchor }))
 
@@ -80,7 +60,7 @@ export function EnergyHistory({ siteId }: { siteId: string }) {
       ) : (
         <div className={q.isFetching ? 'opacity-70 transition-opacity' : undefined}>
           <Charts rows={rows} res={res} />
-          <HistoryTable rows={rows} res={res} sum={sum} />
+          <EnergyTable siteId={siteId} siteName={siteName ?? ''} timezone={data.timezone} chartRows={rows} chartRes={res} />
           <p className='mt-2 text-[11.5px] leading-relaxed text-subtle'>{t('energy.method')}</p>
         </div>
       )}
@@ -336,94 +316,5 @@ function Legend({ series }: { series: Series[] }) {
         </span>
       ))}
     </div>
-  )
-}
-
-function RowState({ r }: { r: EnergyRow }) {
-  const t = useT()
-  if (!r.hasData) return <span className='text-[11px] text-subtle'>{t('energy.noData')}</span>
-  if (r.inProgress) return <StatusBadge tone='info'>{t('energy.inProgressShort')}</StatusBadge>
-  if (r.incomplete) return <StatusBadge tone='warning'>{t('energy.incomplete')}</StatusBadge>
-  return null
-}
-
-/** Newest first. Table on larger screens, one card per bucket on phones (no sideways scrolling). */
-function HistoryTable({ rows, res, sum }: { rows: EnergyRow[]; res: Resolution; sum: ReturnType<typeof totals> }) {
-  const t = useT()
-  const list = [...rows].reverse()
-  const cell = (v: number | null, pct = false) => (
-    <span className={v == null ? 'text-subtle' : 'tabular text-fg'} title={v == null ? t('energy.noData') : undefined}>
-      {pct ? formatPct(v) : formatKwh(v, res)}
-    </span>
-  )
-  const columns: { key: Series | 'coverage'; pct?: boolean }[] = [
-    { key: 'pv' },
-    { key: 'consumption' },
-    { key: 'gridImport' },
-    { key: 'batteryCharged' },
-    { key: 'batteryDischarged' },
-    { key: 'coverage', pct: true },
-  ]
-  const dateHead = t(res === 'day' ? 'energy.table.date' : res === 'month' ? 'energy.table.month' : 'energy.table.year')
-  return (
-    <Card className='p-4'>
-      <CardHeader title={t('energy.table.title')} />
-      <div className='mt-3 hidden sm:block' data-testid='energy-table'>
-        <DataTable<EnergyRow>
-          rows={list}
-          rowKey={(r) => r.key}
-          pageSize={res === 'day' ? 31 : 12}
-          columns={[
-            {
-              title: dateHead,
-              key: 'key',
-              render: (_, r) => (
-                <span className='flex items-center gap-2 whitespace-nowrap'>
-                  <span className='font-medium text-fg'>{bucketLabel(r.key, res, res === 'day' ? 'long' : 'long')}</span>
-                  <RowState r={r} />
-                </span>
-              ),
-            },
-            ...columns.map((c) => ({
-              title: t(SERIES_LABEL[c.key]),
-              key: c.key,
-              align: 'right' as const,
-              render: (_: unknown, r: EnergyRow) => cell(r[c.key], c.pct),
-            })),
-          ]}
-        />
-      </div>
-      <ul className='mt-3 grid gap-2 sm:hidden' data-testid='energy-cards'>
-        {list.map((r) => (
-          <li key={r.key} className='rounded-lg border border-line bg-panel-2 px-3 py-2.5'>
-            <div className='flex items-center justify-between gap-2'>
-              <span className='text-[13px] font-medium text-fg'>{bucketLabel(r.key, res, 'long')}</span>
-              <RowState r={r} />
-            </div>
-            {r.hasData && (
-              <dl className='mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]'>
-                {columns.map((c) => (
-                  <div key={c.key} className='flex min-w-0 justify-between gap-2'>
-                    <dt className='truncate text-muted'>{t(SERIES_LABEL[c.key])}</dt>
-                    <dd className='shrink-0'>{cell(r[c.key], c.pct)}</dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-          </li>
-        ))}
-      </ul>
-      <dl className='mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-line pt-3 text-[12.5px] sm:grid-cols-3 xl:grid-cols-6' aria-label={t('energy.totals')} data-testid='energy-totals'>
-        {columns.map((c) => (
-          <div key={c.key} className='min-w-0'>
-            <dt className='flex items-center gap-1.5 truncate text-muted'>
-              <span className='h-2 w-2 shrink-0 rounded-sm' style={{ background: COLORS[c.key] }} aria-hidden />
-              {t('energy.periodTotal', { name: t(SERIES_LABEL[c.key]) })}
-            </dt>
-            <dd className='tabular mt-0.5 font-semibold text-fg'>{c.pct ? formatPct(sum[c.key]) : formatKwh(sum[c.key], res)}</dd>
-          </div>
-        ))}
-      </dl>
-    </Card>
   )
 }

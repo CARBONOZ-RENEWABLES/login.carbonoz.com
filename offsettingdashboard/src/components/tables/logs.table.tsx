@@ -3,6 +3,7 @@ import { FC, ReactElement, useCallback, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { ELogType } from '../../config/constant'
 import { LogInfo } from '../../lib/api/admin/adminEndpoints'
+import { SkeletonRows } from '../../design'
 import { RootState } from '../../lib/redux/store'
 import dayjs from 'dayjs'
 import timezone from 'dayjs/plugin/timezone'
@@ -47,6 +48,9 @@ const LogsTable: FC<UsersTableProps> = ({ data, isFetching }): ReactElement => {
     return <span className='font-medium text-fg-2'>{truncatedText}</span>
   }
 
+  // First load: shimmer rows; the app loader is the only spinner.
+  if (isFetching && !data?.length) return <SkeletonRows />
+
   return (
     <Table
       className={`data_table border-collapse w-full ${
@@ -56,7 +60,7 @@ const LogsTable: FC<UsersTableProps> = ({ data, isFetching }): ReactElement => {
       rowKey={(record) => record?.id}
       rowClassName='shadow'
       pagination={false}
-      loading={isFetching}
+      loading={false}
       bordered={false}
       scroll={{ x: 0 }}
       onRow={(record) => ({

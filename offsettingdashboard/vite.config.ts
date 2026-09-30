@@ -6,6 +6,8 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react(), tsconfigPaths()],
+  // Pre-bundled in dev so the first PDF export doesn't trigger a dependency re-optimisation reload.
+  optimizeDeps: { include: ['jspdf', 'jspdf-autotable'] },
   test: {
     // Unit tests call the API client against an absolute URL (fetch is stubbed).
     env: { VITE_API_URL: 'http://localhost/api' },

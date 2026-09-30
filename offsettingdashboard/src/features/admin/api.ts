@@ -259,9 +259,14 @@ const adminApi = baseAPI.injectEndpoints({
       query: (q) => ({ url: '/admin/sites', params: params(q) }),
       providesTags: [TENANCY],
     }),
-    createSite: b.mutation<Envelope<{ id: string }>, { customerId: string; name: string; address?: string; country?: string; timezone?: string }>({
+    createSite: b.mutation<Envelope<{ id: string }>, { customerId: string; name: string; address?: string; country?: string; timezone: string }>({
       query: ({ customerId, ...body }) => ({ url: `/admin/customers/${customerId}/sites`, method: 'POST', body }),
       invalidatesTags: [TENANCY],
+    }),
+    // The time zone sets the calendar of the energy history: refetch that site's Solar data too.
+    updateSiteTimeZone: b.mutation<Envelope<SiteDetail>, { siteId: string; timezone: string }>({
+      query: ({ siteId, timezone }) => ({ url: `/admin/sites/${siteId}`, method: 'PATCH', body: { timezone } }),
+      invalidatesTags: (_r, _e, { siteId }) => [TENANCY, { type: 'Solar-Site', id: siteId }, { type: 'Solar-Site', id: 'LIST' }],
     }),
 
     // ── Installations and machine credentials ──────────────────────────────
@@ -338,6 +343,7 @@ export const {
   useRemoveMemberMutation,
   useGetAdminSitesQuery,
   useCreateSiteMutation,
+  useUpdateSiteTimeZoneMutation,
   useGetAdminInstallationsQuery,
   useCreateInstallationMutation,
   useUpdateInstallationMutation,

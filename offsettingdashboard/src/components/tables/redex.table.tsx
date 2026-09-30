@@ -5,6 +5,7 @@ import utc from 'dayjs/plugin/utc'
 import { FC, ReactElement, useCallback } from 'react'
 import { useSelector } from 'react-redux'
 import { RedexInfo } from '../../lib/api/admin/adminEndpoints'
+import { SkeletonRows } from '../../design'
 import { RootState } from '../../lib/redux/store'
 
 dayjs.extend(utc)
@@ -38,6 +39,9 @@ const RedexTable: FC<RedexTableProps> = ({
     []
   )
 
+  // First load: shimmer rows; the app loader is the only spinner.
+  if (isFetching && !data?.length) return <SkeletonRows />
+
   return (
     <Table
       className={`data_table border-collapse w-full ${
@@ -47,7 +51,7 @@ const RedexTable: FC<RedexTableProps> = ({
       rowKey={(record) => record?.id}
       rowClassName='shadow'
       pagination={false}
-      loading={isFetching}
+      loading={false}
       bordered={false}
       scroll={{ x: 0 }}
     >

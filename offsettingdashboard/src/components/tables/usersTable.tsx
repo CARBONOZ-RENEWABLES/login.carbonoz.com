@@ -6,6 +6,7 @@ import { FC, ReactElement, useCallback } from 'react'
 import { useSelector } from 'react-redux'
 import { EUserStatus } from '../../config/constant'
 import { AccountUser } from '../../lib/api/admin/adminEndpoints'
+import { SkeletonRows } from '../../design'
 import { RootState } from '../../lib/redux/store'
 
 dayjs.extend(utc)
@@ -55,6 +56,9 @@ const UsersTable: FC<UsersTableProps> = ({
     []
   )
 
+  // First load: shimmer rows; the app loader is the only spinner.
+  if (isFetching && !data?.length) return <SkeletonRows />
+
   return (
     <Table
       className={`data_table border-collapse w-full ${
@@ -64,7 +68,7 @@ const UsersTable: FC<UsersTableProps> = ({
       rowKey={(record) => record?.id}
       rowClassName='shadow'
       pagination={false}
-      loading={isFetching}
+      loading={false}
       bordered={false}
       scroll={{ x: 0 }}
       rowSelection={rowSelectionEnabled ? rowSelection : undefined}

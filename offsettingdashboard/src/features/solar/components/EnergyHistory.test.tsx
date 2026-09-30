@@ -85,9 +85,10 @@ describe('energy history view', () => {
 
     const table = await screen.findByTestId('energy-table')
     expect(calls[0].url).toContain('/v1/solar/sites/site-1/energy?range=30d')
-    const t = within(table)
+    const t = within(table.querySelector('tbody')!)
+    const head = within(table.querySelector('thead')!)
     // Column headers.
-    for (const h of ['Datum', 'PV', 'Verbrauch', 'Netzbezug', 'Batterie geladen', 'Batterie entladen', 'PV-Deckung']) expect(t.getByText(h)).toBeTruthy()
+    for (const h of ['Datum', 'PV', 'Verbrauch', 'Netzbezug', 'Batterie geladen', 'Batterie entladen', 'PV-Deckung']) expect(head.getByText(h)).toBeTruthy()
     // Values straight from the API, German number format.
     expect(t.getByText('41,289 kWh')).toBeTruthy()
     expect(t.getByText('14,192 kWh')).toBeTruthy()
@@ -118,8 +119,9 @@ describe('energy history view', () => {
     fireEvent.click(screen.getByRole('radio', { name: '1 Jahr' }))
     await waitFor(() => expect(screen.getByText('Monatliche PV-Erzeugung')).toBeTruthy())
     expect(calls.some((c) => c.url.includes('range=1y'))).toBe(true)
-    expect(within(screen.getByTestId('energy-table')).getByText('1.234,5 kWh')).toBeTruthy()
-    expect(within(screen.getByTestId('energy-table')).getByText('September 2026')).toBeTruthy()
+    const body = within(screen.getByTestId('energy-table').querySelector('tbody')!)
+    expect(body.getByText('1.234,5 kWh')).toBeTruthy()
+    expect(body.getByText('September 2026')).toBeTruthy()
   })
 
   it('renders English labels and the 10-year view', async () => {
@@ -129,8 +131,8 @@ describe('energy history view', () => {
     expect(screen.getAllByText('41.289 kWh').length).toBeGreaterThan(0)
     fireEvent.click(screen.getByRole('radio', { name: '10 years' }))
     await waitFor(() => expect(screen.getByText('Yearly PV production')).toBeTruthy())
-    const t = within(screen.getByTestId('energy-table'))
-    expect(t.getByText('Year')).toBeTruthy()
+    const t = within(screen.getByTestId('energy-table').querySelector('tbody')!)
+    expect(within(screen.getByTestId('energy-table').querySelector('thead')!).getByText('Year')).toBeTruthy()
     expect(t.getByText('9,000 kWh')).toBeTruthy()
     expect(t.getByText('80.0%')).toBeTruthy() // (4000 − 800) / 4000
   })
@@ -157,7 +159,49 @@ describe('energy history view', () => {
     mount()
     const cards = await screen.findByTestId('energy-cards')
     expect(cards.className).toContain('sm:hidden')
-    expect(screen.getByTestId('energy-table').className).toContain('hidden sm:block')
-    expect(within(cards).getAllByRole('listitem')).toHaveLength(3)
+    expect(screen.getByTestId('energy-table').className).toMatch(/hidden.*sm:block/)
+    // Three periods plus the totals card.
+    expect(within(cards).getAllByRole('listitem')).toHaveLength(4)
+  })
+
+  it('sorts columns and exports the table as CSV and PDF', async () => {
+    stubApi(() => ({ body: { data: history('30d', DAYS) } }))
+    const blobs: Blob[] = []
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: (b: Blob) => (blobs.push(b), 'blob:x'), revokeObjectURL: () => undefined }))
+    const pdf = vi.fn(async () => undefined)
+    vi.doMock('../energyPdf', () => ({ exportPdf: pdf }))
+    mount()
+    const table = await screen.findByTestId('energy-table')
+    const firstRow = () => table.querySelector('tbody tr')!.textContent
+    // Newest first by default; sort by PV (descending) puts the 41.289 kWh day first.
+    expect(firstRow()).toContain('30/08/2026')
+    fireEvent.click(within(table.querySelector('thead')!).getByRole('button', { name: /PV$/ }))
+    expect(firstRow()).toContain('41.289 kWh')
+    expect(table.querySelector('th[aria-sort="descending"]')).toBeTruthy()
+    // Totals row.
+    expect(within(screen.getByTestId('energy-totals')).getByText('53.289 kWh')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /Export/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /CSV/ }))
+    expect(blobs).toHaveLength(1)
+    const csv = await new Promise<string>((ok) => {
+      const r = new FileReader()
+      r.onload = () => ok(String(r.result))
+      r.readAsText(blobs[0])
+    })
+    expect(csv).toContain('Date,PV (kWh),Consumption (kWh),Grid import (kWh),Battery charged (kWh),Battery discharged (kWh),PV coverage (%)')
+    expect(csv).toContain('2026-08-28,41.289,14.192,1.064,31.852,7.459,92.5')
+    expect(csv).toContain('2026-08-29,,,,,,')
+
+    fireEvent.click(screen.getByRole('button', { name: /Export/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /PDF/ }))
+    await waitFor(() => expect(pdf).toHaveBeenCalledTimes(1))
+    const report = (pdf.mock.calls[0] as unknown as [{ head: string[]; body: string[][]; foot: string[]; filename: string }])[0]
+    expect(report.head[0]).toBe('Date')
+    expect(report.body).toHaveLength(3)
+    expect(report.body[0][1]).toBe('41.289 kWh')
+    expect(report.foot[0]).toBe('Total')
+    expect(report.filename).toMatch(/^carbonoz-energy-.*\.pdf$/)
+    vi.doUnmock('../energyPdf')
   })
 })

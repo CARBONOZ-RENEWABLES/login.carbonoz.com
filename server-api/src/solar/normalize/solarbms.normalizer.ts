@@ -218,6 +218,11 @@ const STRUCTURAL_KEYS = new Set([
   'inverters',
 ]);
 
+/** ISO date-time without `Z` or `±hh:mm`: JavaScript would read it in the server's zone. */
+const NO_OFFSET = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/;
+/** Offset-less timestamps seen by the current normalizeSolarBms() call (it is synchronous). */
+let offsetless = 0;
+
 export function parseTime(v: unknown): Date | undefined {
   if (v == null || v === '') return undefined;
   if (v instanceof Date) return Number.isNaN(v.getTime()) ? undefined : v;
@@ -228,7 +233,10 @@ export function parseTime(v: unknown): Date | undefined {
   }
   if (typeof v === 'string') {
     if (/^\d+(\.\d+)?$/.test(v)) return parseTime(Number(v));
-    const d = new Date(v);
+    // No offset: read as UTC, whatever zone the server runs in (to confirm with SolarBMS).
+    const noOffset = NO_OFFSET.test(v.trim());
+    if (noOffset) offsetless++;
+    const d = new Date(noOffset ? `${v.trim().replace(' ', 'T')}Z` : v);
     return Number.isNaN(d.getTime()) ? undefined : d;
   }
   return undefined;
@@ -500,6 +508,7 @@ export function normalizeSolarBms(
   receivedAt: Date = new Date(),
 ): NormalizedBatch {
   const warnings: string[] = [];
+  offsetless = 0;
   const devices = new Map<string, NormalizedDevice>();
   const samples: NormalizedSample[] = [];
   const events: NormalizedEvent[] = [];
@@ -566,7 +575,6 @@ export function normalizeSolarBms(
     'measurements',
     'metrics',
     'system',
-    'energy',
     'power',
     'totals',
     'summary',
@@ -574,6 +582,12 @@ export function normalizeSolarBms(
     const v = pick(p, c);
     if (isObj(v)) collectMetrics(v, systemMetrics, warnings, `system.${c}`);
   }
+  // `energy: { pv: 12.3 }` holds energy (counters of unconfirmed meaning), not
+  // power: kept as energy_pv…, never aliased to pv_power_w and so never
+  // integrated by energy history.
+  const energy = pick(p, 'energy');
+  if (isObj(energy))
+    collectMetrics(energy, systemMetrics, warnings, 'system.energy', 'energy');
   // Top-level scalars (not structure) are system metrics too.
   collectMetrics(
     Object.fromEntries(
@@ -761,6 +775,8 @@ export function normalizeSolarBms(
     }
     if (skewed)
       warnings.push('timestamps ahead of the receive time were replaced by it');
+    if (offsetless)
+      warnings.push('timestamps with no UTC offset were read as UTC');
     return {
       systemId,
       ts: ts.getTime() > limit ? receivedAt : ts,

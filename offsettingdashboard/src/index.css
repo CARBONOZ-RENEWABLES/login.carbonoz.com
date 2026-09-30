@@ -95,16 +95,21 @@ body,
   box-sizing: border-box;
 }
 
+/* The page background, for full-screen covers such as the boot loader. */
+.app-backdrop,
 body {
-  margin: 0;
-  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  font-size: 14px;
-  color: rgb(var(--c-fg));
   background:
     radial-gradient(1200px 700px at 30% -20%, rgb(var(--c-app-glow)), transparent 60%),
     radial-gradient(900px 600px at 110% 110%, rgb(var(--c-app-glow)), transparent 55%),
     rgb(var(--c-app));
   background-attachment: fixed;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  color: rgb(var(--c-fg));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-feature-settings: 'cv11', 'ss01';

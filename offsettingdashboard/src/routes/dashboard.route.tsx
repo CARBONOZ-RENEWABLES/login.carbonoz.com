@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { FC, ReactElement, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
-import { GeneralContentLoader } from '../components/common/loader/loader'
+import { AppLoader } from '../components/common/loader/loader'
 import { AppShell } from '../layout/AppShell'
 import { USER_BOTTOM_NAV, USER_NAV } from '../layout/nav'
 import { ShellProvider } from '../layout/ShellContext'
@@ -104,7 +104,7 @@ export const DashboardRoutes: FC = (): ReactElement => {
   }, [refetch, refetchData, refetchPartners, stepsRefetch])
 
   if ((isFetchingSteps && !redexSteps) || (isSystemFetching && !stepsData)) {
-    return <GeneralContentLoader />
+    return <AppLoader />
   }
 
   // SolarBMS is the only data source: the Solar dashboard is home.

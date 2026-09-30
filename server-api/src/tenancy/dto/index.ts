@@ -16,6 +16,7 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
+import { IsIanaTimeZone } from 'src/__shared__/utils/timezone';
 
 export class CreateCustomerDto {
   @ApiProperty()
@@ -81,10 +82,20 @@ export class CreateSiteDto {
   @IsNumber()
   longitude?: number;
 
-  @ApiPropertyOptional({ example: 'Europe/Berlin' })
-  @IsOptional()
-  @IsString()
-  timezone?: string;
+  @ApiProperty({
+    example: 'Europe/Berlin',
+    description:
+      'IANA time zone of the installation: sets the calendar days, months and years of its energy history.',
+  })
+  @IsIanaTimeZone()
+  timezone: string;
+}
+
+/** Only the time zone is editable after creation. */
+export class UpdateSiteDto {
+  @ApiProperty({ example: 'Africa/Kigali' })
+  @IsIanaTimeZone()
+  timezone: string;
 }
 
 export class CreateInstallationDto {
