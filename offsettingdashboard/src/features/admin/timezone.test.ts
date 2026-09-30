@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { knownTimeZone, timeZoneOptions, utcOffset } from './model'
 
 describe('site time zone selector', () => {
@@ -22,5 +22,15 @@ describe('site time zone selector', () => {
     expect(utcOffset('UTC', summer)).toBe('UTC')
     expect(knownTimeZone('Europe/Berlinn')).toBe(false)
     expect(knownTimeZone(null)).toBe(false)
+  })
+  it('reads zero offsets the same whatever the ICU version says ("GMT" or "GMT+00:00")', () => {
+    for (const icu of ['GMT', 'GMT+00:00', 'GMT-00:00']) {
+      const spy = vi.spyOn(Intl.DateTimeFormat.prototype, 'formatToParts').mockReturnValue([{ type: 'timeZoneName', value: icu }])
+      expect(utcOffset('UTC')).toBe('UTC')
+      spy.mockRestore()
+    }
+    const spy = vi.spyOn(Intl.DateTimeFormat.prototype, 'formatToParts').mockReturnValue([{ type: 'timeZoneName', value: 'GMT+05:30' }])
+    expect(utcOffset('Asia/Kolkata')).toBe('UTC+05:30')
+    spy.mockRestore()
   })
 })

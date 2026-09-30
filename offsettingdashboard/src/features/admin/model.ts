@@ -110,7 +110,8 @@ export function timeZoneOptions(current?: string | null): string[] {
 export function utcOffset(tz: string, at = new Date()): string {
   try {
     const name = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'longOffset' }).formatToParts(at).find((p) => p.type === 'timeZoneName')?.value ?? ''
-    return name.replace(/^GMT/, 'UTC')
+    // ICU versions differ for zero: "GMT" or "GMT+00:00".
+    return name.replace(/^GMT/, 'UTC').replace(/^UTC[+-]00:?00$/, 'UTC')
   } catch {
     return ''
   }
