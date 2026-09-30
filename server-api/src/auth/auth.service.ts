@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { User } from '@prisma/client';
+import { ERole, User } from '@prisma/client';
 import * as argon from 'argon2';
 import axios from 'axios';
 import { IAppConfig } from 'src/__shared__/interfaces';
@@ -15,13 +15,17 @@ import { EventService } from 'src/event/event.service';
 import { MailsService } from 'src/mails/mails.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
-  authenticateDTO,
   CreateUserDto,
   forgotPasswordDto,
   LoginUserDto,
   VerifyUserDto,
 } from './dto';
 import { JwtPayload } from './interfaces';
+import {
+  findUserByEmail,
+  findUsersByEmail,
+  normalizeEmail,
+} from 'src/__shared__/utils/email';
 
 @Injectable()
 export class AuthService {
@@ -35,13 +39,12 @@ export class AuthService {
 
   public generateToken(
     user: User,
-    userPort?: string,
     verification?: boolean,
   ): { data: { user: User; token: string } } | string {
     const { id, role, email } = user;
 
     const token = this.Jwt.sign(
-      { id, role, email, userPort },
+      { id, role, email },
       { secret: this.config.get('jwt').secret },
     );
     delete user.password;
@@ -105,24 +108,27 @@ export class AuthService {
   }
 
   async createUser(dto: CreateUserDto) {
-    const userExist = await this.prismaService.user.findFirst({
-      where: { email: dto.email },
-    });
+    dto.email = normalizeEmail(dto.email);
+    const userExist =
+      (await findUsersByEmail(this.prismaService, dto.email)).length > 0;
     if (userExist)
       throw new ConflictException('User with this email already exists');
     const password = await argon.hash(dto.password);
     dto.password = password;
-    const smtpEnabled = this.config.get('smtp')?.host && this.config.get('smtp')?.user;
+    const smtpEnabled =
+      this.config.get('smtp')?.host && this.config.get('smtp')?.user;
     const user = await this.prismaService.user.create({
       data: {
         ...dto,
+        // Public sign-up never grants a privileged role, whatever the client sends.
+        role: ERole.USER,
         active: !smtpEnabled || this.config.get('env') === 'development',
       },
     });
     if (!smtpEnabled || this.config.get('env') === 'development') {
-      return this.generateToken(user, null);
+      return this.generateToken(user);
     }
-    const token = this.generateToken(user, null, true);
+    const token = this.generateToken(user, true);
     const message = this.sendEmail(user, token);
     return {
       data: {
@@ -133,36 +139,32 @@ export class AuthService {
   }
 
   async loginUser(dto: LoginUserDto) {
-    const user = await this.prismaService.user.findUnique({
-      where: {
-        email: dto.email,
-      },
-    });
+    const user = await findUserByEmail(this.prismaService, dto.email);
 
     if (!user) throw new NotFoundException('User not found');
-    else if (!(await argon.verify(user.password, dto.password))) {
+    // Accounts created through Keycloak have no password.
+    else if (!user.password) {
+      throw new ForbiddenException(
+        'This account signs in with CARBONOZ single sign-on',
+      );
+    } else if (!(await argon.verify(user.password, dto.password))) {
       throw new ForbiddenException('Wrong User password');
     } else {
-      const userPort = await this.prismaService.userPorts.findFirst({
-        where: {
-          userId: user.id,
-        },
-      });
-
       if (user.activeStatus === false && user.active === true) {
         throw new ForbiddenException('User is disabled');
       }
 
-      const smtpEnabled = this.config.get('smtp')?.host && this.config.get('smtp')?.user;
+      const smtpEnabled =
+        this.config.get('smtp')?.host && this.config.get('smtp')?.user;
       if (user.active === false) {
         if (!smtpEnabled || this.config.get('env') === 'development') {
           await this.prismaService.user.update({
             where: { id: user.id },
             data: { active: true },
           });
-          return this.generateToken(user, userPort?.port);
+          return this.generateToken(user);
         }
-        const tokenData = this.generateToken(user, userPort?.port, true);
+        const tokenData = this.generateToken(user, true);
         const message = await this.sendEmail(user, tokenData);
         return {
           data: {
@@ -172,7 +174,7 @@ export class AuthService {
         };
       }
 
-      return this.generateToken(user, userPort?.port);
+      return this.generateToken(user);
     }
   }
 
@@ -198,14 +200,10 @@ export class AuthService {
   }
 
   async EmailForgotPassword(dto: forgotPasswordDto) {
-    const user = await this.prismaService.user.findUnique({
-      where: {
-        email: dto.email,
-      },
-    });
+    const user = await findUserByEmail(this.prismaService, dto.email);
 
     if (!user) throw new NotFoundException('User not found');
-    const token = this.generateToken(user, null, true);
+    const token = this.generateToken(user, true);
     const message = this.sendEmail(user, token, true);
     return {
       data: {
@@ -230,54 +228,5 @@ export class AuthService {
     } catch (error) {
       throw new BadRequestException('Invalid or expired token');
     }
-  }
-
-  async authenticateUser(dto: authenticateDTO) {
-    const userCredentials = await this.prismaService.userCredentials.findFirst({
-      where: {
-        AND: [{ clientId: dto.clientId }, { clientSecret: dto.clientSecret }],
-      },
-    });
-    if (!userCredentials) {
-      return null;
-    }
-
-    // Check if user has active subscription or manual access
-    const user = await this.prismaService.user.findUnique({
-      where: { id: userCredentials.userId },
-    });
-
-    if (!user) {
-      return null;
-    }
-
-    const now = new Date();
-    const hasManualAccess = user.manualAccessOverride && 
-                           (!user.manualAccessExpiry || user.manualAccessExpiry > now);
-
-    if (hasManualAccess) {
-      return { userId: userCredentials.userId };
-    }
-
-    // Check for active subscription
-    const subscription = await this.prismaService.subscription.findFirst({
-      where: { 
-        userId: userCredentials.userId,
-        status: 'ACTIVE',
-        endDate: { gt: now }
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (!subscription) {
-      return null;
-    }
-
-    return { userId: userCredentials.userId };
-  }
-
-  async getUserServers() {
-    const hosts = await this.prismaService.userPorts.findMany();
-    return hosts.map((host) => host.port.replace(/\s+/g, ''));
   }
 }

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Notify from '../components/common/notification/notification'
+import { loginRedirect } from '../lib/auth/session'
 import { removeFromLocal } from './handleStorage'
 
 interface ErrorResponse {
@@ -39,7 +40,7 @@ const handleAPIRequests = <T>({
 
       if (err.statusCode === 401) {
         removeFromLocal('token')
-        window.location.href = '/'
+        loginRedirect()
       }
 
       if (err?.data) {

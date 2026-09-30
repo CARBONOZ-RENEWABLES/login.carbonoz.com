@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { User } from '@prisma/client';
 import * as argon from 'argon2';
-import * as crypto from 'crypto';
 import { MailsService } from 'src/mails/mails.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { resetPasswordDto } from './dto';
@@ -40,28 +39,6 @@ export class UserService {
       './email.t.hbs',
     );
     return result;
-  }
-
-  async generateCredentials(user: User) {
-    let credentials = await this.prismaService.userCredentials.findFirst({
-      where: {
-        userId: user.id,
-      },
-    });
-    if (!credentials) {
-      const clientId = crypto.randomBytes(16).toString('hex');
-      const clientSecret = crypto.randomBytes(32).toString('hex');
-
-      credentials = await this.prismaService.userCredentials.create({
-        data: {
-          userId: user.id,
-          clientId,
-          clientSecret,
-        },
-      });
-    }
-
-    return credentials;
   }
 
   async editUserInformation(dto: EditUserInfoDto, user: User) {

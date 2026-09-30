@@ -40,39 +40,38 @@ const CustomModal: FC<CustomModalProps> = ({
   return (
     <Modal
       title={
-        <div className='flex justify-between items-start px-6 pt-6 pb-4 border-b' style={{ borderColor: 'var(--border)' }}>
+        <div className='flex items-start justify-between gap-4 border-b border-line px-5 py-4'>
           <div className='flex-1'>
             <motion.h2
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className='text-2xl font-bold mb-2'
-              style={{ color: 'var(--text-primary)' }}
+              className='text-[16px] font-semibold text-fg'
             >
               {title}
             </motion.h2>
             {subTitle && (
-              <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>
+              <p className='mt-0.5 text-[12.5px] text-muted'>
                 {subTitle}{' '}
-                <span className='font-semibold' style={{ color: 'var(--text-primary)' }}>{subTitleKey}</span>
+                <span className='font-medium text-fg'>{subTitleKey}</span>
               </p>
             )}
           </div>
           {!loading && title && (
-            <motion.button
-              whileHover={{ scale: 1.1, rotate: 90 }}
-              whileTap={{ scale: 0.9 }}
+            <button
+              type='button'
               onClick={onCancel}
-              className='ml-4 p-2 rounded-lg hover:bg-[var(--surface-overlay)] transition-colors duration-200'
+              aria-label='Close dialog'
+              className='-mr-1 grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-panel-3 hover:text-fg'
             >
-              <X size={20} style={{ color: 'var(--text-secondary)' }} />
-            </motion.button>
+              <X size={16} />
+            </button>
           )}
         </div>
       }
       width={width}
       footer={
         footerContent ? (
-          <div className='px-6 py-4 border-t' style={{ borderColor: 'var(--border)', background: 'var(--surface-overlay)' }}>
+          <div className='border-t border-line px-5 py-3'>
             <Row justify='end'>
               <Col
                 xs={24}
@@ -97,8 +96,11 @@ const CustomModal: FC<CustomModalProps> = ({
       closable={false}
       destroyOnClose={destroyOnClose}
       styles={{
-        body: { padding: '24px' },
-        mask: { backdropFilter: 'blur(8px)', background: 'rgba(0, 0, 0, 0.5)' },
+        body: { padding: '16px 20px' },
+        content: { padding: 0, overflow: 'hidden', border: '1px solid rgb(var(--c-line-strong))' },
+        header: { margin: 0, padding: 0, background: 'transparent' },
+        footer: { margin: 0 },
+        mask: { backdropFilter: 'blur(2px)', background: 'rgba(0, 0, 0, 0.5)' },
       }}
     >
       <motion.div

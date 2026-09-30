@@ -7,6 +7,29 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Design-system tokens (see src/index.css)
+        'app': 'rgb(var(--c-app) / <alpha-value>)',
+        'panel': 'rgb(var(--c-panel) / <alpha-value>)',
+        'panel-2': 'rgb(var(--c-panel-2) / <alpha-value>)',
+        'panel-3': 'rgb(var(--c-panel-3) / <alpha-value>)',
+        'line': 'rgb(var(--c-line) / <alpha-value>)',
+        'line-strong': 'rgb(var(--c-line-strong) / <alpha-value>)',
+        'fg': 'rgb(var(--c-fg) / <alpha-value>)',
+        'fg-2': 'rgb(var(--c-fg-2) / <alpha-value>)',
+        'muted': 'rgb(var(--c-muted) / <alpha-value>)',
+        'subtle': 'rgb(var(--c-subtle) / <alpha-value>)',
+        'accent': 'rgb(var(--c-accent) / <alpha-value>)',
+        'accent-hover': 'rgb(var(--c-accent-hover) / <alpha-value>)',
+        'accent-ink': 'rgb(var(--c-accent-ink) / <alpha-value>)',
+        'on-accent': 'rgb(var(--c-on-accent) / <alpha-value>)',
+        'brand': 'rgb(var(--c-brand) / <alpha-value>)',
+        'solar': 'rgb(var(--c-solar) / <alpha-value>)',
+        'batt': 'rgb(var(--c-batt) / <alpha-value>)',
+        'gridp': 'rgb(var(--c-gridp) / <alpha-value>)',
+        'home': 'rgb(var(--c-home) / <alpha-value>)',
+        'violet': 'rgb(var(--c-violet) / <alpha-value>)',
+        'teal': 'rgb(var(--c-teal) / <alpha-value>)',
+        'danger': 'rgb(var(--c-danger) / <alpha-value>)',
         primary: {
           DEFAULT: '#DEAF0B',
           50: '#FEF9E7',
@@ -30,7 +53,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'Geist', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
       },
       fontSize: {
         'display': ['4rem', { lineHeight: '1.1', letterSpacing: '-0.02em', fontWeight: '700' }],
@@ -48,11 +71,13 @@ export default {
         '128': '32rem',
       },
       borderRadius: {
-        'xl': '1rem',
-        '2xl': '1.5rem',
-        '3xl': '2rem',
+        'xl': '0.75rem',
+        '2xl': '1rem',
+        '3xl': '1.5rem',
       },
       boxShadow: {
+        'card': 'var(--shadow-card)',
+        'pop': 'var(--shadow-pop)',
         'soft': '0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06)',
         'medium': '0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.06)',
         'large': '0 8px 32px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08)',

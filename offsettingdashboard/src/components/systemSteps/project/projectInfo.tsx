@@ -1,5 +1,6 @@
 import { Col, Form, Row } from 'antd'
 import { FC, ReactElement, useEffect } from 'react'
+import { FieldGuide } from '../../../design'
 import CustomInput from '../../common/input/customInput'
 import {
   ProjectDTO,
@@ -59,10 +60,7 @@ const ProjectInfo: FC<props> = ({
 
   return (
     <>
-      <div className='mb-8 p-4 border border-gray-300 rounded  mr-8'>
-        <h2 className='text-lg font-bold mb-4'>
-          Field Explanations , you can click next they are not mandatory
-        </h2>
+      <FieldGuide title='Field guide — every field in this step is optional'>
         <ul className='list-disc ml-4 space-y-2'>
           <li>
             <strong>Project Background:</strong> Provide context or historical
@@ -80,15 +78,15 @@ const ProjectInfo: FC<props> = ({
             social, or economic impacts.
           </li>
         </ul>
-      </div>
+      </FieldGuide>
       <Form
-        className='space-y-12'
+        requiredMark={false}
         name='project-info-form'
         form={form}
         onFinish={onFinish}
       >
-        <Row className='w-[100%]' gutter={{ xs: 8, sm: 16, md: 24, lg: 32 }}>
-          <Col className='gutter-row mt-2 ' span={24}>
+        <Row className='w-[100%]' gutter={16}>
+          <Col className='gutter-row' span={24}>
             <CustomInput
               placeholder='Project Background'
               label='Project Background'
@@ -97,7 +95,7 @@ const ProjectInfo: FC<props> = ({
               name='projectBackground'
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={24}>
+          <Col className='gutter-row' span={24}>
             <CustomInput
               placeholder='Project Description'
               label='Project Description'
@@ -106,7 +104,7 @@ const ProjectInfo: FC<props> = ({
               name='projectDescription'
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={24}>
+          <Col className='gutter-row' span={24}>
             <CustomInput
               placeholder='Project Impact'
               label='Project Impact'

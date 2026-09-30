@@ -54,22 +54,3 @@ export class forgotPasswordDto {
   })
   email: string;
 }
-
-export class authenticateDTO {
-  @IsString()
-  @IsNotEmpty()
-  @ApiProperty({
-    type: String,
-    required: true,
-    default: 'Test676',
-  })
-  clientId: string;
-  @IsString()
-  @IsNotEmpty()
-  @ApiProperty({
-    type: String,
-    required: true,
-    default: 'P!oopasd',
-  })
-  clientSecret: string;
-}

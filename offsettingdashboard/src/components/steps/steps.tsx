@@ -1,4 +1,3 @@
-import { Steps } from 'antd'
 import saveAs from 'file-saver'
 import {
   FC,
@@ -9,8 +8,7 @@ import {
   useState,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { FileText, Download } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ClipboardList, Download, FileText, Upload } from 'lucide-react'
 import pdf from '../../assets/redex-form/Template.pdf'
 import { ESteps } from '../../config/constant'
 import handleAPIRequests from '../../helpers/handleApiRequest'
@@ -21,8 +19,7 @@ import {
 import { useGetAdditionalInfoQuery } from '../../lib/api/user/userEndPoints'
 import Private from '../../routes/private'
 import CustomButton from '../common/button/button'
-import NavBar from '../common/header/header'
-import { GeneralContentLoader } from '../common/loader/loader'
+import { StepWizard, WizardStep } from '../../layout/onboarding/StepWizard'
 import RedexForm from './redexform/redexInfo'
 import UploadForm from './uplaodform/uploadForm'
 import RedexFields from './redexFields/redexFields'
@@ -110,10 +107,6 @@ const UserSteps: FC = (): ReactElement | boolean => {
     [makeStep]
   )
 
-  const items = useMemo(
-    () => steps.map((item) => ({ key: item.title, title: item.title })),
-    [steps]
-  )
 
   const next = useCallback(() => {
     setCurrent((prev) => prev + 1)
@@ -160,114 +153,49 @@ const UserSteps: FC = (): ReactElement | boolean => {
     }
   }, [isFile, current, makeStep, next])
 
-  const stepHeaders: { [key: number]: string } = {
-    0: 'Redex Information',
-    1: 'Upload signed form',
-    2: 'Redex Fields',
-  }
+  const wizardSteps: WizardStep[] = [
+    { title: 'Redex information', description: 'Download and sign the Redex participation form.', icon: FileText },
+    { title: 'Upload signed form', description: 'Upload the signed form as a PDF.', icon: Upload },
+    { title: 'Redex fields', description: 'Register your installation and inverters with Redex.', icon: ClipboardList },
+  ]
+
+  const showNext = !(current === 1 && stepsData?.data && stepsData.data.length > 0 && stepsData.data[0].step !== ESteps.REDEX_FIELDS) &&
+    current < steps.length - 1 && stepsData?.data && stepsData.data.length > 0 && typeof stepsData.data[0].isFile === 'boolean'
 
   return (
-    <div className='flex flex-col overflow-y-hidden 2xl:h-[100vh] xl:h-[100%] lg:h-[100%] h-[100%]' style={{ background: 'var(--surface-base)' }}>
-      <NavBar data={data?.data} additional={true} />
-      {!isFetching ? (
-        <div className='h-[100%] overflow-y-auto'>
-          <section className='flex justify-center h-[100%] overflow-y-auto'>
-            <div className='2xl:w-[60%] xl:w-[80%] lg:w-[88%] w-[90%] mt-10 h-[100%] pb-10'>
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className='flex items-center gap-4 mb-8'
-              >
-                <div className='w-12 h-12 rounded-xl flex items-center justify-center' style={{ background: 'rgba(222,175,11,0.1)' }}>
-                  <FileText size={24} style={{ color: '#DEAF0B' }} />
-                </div>
-                <div>
-                  <h1 className='text-2xl font-bold tracking-tight' style={{ color: 'var(--text-primary)' }}>
-                    {stepHeaders[current] || 'Additional Information'}
-                  </h1>
-                  <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>
-                    Step {current + 1} of {steps.length}
-                  </p>
-                </div>
-              </motion.div>
-
-              <Steps
-                current={current}
-                items={items}
-                className='mb-8'
-              />
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className={`${
-                  current === 2
-                    ? 'lg:h-[500px] overflow-y-auto overflow-x-hidden'
-                    : 'lg:h-[600px] overflow-y-auto overflow-x-hidden'
-                } h-[100%] p-6 rounded-xl border`}
-                style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
-              >
-                {steps[current].content}
-              </motion.div>
-
-              <div className='mt-8 flex lg:flex-row flex-col gap-4 w-full'>
-                {current === 1 &&
-                stepsData?.data &&
-                stepsData.data.length > 0 &&
-                stepsData.data[0].step !== ESteps.REDEX_FIELDS
-                  ? null
-                  : current < steps.length - 1 &&
-                    stepsData?.data &&
-                    stepsData.data.length > 0 &&
-                    typeof stepsData.data[0].isFile === 'boolean' && (
-                      <CustomButton
-                        type='primary'
-                        onClick={checkFile}
-                        className='lg:w-[30%] w-[100%] h-[52px]'
-                        variant='primary'
-                      >
-                        Next
-                      </CustomButton>
-                    )}
-                {current > 0 && (
-                  <CustomButton
-                    onClick={prev}
-                    className='lg:w-[30%] w-[100%] h-[52px]'
-                    variant='secondary'
-                  >
-                    Previous
-                  </CustomButton>
-                )}
-                {current === 0 && (
-                  <CustomButton
-                    onClick={saveFile}
-                    className='lg:w-[30%] w-[100%] h-[52px]'
-                    variant='secondary'
-                    icon={<Download size={18} />}
-                  >
-                    Download form
-                  </CustomButton>
-                )}
-                <CustomButton
-                  type='primary'
-                  className='lg:w-[30%] w-[100%] h-[52px]'
-                  form={getCurrentFormId()}
-                  htmlType='submit'
-                  loading={loadingAction || isLoading}
-                  disabled={loadingAction || isLoading}
-                  variant='primary'
-                >
-                  {current === steps.length - 1 ? 'SEND' : 'SUBMIT'}
-                </CustomButton>
-              </div>
-            </div>
-          </section>
-        </div>
-      ) : (
-        <GeneralContentLoader />
-      )}
-    </div>
+    <StepWizard
+      flowTitle='Redex registration'
+      flowDescription='Share your production data with Redex to issue renewable energy certificates.'
+      steps={wizardSteps}
+      current={current}
+      firstName={data?.data?.firstName}
+      lastName={data?.data?.lastName}
+      loading={isFetching}
+      actions={
+        <>
+          {current > 0 && (
+            <CustomButton onClick={prev} variant='secondary' className='lg:min-w-[120px]'>
+              <ArrowLeft size={15} /> Previous
+            </CustomButton>
+          )}
+          {current === 0 && (
+            <CustomButton onClick={saveFile} variant='secondary' icon={<Download size={15} />} className='lg:min-w-[150px]'>
+              Download form
+            </CustomButton>
+          )}
+          {showNext && (
+            <CustomButton onClick={checkFile} variant='secondary' className='lg:min-w-[120px]'>
+              Next <ArrowRight size={15} />
+            </CustomButton>
+          )}
+          <CustomButton type='primary' form={getCurrentFormId()} htmlType='submit' loading={loadingAction || isLoading} disabled={loadingAction || isLoading} variant='primary' className='lg:min-w-[160px]'>
+            {current === steps.length - 1 ? 'Submit' : 'Save & continue'}
+          </CustomButton>
+        </>
+      }
+    >
+      {steps[current].content}
+    </StepWizard>
   )
 }
 

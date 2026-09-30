@@ -23,6 +23,7 @@ import {
   useRegisterDeviceMutation,
 } from '../../../lib/api/redex/redexEndPoints'
 import { useGetRedexFileIdQuery } from '../../../lib/api/user/userEndPoints'
+import { FieldGuide } from '../../../design'
 import CustomButton from '../../common/button/button'
 import { GeneralContentLoader } from '../../common/loader/loader'
 
@@ -92,32 +93,31 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
 
   return (
     <>
-      <div className='mb-8 p-4 border border-gray-300 rounded mr-8'>
-        <h2 className='text-lg font-bold mb-4'>Important Information</h2>
+      <FieldGuide title='Important Information' defaultOpen>
         <p className='mb-2'>
           Please fill out all mandatory fields marked with a{' '}
-          <span className='text-red-500'>*</span>. Each field is crucial for
+          <span className='text-danger'>*</span>. Each field is crucial for
           proper registration of the device and related details.
         </p>
         <ul className='list-disc list-inside'>
           <li>
             <strong>Country Code</strong>{' '}
-            <span className='text-red-500'>*</span>: The code representing the
+            <span className='text-danger'>*</span>: The code representing the
             country. This is required and should follow ISO 3166 standards
             (e.g., "CN" for China).
           </li>
           <li>
             <strong>Grouped English Name</strong>{' '}
-            <span className='text-red-500'>*</span>: The English name for the
+            <span className='text-danger'>*</span>: The English name for the
             grouped entity (e.g., project or organization). Mandatory.
           </li>
           <li>
             <strong>Grouped Local Name</strong>{' '}
-            <span className='text-red-500'>*</span>: The local name of the
+            <span className='text-danger'>*</span>: The local name of the
             grouped entity. This is required for proper localization.
           </li>
           <li>
-            <strong>Province</strong> <span className='text-red-500'>*</span>:
+            <strong>Province</strong> <span className='text-danger'>*</span>:
             The province code (e.g., "CN-AH" for Anhui Province in China). This
             field is required.
           </li>
@@ -138,49 +138,49 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
             <ul className='list-disc list-inside ml-4'>
               <li>
                 <strong>Installation Name</strong>{' '}
-                <span className='text-red-500'>*</span>: The name of the
+                <span className='text-danger'>*</span>: The name of the
                 installation (e.g., "ChinaSolarDeveloper-AnhuiSheng-000001").
                 This is mandatory.
               </li>
               <li>
-                <strong>Address</strong> <span className='text-red-500'>*</span>
+                <strong>Address</strong> <span className='text-danger'>*</span>
                 : The full address of the installation site. This is required.
               </li>
               <li>
                 <strong>Postal Code</strong>{' '}
-                <span className='text-red-500'>*</span>: The postal code of the
+                <span className='text-danger'>*</span>: The postal code of the
                 installation site. Required.
               </li>
               <li>
                 <strong>Longitude</strong>{' '}
-                <span className='text-red-500'>*</span>: The geographical
+                <span className='text-danger'>*</span>: The geographical
                 longitude of the installation site. This is a required field.
               </li>
               <li>
                 <strong>Latitude</strong>{' '}
-                <span className='text-red-500'>*</span>: The geographical
+                <span className='text-danger'>*</span>: The geographical
                 latitude of the installation site. This is required and must
                 follow a valid decimal format.
               </li>
               <li>
                 <strong>Grid Connection Date</strong>{' '}
-                <span className='text-red-500'>*</span>: The date when the
+                <span className='text-danger'>*</span>: The date when the
                 device was connected to the grid. Mandatory, formatted as
                 "YYYY-MM-DD".
               </li>
               <li>
                 <strong>Owner's Declaration Start Date</strong>{' '}
-                <span className='text-red-500'>*</span>: The start date of the
+                <span className='text-danger'>*</span>: The start date of the
                 owner’s declaration. This is a required field.
               </li>
               <li>
                 <strong>Owner's Declaration End Date</strong>{' '}
-                <span className='text-red-500'>*</span>: The end date of the
+                <span className='text-danger'>*</span>: The end date of the
                 owner’s declaration. Required.
               </li>
               <li>
                 <strong>Domestic</strong>{' '}
-                <span className='text-red-500'>*</span>: Specifies if the
+                <span className='text-danger'>*</span>: Specifies if the
                 installation is domestic (true or false). This is a required
                 field.
               </li>
@@ -200,17 +200,17 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                 <ul className='list-disc list-inside ml-4'>
                   <li>
                     <strong>Remote Inv ID</strong>{' '}
-                    <span className='text-red-500'>*</span>: The remote inverter
+                    <span className='text-danger'>*</span>: The remote inverter
                     ID (e.g., "RM1000020003386274014"). This is required.
                   </li>
                   <li>
                     <strong>Electronic Serial Number</strong>{' '}
-                    <span className='text-red-500'>*</span>: The electronic
+                    <span className='text-danger'>*</span>: The electronic
                     serial number of the inverter. Required.
                   </li>
                   <li>
                     <strong>Brand Code</strong>{' '}
-                    <span className='text-red-500'>*</span>: The code
+                    <span className='text-danger'>*</span>: The code
                     representing the brand of the inverter (e.g., "HW21"). This
                     is required.
                   </li>
@@ -220,7 +220,7 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                   </li>
                   <li>
                     <strong>Installed Capacity</strong>{' '}
-                    <span className='text-red-500'>*</span>: The installed
+                    <span className='text-danger'>*</span>: The installed
                     capacity of the inverter in kilowatts (e.g., 10.9 kW). This
                     is a required field.
                   </li>
@@ -229,21 +229,21 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
             </ul>
           </li>
         </ul>
-      </div>
+      </FieldGuide>
 
       <Form
         layout='vertical'
-        className='p-5'
+        requiredMark={false}
         form={form}
         name='redex-fields-form'
         onFinish={onFinish}
       >
         <Row gutter={[16, 16]}>
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <Form.Item
               label={
                 <span>
-                  Country Code <span className='text-red-500'>*</span>
+                  Country Code <span className='text-danger'>*</span>
                 </span>
               }
               name='CountryCode'
@@ -252,7 +252,7 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
               ]}
             >
               <Select
-                className='rounded h-[60px] text-black flex items-center hover:border-[#DEAF0B]'
+                className='w-full'
                 options={countryOptions.map((option) => ({
                   value: option.code,
                   label: option.name,
@@ -261,11 +261,11 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
             </Form.Item>
           </Col>
 
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <Form.Item
               label={
                 <span>
-                  Grouped English Name <span className='text-red-500'>*</span>
+                  Grouped English Name <span className='text-danger'>*</span>
                 </span>
               }
               name='GroupedEnglishName'
@@ -280,11 +280,11 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
             </Form.Item>
           </Col>
 
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <Form.Item
               label={
                 <span>
-                  Grouped Local Name <span className='text-red-500'>*</span>
+                  Grouped Local Name <span className='text-danger'>*</span>
                 </span>
               }
               name='GroupedLocalName'
@@ -299,18 +299,18 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
             </Form.Item>
           </Col>
 
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <Form.Item
               label={
                 <span>
-                  Province <span className='text-red-500'>*</span>
+                  Province <span className='text-danger'>*</span>
                 </span>
               }
               name='Province'
               rules={[{ required: true, message: 'Please select a province!' }]}
             >
               <Select
-                className='rounded h-[60px] text-black flex items-center hover:border-[#DEAF0B]'
+                className='w-full'
                 options={ProvincesArray.map((option) => ({
                   value: option,
                   label: option,
@@ -319,19 +319,19 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
             </Form.Item>
           </Col>
 
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <Form.Item label='Timezone' name='Timezone'>
               <Input className='h-[60px] ' placeholder='UTC+08:00' />
             </Form.Item>
           </Col>
 
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <Form.Item
               label='Generation Data Frequency'
               name='GenerationDataFrequency'
             >
               <Select
-                className='rounded h-[60px] text-black flex items-center hover:border-[#DEAF0B]'
+                className='w-full'
                 options={frequencyData.map((option) => ({
                   value: option,
                   label: option,
@@ -349,16 +349,16 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                   <div
                     key={key}
                     style={{ marginBottom: 20 }}
-                    className=' border border-[#DEAF0B] p-4  rounded-xl'
+                    className='rounded-xl border border-line bg-panel-2/60 p-4 sm:p-5'
                   >
-                    <p className='mb-5 font-bold text-lg'>Device {index + 1}</p>
+                    <p className='mb-4 text-[14px] font-semibold text-fg'>Device {index + 1}</p>
                     <Row gutter={[16, 16]}>
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item
                           label={
                             <span>
                               Installation Name{' '}
-                              <span className='text-red-500'>*</span>
+                              <span className='text-danger'>*</span>
                             </span>
                           }
                           name={[name, 'InstallationName']}
@@ -377,11 +377,11 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                         </Form.Item>
                       </Col>
 
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item
                           label={
                             <span>
-                              Address <span className='text-red-500'>*</span>
+                              Address <span className='text-danger'>*</span>
                             </span>
                           }
                           name={[name, 'Address']}
@@ -397,12 +397,12 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                         </Form.Item>
                       </Col>
 
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item
                           label={
                             <span>
                               Postal Code{' '}
-                              <span className='text-red-500'>*</span>
+                              <span className='text-danger'>*</span>
                             </span>
                           }
                           name={[name, 'PostalCode']}
@@ -421,12 +421,12 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                         </Form.Item>
                       </Col>
 
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item
                           label={
                             <span>
                               Grid Connection Date{' '}
-                              <span className='text-red-500'>*</span>
+                              <span className='text-danger'>*</span>
                             </span>
                           }
                           name={[name, 'GridConnectionDate']}
@@ -445,12 +445,12 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                         </Form.Item>
                       </Col>
 
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item
                           label={
                             <span>
                               Owner Declaration Start Date{' '}
-                              <span className='text-red-500'>*</span>
+                              <span className='text-danger'>*</span>
                             </span>
                           }
                           name={[name, 'OwnersDeclarationStartDate']}
@@ -469,12 +469,12 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                           />
                         </Form.Item>
                       </Col>
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item
                           label={
                             <span>
                               Owner Declaration End Date{' '}
-                              <span className='text-red-500'>*</span>
+                              <span className='text-danger'>*</span>
                             </span>
                           }
                           name={[name, 'OwnersDeclarationEndDate']}
@@ -493,11 +493,11 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                           />
                         </Form.Item>
                       </Col>
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item
                           label={
                             <span>
-                              Longitude <span className='text-red-500'>*</span>
+                              Longitude <span className='text-danger'>*</span>
                             </span>
                           }
                           name={[name, 'Longitude']}
@@ -518,11 +518,11 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                         </Form.Item>
                       </Col>
 
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item
                           label={
                             <span>
-                              Latitude <span className='text-red-500'>*</span>
+                              Latitude <span className='text-danger'>*</span>
                             </span>
                           }
                           name={[name, 'Latitude']}
@@ -543,11 +543,11 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                         </Form.Item>
                       </Col>
 
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item
                           label={
                             <span>
-                              Domestic <span className='text-red-500'>*</span>
+                              Domestic <span className='text-danger'>*</span>
                             </span>
                           }
                           name={[name, 'Domestic']}
@@ -564,7 +564,7 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                         </Form.Item>
                       </Col>
 
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item
                           label='Feed In Tariff'
                           name={[name, 'FeedInTariff']}
@@ -575,7 +575,7 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                         </Form.Item>
                       </Col>
 
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item
                           label='Percentage Renewable'
                           name={[name, 'PercentageRenewable']}
@@ -607,7 +607,7 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                           {inverterFields.map((inverter, indexTwo) => {
                             return (
                               <div key={inverter.key}>
-                                <p className='mb-5 font-bold text-lg'>
+                                <p className='mb-4 text-[14px] font-semibold text-fg'>
                                   Inverter {indexTwo + 1}
                                 </p>
                                 <Row
@@ -620,7 +620,7 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                                       label={
                                         <span>
                                           Remote Inv ID{' '}
-                                          <span className='text-red-500'>
+                                          <span className='text-danger'>
                                             *
                                           </span>
                                         </span>
@@ -646,7 +646,7 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                                       label={
                                         <span>
                                           Electronic Serial Number{' '}
-                                          <span className='text-red-500'>
+                                          <span className='text-danger'>
                                             *
                                           </span>
                                         </span>
@@ -676,7 +676,7 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                                       label={
                                         <span>
                                           Brand Code{' '}
-                                          <span className='text-red-500'>
+                                          <span className='text-danger'>
                                             *
                                           </span>
                                         </span>
@@ -702,7 +702,7 @@ const RedexFields: FC<Props> = ({ makeStep, setLoadingAction }) => {
                                       label={
                                         <span>
                                           Installed Capacity in Kw{' '}
-                                          <span className='text-red-500'>
+                                          <span className='text-danger'>
                                             *
                                           </span>
                                         </span>

@@ -1,0 +1,149 @@
+// SolarBMS data. Raw payloads are always kept (SolarIngest); everything else
+// is derived from them by the ingestion worker and can be rebuilt.
+// Metric values live in open `metrics` maps so new SolarBMS fields are stored
+// without a schema change; SolarMetric catalogues every key seen.
+
+enum ESolarDeviceKind {
+  SYSTEM
+  INVERTER
+  BATTERY
+  BMS
+}
+
+enum ESolarIngestStatus {
+  QUEUED
+  PROCESSED
+  FAILED
+}
+
+enum ESolarEventSeverity {
+  INFO
+  WARNING
+  ALARM
+  CRITICAL
+}
+
+model SolarIngest {
+  id              String             @id @default(auto()) @map("_id") @db.ObjectId
+  installationId  String             @db.ObjectId
+  siteId          String             @db.ObjectId
+  // Sender-supplied id (or payload hash) — the idempotency key.
+  messageId       String
+  schemaVersion   String?
+  sourceTimestamp DateTime?
+  receivedAt      DateTime           @default(now())
+  processedAt     DateTime?
+  status          ESolarIngestStatus @default(QUEUED)
+  error           String?
+  // Normalised to MongoDB-storable field names (see toMongoSafe).
+  payload         Json
+  // The message exactly as received, only when `payload` had to be rewritten.
+  rawText         String?
+
+  @@unique([installationId, messageId])
+  @@index([siteId, receivedAt])
+}
+
+// Device registry: inverters, batteries and their BMS, per installation.
+model SolarDevice {
+  id               String           @id @default(auto()) @map("_id") @db.ObjectId
+  siteId           String           @db.ObjectId
+  installationId   String           @db.ObjectId
+  kind             ESolarDeviceKind
+  // Id the SolarBMS system uses for this device (BMS ID, battery id, inverter serial…).
+  externalId       String
+  // BMS → its battery; battery/inverter → null.
+  parentExternalId String?
+  name             String?
+  manufacturer     String?
+  model            String?
+  attributes       Json?
+  firstSeenAt      DateTime         @default(now())
+  lastSeenAt       DateTime         @default(now())
+
+  @@unique([installationId, kind, externalId])
+  @@index([siteId, kind])
+}
+
+// One document per device per sample.
+model SolarSample {
+  id               String           @id @default(auto()) @map("_id") @db.ObjectId
+  siteId           String           @db.ObjectId
+  installationId   String           @db.ObjectId
+  ingestId         String           @db.ObjectId
+  deviceKind       ESolarDeviceKind
+  deviceExternalId String
+  ts               DateTime
+  // metricKey → number | string | boolean.
+  metrics          Json
+  // BMS only: [{ id, voltage, temperature?, balancing?, ts? }].
+  cells            Json?
+  status           String?
+
+  @@index([siteId, deviceKind, ts])
+  @@index([siteId, deviceKind, deviceExternalId, ts])
+}
+
+model SolarEvent {
+  id               String              @id @default(auto()) @map("_id") @db.ObjectId
+  siteId           String              @db.ObjectId
+  installationId   String              @db.ObjectId
+  ingestId         String              @db.ObjectId
+  deviceKind       ESolarDeviceKind?
+  deviceExternalId String?
+  ts               DateTime
+  severity         ESolarEventSeverity @default(INFO)
+  code             String?
+  message          String
+  active           Boolean             @default(false)
+  raw              Json?
+
+  @@index([siteId, ts])
+}
+
+model SolarForecast {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  siteId         String   @db.ObjectId
+  installationId String   @db.ObjectId
+  ingestId       String   @db.ObjectId
+  generatedAt    DateTime
+  source         String?
+  // [{ ts, <metricKey>: value, … }]
+  points         Json
+
+  @@index([siteId, generatedAt])
+}
+
+// Catalogue of every metric key seen, so the dashboard can render metrics it
+// was never coded for.
+model SolarMetric {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  siteId      String           @db.ObjectId
+  deviceKind  ESolarDeviceKind
+  key         String
+  unit        String?
+  valueType   String // number | string | boolean
+  firstSeenAt DateTime         @default(now())
+  lastSeenAt  DateTime         @default(now())
+
+  @@unique([siteId, deviceKind, key])
+}
+
+// Messages the worker could not process after SOLAR_MAX_DELIVERIES attempts.
+// Kept verbatim so nothing is lost; acknowledged on the stream only once this
+// row exists (or, with MongoDB down, once it is on the Redis DLQ stream).
+model SolarDeadLetter {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  streamId       String
+  installationId String?
+  siteId         String?
+  messageId      String?
+  receivedAt     DateTime?
+  rawText        String
+  error          String?
+  deliveries     Int
+  createdAt      DateTime  @default(now())
+
+  @@unique([streamId])
+  @@index([siteId, createdAt])
+}

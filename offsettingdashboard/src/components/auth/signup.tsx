@@ -11,8 +11,8 @@ import {
   SignupDTO,
   useSignupMutation,
 } from '../../lib/api/Auth/authEndpoints'
-import CustomButton from '../common/button/button'
-import CustomInput from '../common/input/customInput'
+import CustomButton from './legacy/LegacyButton'
+import CustomInput from './legacy/LegacyInput'
 import Notify from '../common/notification/notification'
 import CustomImage from '../common/image/customImage'
 import logo from '../../assets/1.jpg'

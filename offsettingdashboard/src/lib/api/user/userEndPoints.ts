@@ -102,22 +102,6 @@ export interface additionalInfoInt {
   customerTimezone?: string
 }
 
-export interface getPortsResponse {
-  message: string
-  data: Array<getPort>
-}
-
-export interface getPort {
-  id: string
-  createdAt: string
-  updatedAt: string
-  mqttUsername: string
-  mqttPassword: string
-  mqttPort: number
-  userId: string
-  port: string
-}
-
 export interface MeterDTO {
   meterId: null | string
   meterBrand: null | string
@@ -183,18 +167,6 @@ export interface ResetPasswordDto {
   password: string
 }
 
-export interface CredentialsResponse {
-  message: string
-  data: CredentialsInterface
-}
-
-export interface CredentialsInterface {
-  id: string
-  userId: string
-  clientId: string
-  clientSecret: string
-}
-
 const userEndpoints = baseAPI.injectEndpoints({
   endpoints: (builder) => ({
     getAssets: builder.query<AssetResponse, void>({
@@ -242,13 +214,6 @@ const userEndpoints = baseAPI.injectEndpoints({
         url: `user/redex-file`,
         method: 'POST',
         body: DTO,
-      }),
-    }),
-    getUserPorts: builder.query<getPortsResponse, void>({
-      providesTags: ['Ports'],
-      query: () => ({
-        url: `user/ports`,
-        method: 'GET',
       }),
     }),
     getRedexFileId: builder.query<RedexFileResponse, void>({
@@ -310,12 +275,6 @@ const userEndpoints = baseAPI.injectEndpoints({
         body: DTO,
       }),
     }),
-    getCredentials: builder.query<CredentialsResponse, void>({
-      query: () => ({
-        url: `user/credentials`,
-        method: 'GET',
-      }),
-    }),
   }),
 })
 
@@ -325,7 +284,6 @@ export const {
   useAddAssetMutation,
   useAddAdditionalInfoMutation,
   useUploadRedexFileMutation,
-  useGetUserPortsQuery,
   useGetRedexFileIdQuery,
   useAddMeterMutation,
   useGetMeterQuery,
@@ -334,6 +292,5 @@ export const {
   useAddCertificateMutation,
   useGetCertificateQuery,
   useResetPasswordMutation,
-  useGetCredentialsQuery,
   useEditAdditionalInfoMutation,
 } = userEndpoints

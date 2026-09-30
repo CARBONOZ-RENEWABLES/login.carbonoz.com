@@ -1,4 +1,3 @@
-import { Steps } from 'antd'
 import {
   FC,
   ReactElement,
@@ -8,8 +7,7 @@ import {
   useState,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { ClipboardList } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Award, FileText, Gauge, SolarPanel, User } from 'lucide-react'
 import {
   useGetSystemStepsQuery,
   useMakeSystemStepMutation,
@@ -20,8 +18,7 @@ import {
   useGetMeterQuery,
 } from '../../lib/api/user/userEndPoints'
 import CustomButton from '../common/button/button'
-import NavBar from '../common/header/header'
-import { GeneralContentLoader } from '../common/loader/loader'
+import { StepWizard, WizardStep } from '../../layout/onboarding/StepWizard'
 import AgreementInfo from './aggreement/aggreement'
 import Assets from './asset/asset'
 import MeterInfo from './meter/meterEvidence'
@@ -129,11 +126,6 @@ const SystemUserSteps: FC = (): ReactElement | boolean => {
     [makeStep]
   )
 
-  const items = useMemo(
-    () => steps.map((item) => ({ key: item.title, title: item.title })),
-    [steps]
-  )
-
   const next = useCallback(() => setCurrent((prev) => prev + 1), [])
   const prev = useCallback(() => setCurrent((prev) => prev - 1), [])
   const getCurrentFormId = useCallback(
@@ -141,93 +133,45 @@ const SystemUserSteps: FC = (): ReactElement | boolean => {
     [current, steps]
   )
 
-  const stepHeaders: { [key: number]: string } = {
-    0: 'User Information',
-    1: 'Asset Information',
-    2: 'Meter Information',
-    3: 'Project Information',
-    4: 'Certificate Information',
-  }
+  const wizardSteps: WizardStep[] = [
+    { title: 'User information', description: 'Your name, address and contact details.', icon: User },
+    { title: 'Asset information', description: 'Your solar installation, inverters and batteries.', icon: SolarPanel },
+    { title: 'Meter information', description: 'The meter that measures your production.', icon: Gauge },
+    { title: 'Project information', description: 'Background and impact of your project (optional).', icon: FileText },
+    { title: 'Certificates', description: 'Agreements and certificates for your system.', icon: Award },
+  ]
+
+  const canSkip = !((current === 0 && !data?.data) || (current === 1 && !assetData?.data) || (current === 2 && !MeterData?.data))
 
   return (
-    <div className='flex flex-col overflow-y-hidden h-full' style={{ background: 'var(--surface-base)' }}>
-      <NavBar data={data?.data} additional={true} />
-      {!isFetching ? (
-        <div className='h-full overflow-y-auto'>
-          <section className='flex justify-center h-full overflow-y-hidden'>
-            <div className='2xl:w-[60%] xl:w-[80%] lg:w-[88%] w-[90%] mt-10 h-full pb-10'>
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className='flex items-center gap-4 mb-8'
-              >
-                <div className='w-12 h-12 rounded-xl flex items-center justify-center' style={{ background: 'rgba(222,175,11,0.1)' }}>
-                  <ClipboardList size={24} style={{ color: '#DEAF0B' }} />
-                </div>
-                <div>
-                  <h1 className='text-2xl font-bold tracking-tight' style={{ color: 'var(--text-primary)' }}>
-                    {stepHeaders[current] || 'User Information'}
-                  </h1>
-                  <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>
-                    Step {current + 1} of {steps.length}
-                  </p>
-                </div>
-              </motion.div>
-
-              <Steps current={current} items={items} className='mb-8' />
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className='lg:h-[500px] overflow-y-auto h-full p-6 rounded-xl border'
-                style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
-              >
-                {steps[current].content}
-              </motion.div>
-
-              <div className='mt-8 flex gap-4 w-full'>
-                {(current === 0 && !data?.data) ||
-                (current === 1 && !assetData?.data) ||
-                (current === 2 && !MeterData?.data)
-                  ? null
-                  : current < steps.length - 1 && (
-                      <CustomButton
-                        type='primary'
-                        onClick={next}
-                        className='lg:w-[30%] w-full h-[52px]'
-                        variant='primary'
-                      >
-                        Next
-                      </CustomButton>
-                    )}
-                {current > 0 && (
-                  <CustomButton
-                    onClick={prev}
-                    className='lg:w-[30%] w-full h-[52px]'
-                    variant='secondary'
-                  >
-                    Previous
-                  </CustomButton>
-                )}
-                <CustomButton
-                  type='primary'
-                  className='lg:w-[30%] w-full h-[52px]'
-                  form={getCurrentFormId()}
-                  htmlType='submit'
-                  loading={loadingAction || isLoading}
-                  variant='primary'
-                >
-                  {current === steps.length - 1 ? 'SEND' : 'SUBMIT'}
-                </CustomButton>
-              </div>
-            </div>
-          </section>
-        </div>
-      ) : (
-        <GeneralContentLoader />
-      )}
-    </div>
+    <StepWizard
+      flowTitle='Set up your system'
+      flowDescription='Tell us about you and your solar installation so CARBONOZ can monitor it and issue certificates.'
+      steps={wizardSteps}
+      current={current}
+      firstName={data?.data?.firstName}
+      lastName={data?.data?.lastName}
+      loading={isFetching}
+      actions={
+        <>
+          {current > 0 && (
+            <CustomButton onClick={prev} variant='secondary' className='lg:min-w-[120px]'>
+              <ArrowLeft size={15} /> Previous
+            </CustomButton>
+          )}
+          {canSkip && current < steps.length - 1 && (
+            <CustomButton onClick={next} variant='secondary' className='lg:min-w-[120px]'>
+              Next <ArrowRight size={15} />
+            </CustomButton>
+          )}
+          <CustomButton type='primary' form={getCurrentFormId()} htmlType='submit' loading={loadingAction || isLoading} variant='primary' className='lg:min-w-[160px]'>
+            {current === steps.length - 1 ? 'Submit' : 'Save & continue'}
+          </CustomButton>
+        </>
+      }
+    >
+      {steps[current].content}
+    </StepWizard>
   )
 }
 

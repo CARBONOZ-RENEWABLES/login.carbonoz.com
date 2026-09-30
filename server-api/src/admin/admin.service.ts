@@ -14,6 +14,11 @@ import {
   FilterUsers,
 } from './dto';
 import { TransformedUser, UserTransformation } from './interface';
+import {
+  escapeRegex,
+  findUsersByEmail,
+  normalizeEmail,
+} from 'src/__shared__/utils/email';
 
 @Injectable()
 export class AdminService {
@@ -64,13 +69,13 @@ export class AdminService {
           OR: [
             {
               firstName: {
-                contains: dto.name,
+                contains: escapeRegex(dto.name),
                 mode: 'insensitive',
               },
             },
             {
               lastName: {
-                contains: dto.name,
+                contains: escapeRegex(dto.name),
                 mode: 'insensitive',
               },
             },
@@ -80,8 +85,9 @@ export class AdminService {
     }
 
     if (dto?.email) {
+      // Prisma turns insensitive `contains` into a regex: escape the input.
       whereConditions.email = {
-        contains: dto.email,
+        contains: escapeRegex(dto.email),
         mode: 'insensitive',
       };
     }
@@ -104,8 +110,6 @@ export class AdminService {
           createdAt: true,
           updatedAt: true,
           activeStatus: true,
-          manualAccessOverride: true,
-          manualAccessExpiry: true,
           UserInformation: {
             select: {
               firstName: true,
@@ -126,8 +130,6 @@ export class AdminService {
         role: user.role,
         active: user.active,
         activeStatus: user.activeStatus,
-        manualAccessOverride: user.manualAccessOverride,
-        manualAccessExpiry: user.manualAccessExpiry,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
         firstName: user.UserInformation[0]?.firstName ?? 'N/A',
@@ -173,9 +175,9 @@ export class AdminService {
   }
 
   async signUsersUp(dto: AdminSignUserDto) {
-    const isEmailExists = await this.prismaService.user.findUnique({
-      where: { email: dto.email },
-    });
+    dto.email = normalizeEmail(dto.email);
+    const isEmailExists =
+      (await findUsersByEmail(this.prismaService, dto.email)).length > 0;
     if (isEmailExists) {
       throw new ConflictException('User with this email already exists');
     }
@@ -273,30 +275,5 @@ export class AdminService {
       +size,
     );
     return result;
-  }
-
-  async grantManualAccess(userId: string) {
-    const endDate = new Date();
-    endDate.setFullYear(endDate.getFullYear() + 1); // 1 year from now
-    
-    await this.prismaService.user.update({
-      where: { id: userId },
-      data: { 
-        manualAccessOverride: true,
-        manualAccessExpiry: endDate
-      },
-    });
-    return { message: 'Manual access granted for 1 year' };
-  }
-
-  async revokeManualAccess(userId: string) {
-    await this.prismaService.user.update({
-      where: { id: userId },
-      data: { 
-        manualAccessOverride: false,
-        manualAccessExpiry: null
-      },
-    });
-    return { message: 'Manual access revoked' };
   }
 }

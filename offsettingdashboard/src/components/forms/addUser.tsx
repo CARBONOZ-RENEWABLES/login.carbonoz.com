@@ -17,7 +17,7 @@ const AddNewUserForm: FC<AddNewUserFormProps> = ({ form, onFinish }) => {
     <div className='w-[100%]'>
       <div className='mb-4 p-4 rounded-xl border' style={{ background: 'var(--surface-overlay)', borderColor: 'var(--border)' }}>
         <div className='flex items-start gap-3'>
-          <Mail size={20} style={{ color: '#DEAF0B', marginTop: '2px' }} />
+          <Mail size={20} className='mt-0.5 shrink-0 text-brand' />
           <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>
             Enter the email address for the new user. They will receive an invitation to set up their account.
           </p>

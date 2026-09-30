@@ -1,10 +1,9 @@
-import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBody,
   ApiConflictResponse,
   ApiCreatedResponse,
-  ApiExcludeEndpoint,
   ApiForbiddenResponse,
   ApiInternalServerErrorResponse,
   ApiNotFoundResponse,
@@ -13,8 +12,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { LegacyAuthGuard } from './guard/legacy-auth.guard';
 import {
-  authenticateDTO,
   CreateUserDto,
   forgotPasswordDto,
   LoginUserDto,
@@ -23,6 +22,7 @@ import {
 
 @Controller('auth')
 @ApiTags('auth')
+@UseGuards(LegacyAuthGuard)
 @ApiInternalServerErrorResponse({ description: 'Internal server error' })
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -80,26 +80,6 @@ export class AuthController {
   @Post('verify-user-email')
   async verifyUserOnReset(@Body() dto: VerifyUserDto) {
     const result = await this.authService.verifyUserOnReset(dto);
-    return result;
-  }
-
-  @ApiOkResponse({ description: 'User authenticated  successfully' })
-  @ApiOperation({ summary: 'authenticate login' })
-  @ApiBody({ type: authenticateDTO })
-  @HttpCode(200)
-  @Post('authenticate')
-  async AuthenticateUser(@Body() dto: authenticateDTO) {
-    const result = await this.authService.authenticateUser(dto);
-    return result;
-  }
-
-  @ApiExcludeEndpoint()
-  @ApiOkResponse({ description: 'get hosts' })
-  @ApiOperation({ summary: 'Get all hosts' })
-  @HttpCode(200)
-  @Get('hosts')
-  async GetHosts() {
-    const result = await this.authService.getUserServers();
     return result;
   }
 }

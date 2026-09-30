@@ -88,8 +88,8 @@ sudo chown -R $USER:$USER /var/www/login.carbonoz.com
 
 # Configure environment
 cd server-api
-cp .env.production .env
-nano .env  # Update with your actual values
+cp .env.example .env
+nano .env  # Fill in real values (Keycloak, Redis, Mongo, session secrets)
 
 cd ../offsettingdashboard
 cp .env.production .env
@@ -130,7 +130,7 @@ pm2 save
 
 - **Frontend:** http://login.carbonoz.com or http://192.168.160.190
 - **Backend API:** http://192.168.160.190:3000/api
-- **API Docs:** http://192.168.160.190:3000/api/docs
+- **API Docs:** http://192.168.160.190:3000/api/docs (only when `SWAGGER_ENABLED=true`; off in production)
 
 ## 📊 Management Commands
 
@@ -177,7 +177,7 @@ pm2 restart all
 
 1. Update `.env` files with real credentials before deploying
 2. Change JWT_SECRET to a strong random string
-3. Configure PayPal and Stripe keys for payments
+3. Configure the Keycloak realms (`customers`, `machines`) — see `docs/platform-architecture.md`
 4. Add `192.168.160.190 login.carbonoz.com` to client machines' hosts file
 5. For production, consider setting up SSL with Let's Encrypt
 

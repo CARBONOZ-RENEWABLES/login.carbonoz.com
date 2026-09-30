@@ -4,7 +4,7 @@ import {
   FetchArgs,
   fetchBaseQuery,
 } from '@reduxjs/toolkit/query/react'
-import { getFromLocal } from '../../helpers/handleStorage'
+import { API_CREDENTIALS, authHeaders, loginRedirect } from '../auth/session'
 
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -17,12 +17,10 @@ const baseQueryWithAuth = async (
 ) => {
   const baseQuery = fetchBaseQuery({
     baseUrl: BASE_URL,
+    // Sends the HttpOnly session cookie in SSO mode.
+    credentials: API_CREDENTIALS,
     prepareHeaders: (headers: Headers): Headers => {
-      const localToken = getFromLocal<string>('token')
-
-      if (localToken) {
-        headers.set('authorization', `Bearer ${localToken}`)
-      }
+      for (const [k, v] of Object.entries(authHeaders())) headers.set(k, v)
       return headers
     },
   })
@@ -30,7 +28,7 @@ const baseQueryWithAuth = async (
   const result = await baseQuery(args, api, extraOptions)
 
   if (result.error && result.error.status === 401) {
-    window.location.href = '/login'
+    loginRedirect()
   }
 
   return result
@@ -39,15 +37,11 @@ const baseQueryWithAuth = async (
 export const baseAPI = createApi({
   baseQuery: baseQueryWithAuth,
   tagTypes: [
-    'Energy',
-    'Box',
-    'Topic',
     'User',
     'Steps',
     'Assets',
     'Info',
     'File',
-    'Ports',
     'Partners',
     'Redex-file',
     'SystemSteps',
@@ -57,7 +51,6 @@ export const baseAPI = createApi({
     'Users',
     'Logs',
     'Redex-Info',
-    'CarbonIntensity',
   ] as const,
   endpoints: () => ({}),
 })

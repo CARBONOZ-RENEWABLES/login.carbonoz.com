@@ -5,8 +5,10 @@ import { useNavigate } from 'react-router-dom'
 import { Upload, FileText, AlertCircle } from 'lucide-react'
 import { ESteps } from '../../../config/constant'
 import handleAPIRequests from '../../../helpers/handleApiRequest'
-import { getFromLocal, removeFromLocal } from '../../../helpers/handleStorage'
+import { removeFromLocal } from '../../../helpers/handleStorage'
+import { API_CREDENTIALS, authHeaders, loginRedirect } from '../../../lib/auth/session'
 import Notify from '../../common/notification/notification'
+import { Callout } from '../../../design'
 import RedexForm from '../redexform/redexInfo'
 
 const API_URL = import.meta.env.VITE_API_URL
@@ -74,12 +76,9 @@ const UploadForm: FC<Props> = ({
     const formData = new FormData()
     formData.append('file', File)
 
-    const localToken = getFromLocal<string>('token')
-
     fetch(`${BASE_URL}/user/redex-file`, {
-      headers: {
-        authorization: `Bearer ${localToken}`,
-      },
+      credentials: API_CREDENTIALS,
+      headers: authHeaders(),
       method: 'POST',
       body: formData,
     })
@@ -89,7 +88,7 @@ const UploadForm: FC<Props> = ({
       .catch((err) => {
         if (err.statusCode === 401) {
           removeFromLocal('token')
-          window.location.href = '/'
+          loginRedirect()
         }
 
         if (err?.data) {
@@ -109,19 +108,11 @@ const UploadForm: FC<Props> = ({
 
   return (
     <Form name='upload-info-form' form={form} onFinish={onFinish}>
-      <div className='mb-6 p-5 rounded-xl border' style={{ background: 'var(--surface-overlay)', borderColor: 'var(--border)' }}>
-        <div className='flex items-start gap-3'>
-          <AlertCircle size={20} style={{ color: '#DEAF0B', marginTop: '2px' }} />
-          <div>
-            <h2 className='text-lg font-bold mb-2' style={{ color: 'var(--text-primary)' }}>Form Upload Instructions</h2>
-            <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>
-              Please upload the signed form as a PDF file. This form is crucial to the REDEX process. Ensure the document is clear and correctly filled out. Once uploaded, click submit to proceed.
-            </p>
-          </div>
-        </div>
-      </div>
+      <Callout title='Form upload instructions' icon={<AlertCircle size={14} />}>
+        Please upload the signed form as a PDF file. This form is crucial to the REDEX process. Ensure the document is clear and correctly filled out. Once uploaded, click submit to proceed.
+      </Callout>
 
-      <h2 className='text-lg font-semibold mb-4' style={{ color: 'var(--text-primary)' }}>Upload Signed Form</h2>
+      <h2 className='mb-3 text-[14px] font-semibold text-fg'>Upload signed form</h2>
       <div>
         <Dropzone
           multiple={false}
@@ -132,10 +123,9 @@ const UploadForm: FC<Props> = ({
         >
           {({ getRootProps, getInputProps }) => (
             <section
-              className={`relative border-2 border-dashed rounded-xl w-full h-[300px] transition-all duration-200 cursor-pointer ${
-                isDragging ? 'border-[#DEAF0B] bg-[rgba(222,175,11,0.05)]' : ''
+              className={`relative h-[260px] w-full cursor-pointer rounded-xl border-2 border-dashed transition-colors duration-200 sm:h-[300px] ${
+                isDragging ? 'border-accent bg-accent/10' : 'border-line-strong bg-panel-2 hover:border-accent/60 hover:bg-accent/5'
               }`}
-              style={{ borderColor: isDragging ? '#DEAF0B' : 'var(--border)', background: isDragging ? 'rgba(222,175,11,0.05)' : 'var(--surface-overlay)' }}
             >
               <div
                 {...getRootProps({
@@ -154,24 +144,24 @@ const UploadForm: FC<Props> = ({
                       />
                     )}
                     <div className='flex items-center gap-2'>
-                      <FileText size={20} style={{ color: '#DEAF0B' }} />
+                      <FileText size={20} className='text-brand' />
                       <p style={{ color: 'var(--text-primary)' }}>{fileName}</p>
                     </div>
                   </div>
                 ) : (
                   <div className='flex flex-col items-center gap-4'>
-                    <div className='w-16 h-16 rounded-xl flex items-center justify-center' style={{ background: 'rgba(222,175,11,0.1)' }}>
-                      <Upload size={32} style={{ color: '#DEAF0B' }} />
+                    <div className='grid h-14 w-14 place-items-center rounded-2xl bg-accent/15'>
+                      <Upload size={26} className='text-accent-ink' />
                     </div>
                     <div>
-                      <p className='font-semibold mb-1' style={{ color: 'var(--text-primary)' }}>
-                        Drag and drop file here
+                      <p className='mb-1 text-[14px] font-medium text-fg'>
+                        Drag and drop your signed PDF here
                       </p>
-                      <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>
-                        or click to select file
+                      <p className='text-[12.5px] text-muted'>
+                        or click to choose a file
                       </p>
                     </div>
-                    <p className='text-xs' style={{ color: 'var(--text-muted)' }}>
+                    <p className='rounded-full border border-line-strong px-2.5 py-0.5 text-[11px] text-muted'>
                       PDF files only
                     </p>
                   </div>

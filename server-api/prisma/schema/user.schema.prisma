@@ -4,19 +4,15 @@ model User {
   updatedAt            DateTime               @default(now())
   active               Boolean                @default(false)
   activeStatus         Boolean                @default(true)
-  manualAccessOverride Boolean                @default(false)
-  manualAccessExpiry   DateTime?
   role                 ERole                  @default(USER)
   email                String?                @unique
   defaultPassword      Boolean                @default(false)
   password             String?
-  Topic                Topic[]
   Box                  Box[]
   TotalEnergy          TotalEnergy[]
   UserAssetInformation UserAssetInformation[]
   UserSteps            UserSteps[]
   RedexInformation     RedexInformation[]
-  UserPorts            UserPorts[]
   Partners             Partners[]
   UserInformation      UserInformation[]
   Asset                Asset[]
@@ -24,11 +20,10 @@ model User {
   Certification        Certification[]
   Project              Project[]
   SystemSteps          SystemSteps[]
-  UserCredentials      UserCredentials[]
   Logs                 Logs[]
   RedexRegisterDevice  RedexRegisterDevice[]
-  Subscription         Subscription[]
-  Payment              Payment[]
+  UserIdentity         UserIdentity[]
+  CustomerMember       CustomerMember[]
 }
 
 model UserInformation {
@@ -113,14 +108,6 @@ model Project {
   user               User    @relation(fields: [userId], references: [id])
 }
 
-model UserCredentials {
-  id           String @id @default(auto()) @map("_id") @db.ObjectId
-  userId       String @db.ObjectId
-  user         User   @relation(fields: [userId], references: [id])
-  clientId     String
-  clientSecret String
-}
-
 model UserAssetInformation {
   id         String    @id @default(auto()) @map("_id") @db.ObjectId
   assetOwner String?
@@ -133,16 +120,4 @@ model UserAssetInformation {
   capacity   Float?
   userId     String    @db.ObjectId
   user       User?     @relation(fields: [userId], references: [id])
-}
-
-model UserPorts {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @default(now())
-  userId       String   @db.ObjectId
-  user         User?    @relation(fields: [userId], references: [id])
-  port         String
-  mqttUsername String?
-  mqttPassword String?
-  mqttPort     Int?
 }

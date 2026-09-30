@@ -1,12 +1,20 @@
 # Carbonoz Login & Dashboard Application
 
-Full-stack application with React frontend and NestJS backend for carbon offsetting management.
+Carbonoz customer platform: React frontend and NestJS backend. Customers sign in
+with Keycloak (or, during the migration, a password), complete the Carbonoz
+onboarding (partners, Redex, system steps) and see their SolarBMS
+installations on the Solar dashboard. SolarBMS devices send data to the
+authenticated ingestion API (Redis stream → worker → MongoDB).
+
+Architecture: [docs/platform-architecture.md](docs/platform-architecture.md) ·
+SolarBMS contract: [docs/solarbms-ingestion.md](docs/solarbms-ingestion.md)
 
 ## Prerequisites
 
 - Node.js 18+ and npm/yarn
-- MongoDB with replica set enabled
-- Redis server
+- MongoDB 5+ with replica set enabled
+- Redis (AOF persistence, `maxmemory-policy noeviction`)
+- Keycloak (realms `customers` and `machines`) for SSO / machine credentials
 - PM2 (for production deployment)
 
 ## Project Structure
@@ -38,35 +46,21 @@ npm install
 
 ### 3. Configure environment variables
 
-**Backend (.env in server-api/):**
-```env
-DATABASE_URL="mongodb://localhost:27017/carbonoz?replicaSet=rs0"
-JWT_SECRET="your-secret-key-change-this-in-production"
-NODE_ENV=production
-PORT=3000
-REDIS_URL=redis://192.168.160.155
-FRONTED_URL=http://login.carbonoz.com
-ADMIN_EMAIL=admin@carbonoz.com
-ADMIN_PASSWORD=Admin@123
-PAYPAL_CLIENT_ID=your_paypal_client_id
-PAYPAL_CLIENT_SECRET=your_paypal_client_secret
-PAYPAL_MODE=sandbox
-STRIPE_SECRET_KEY=your_stripe_secret_key
-```
+**Backend (.env in server-api/):** see [`server-api/.env.example`](server-api/.env.example)
+for every setting (database, Redis, Keycloak, sessions, machine auth, SolarBMS
+pipeline, `LEGACY_AUTH_ENABLED`, `SWAGGER_ENABLED`).
 
 **Frontend (.env in offsettingdashboard/):**
 ```env
-VITE_API_URL=http://192.168.160.190:3000/api
-VITE_PAYPAL_CLIENT_ID=your_paypal_client_id
-VITE_STRIPE_PUBLIC_KEY=your_stripe_public_key
-VITE_GRAFANA_URL=http://192.168.160.185:3001
+VITE_API_URL=/api            # same origin as the SPA (Nginx proxies /api)
+VITE_AUTH_MODE=keycloak      # omit for the legacy password login
 ```
 
 ### 4. Setup MongoDB Replica Set
+Prisma needs MongoDB running as a replica set (a single node is enough):
 ```bash
-cd server-api
-chmod +x setup-mongo-replica.sh
-./setup-mongo-replica.sh
+mongod --replSet rs0 --dbpath /var/lib/mongodb --bind_ip 127.0.0.1
+mongosh --eval 'rs.initiate({_id: "rs0", members: [{_id: 0, host: "127.0.0.1:27017"}]})'
 ```
 
 ### 5. Generate Prisma Client
@@ -124,11 +118,17 @@ Configure Nginx to serve the application at login.carbonoz.com pointing to 192.1
 - `npm run start` - Start production server
 - `npm run start:dev` - Start development server with watch mode
 - `npm run build` - Build for production
+- `npm test` - Unit tests
+- `npm run test:e2e` - End-to-end tests against a disposable MongoDB, Redis and
+  mock Keycloak (needs `redis-server` on PATH; downloads a MongoDB binary)
+- `npm run audit:admins` - Read-only report of ADMIN/SUB_ADMIN accounts
 - `npm run prisma:studio` - Open Prisma Studio
 
 ### Frontend (offsettingdashboard)
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
+- `npm test` - Unit tests (Solar data model)
+- `npm run typecheck` - TypeScript check
 - `npm run preview` - Preview production build
 
 ## License

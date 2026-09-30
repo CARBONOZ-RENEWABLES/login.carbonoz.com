@@ -15,8 +15,6 @@ export interface UserTransformation {
   email: string;
   password: string;
   activeStatus: boolean;
-  manualAccessOverride?: boolean;
-  manualAccessExpiry?: Date;
   UserInformation?: Array<UserInformation>;
 }
 

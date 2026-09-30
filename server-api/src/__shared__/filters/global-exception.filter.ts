@@ -17,8 +17,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse();
     const request = ctx.getRequest();
     const isHttp = exception instanceof HttpException;
+    // body-parser errors (payload too large, malformed JSON) carry their own 4xx status.
+    const clientError =
+      !isHttp && exception?.expose && exception?.status >= 400 && exception?.status < 500;
     const status = isHttp
       ? exception.getStatus()
+      : clientError
+      ? exception.status
       : HttpStatus.INTERNAL_SERVER_ERROR;
     const exceptionResponse = isHttp
       ? exception.getResponse()

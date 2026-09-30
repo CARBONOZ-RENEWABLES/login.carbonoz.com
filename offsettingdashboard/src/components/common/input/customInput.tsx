@@ -45,9 +45,9 @@ const CustomInput: FC<CustomInputProps> = ({
   const actualInputType = isPasswordField && showPassword ? 'text' : inputType
 
   const NormalInput = (
-    <div className='mb-4'>
+    <div className='mb-3.5'>
       {label && !customlabel && (
-        <label className='text-sm font-semibold mb-2 block' style={{ color: 'var(--text-secondary)' }}>
+        <label className='mb-1 block text-[12px] font-medium text-muted'>
           {label}
         </label>
       )}
@@ -60,16 +60,9 @@ const CustomInput: FC<CustomInputProps> = ({
             placeholder={placeholder || ''}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            className={`py-3 px-4 rounded-[10px] border transition-all duration-200 ${styles} ${
-              isFocused
-                ? 'ring-2 ring-[#DEAF0B]/40 border-[#DEAF0B]'
-                : 'border-[var(--border)] hover:border-[#DEAF0B]/50'
-            }`}
-            style={{ 
-              background: 'var(--surface-overlay)',
-              color: 'var(--text-primary)',
-              fontSize: '0.9375rem'
-            }}
+            className={`${isPasswordField ? 'pr-10' : ''} ${styles ?? ''}`}
+            data-focused={isFocused || undefined}
+            size='large'
             disabled={(inputType === 'file' && isLoading) || disabled}
             onChange={(e: ChangeEvent<HTMLInputElement>) =>
               onChange(inputType === 'file' ? e?.target?.files : e?.target?.value)
@@ -79,8 +72,8 @@ const CustomInput: FC<CustomInputProps> = ({
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 transition-colors duration-200"
-              style={{ color: 'var(--text-muted)' }}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-colors duration-200 hover:text-fg"
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -91,9 +84,9 @@ const CustomInput: FC<CustomInputProps> = ({
   )
 
   const TextAreaInput = (
-    <div className='mb-4'>
+    <div className='mb-3.5'>
       {label && !customlabel && (
-        <label className='text-sm font-semibold mb-2 block' style={{ color: 'var(--text-secondary)' }}>
+        <label className='mb-1 block text-[12px] font-medium text-muted'>
           {label}
         </label>
       )}
@@ -102,11 +95,7 @@ const CustomInput: FC<CustomInputProps> = ({
         <Input.TextArea
           value={value as string}
           placeholder={placeholder || 'Enter text'}
-          className={`py-3 px-4 rounded-[10px] border transition-all duration-200 ${styles} border-[var(--border)] hover:border-[#DEAF0B]/50 focus:ring-2 focus:ring-[#DEAF0B]/40 focus:border-[#DEAF0B]`}
-          style={{ 
-            background: 'var(--surface-overlay)',
-            color: 'var(--text-primary)'
-          }}
+          className={styles ?? ''}
           disabled={disabled}
           rows={6}
           onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
@@ -118,16 +107,16 @@ const CustomInput: FC<CustomInputProps> = ({
   )
 
   const SelectMultipleInput = (
-    <div className='mb-4'>
+    <div className='mb-3.5'>
       {label && !customlabel && (
-        <label className='text-sm font-semibold mb-2 block' style={{ color: 'var(--text-secondary)' }}>
+        <label className='mb-1 block text-[12px] font-medium text-muted'>
           {label}
         </label>
       )}
 
       <Form.Item name={name} rules={rules} label={customlabel} className='mb-0'>
         <Select
-          className={`rounded-[10px] ${styles}`}
+          className={styles ?? ''}
           mode='multiple'
           size='large'
           loading={isLoading}
@@ -143,9 +132,9 @@ const CustomInput: FC<CustomInputProps> = ({
   )
 
   const SelectInput = (
-    <div className='mb-4'>
+    <div className='mb-3.5'>
       {label && !customlabel && (
-        <label className='text-sm font-semibold mb-2 block' style={{ color: 'var(--text-secondary)' }}>
+        <label className='mb-1 block text-[12px] font-medium text-muted'>
           {label}
         </label>
       )}
@@ -154,7 +143,7 @@ const CustomInput: FC<CustomInputProps> = ({
         <Select
           value={value as string | number}
           onChange={(value) => onChange(value as string | number)}
-          className={`rounded-[10px] ${styles}`}
+          className={styles ?? ''}
           loading={isLoading}
           disabled={disabled}
           options={options}
@@ -172,9 +161,9 @@ const CustomInput: FC<CustomInputProps> = ({
   )
 
   const RadioInput = (
-    <div className='mb-4'>
+    <div className='mb-3.5'>
       {label && !customlabel && (
-        <label className='text-sm font-semibold mb-2 block' style={{ color: 'var(--text-secondary)' }}>
+        <label className='mb-1 block text-[12px] font-medium text-muted'>
           {label}
         </label>
       )}
@@ -190,7 +179,6 @@ const CustomInput: FC<CustomInputProps> = ({
               <Radio
                 key={option.value}
                 value={option.value}
-                style={{ color: 'var(--text-primary)' }}
               >
                 {option.label}
               </Radio>

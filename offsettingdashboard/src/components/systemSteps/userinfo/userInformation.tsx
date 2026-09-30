@@ -10,6 +10,7 @@ import {
   useAddAdditionalInfoMutation,
   useGetAdditionalInfoQuery,
 } from '../../../lib/api/user/userEndPoints'
+import { FieldGuide } from '../../../design'
 import CustomInput from '../../common/input/customInput'
 
 interface Props {
@@ -64,8 +65,7 @@ const UserInformation: FC<Props> = ({
 
   return (
     <>
-      <div className='mb-8 p-4 border border-gray-300 rounded  mr-8'>
-        <h2 className='text-lg font-bold mb-4'>Fields Explanations</h2>
+      <FieldGuide title='Field guide'>
         <ul className='list-disc ml-4 space-y-2'>
           <li>
             <strong>First Name</strong>: The user's given name, e.g., John.
@@ -92,22 +92,22 @@ const UserInformation: FC<Props> = ({
             is located, used for scheduling and communication purposes.
           </li>
         </ul>
-      </div>
+      </FieldGuide>
 
       <Form
-        className='space-y-12'
+        requiredMark={false}
         name='user-info-form'
         form={form}
         onFinish={onFinish}
         layout='vertical'
       >
-        <Row className='w-[100%]' gutter={{ xs: 8, sm: 16, md: 24, lg: 32 }}>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+        <Row className='w-[100%]' gutter={16}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='First Name'
               customlabel={
-                <span className=' font-bold'>
-                  First Name <span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  First Name <span className='text-danger'>*</span>
                 </span>
               }
               inputType='text'
@@ -115,12 +115,12 @@ const UserInformation: FC<Props> = ({
               rules={requiredField('First Name')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Last Name'
               customlabel={
-                <span className=' font-bold'>
-                  Last Name<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Last Name<span className='text-danger'>*</span>
                 </span>
               }
               inputType='text'
@@ -128,12 +128,12 @@ const UserInformation: FC<Props> = ({
               rules={requiredField('Last Name')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Street'
               customlabel={
-                <span className=' font-bold'>
-                  Street<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Street<span className='text-danger'>*</span>
                 </span>
               }
               inputType='text'
@@ -141,12 +141,12 @@ const UserInformation: FC<Props> = ({
               rules={requiredField('Street')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='City'
               customlabel={
-                <span className=' font-bold'>
-                  City<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  City<span className='text-danger'>*</span>
                 </span>
               }
               inputType='text'
@@ -154,12 +154,12 @@ const UserInformation: FC<Props> = ({
               rules={requiredField('City')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Telephone'
               customlabel={
-                <span className=' font-bold'>
-                  Telephone<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Telephone<span className='text-danger'>*</span>
                 </span>
               }
               inputType='number'
@@ -167,12 +167,12 @@ const UserInformation: FC<Props> = ({
               rules={requiredField('Telephone')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Customer Language'
               customlabel={
-                <span className=' font-bold'>
-                  Customer Language<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Customer Language<span className='text-danger'>*</span>
                 </span>
               }
               name='customerLanguage'
@@ -185,12 +185,12 @@ const UserInformation: FC<Props> = ({
               rules={requiredField('Language')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Customer Timezone'
               customlabel={
-                <span className=' font-bold'>
-                  Customer Timezone <span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Customer Timezone <span className='text-danger'>*</span>
                 </span>
               }
               name='customerTimezone'

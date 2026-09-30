@@ -13,9 +13,9 @@ import {
   LoginDTO,
   useLoginMutation,
 } from '../../lib/api/Auth/authEndpoints'
-import CustomButton from '../common/button/button'
+import CustomButton from './legacy/LegacyButton'
 import CustomImage from '../common/image/customImage'
-import CustomInput from '../common/input/customInput'
+import CustomInput from './legacy/LegacyInput'
 import Notify from '../common/notification/notification'
 
 const Login: FC = (): ReactElement => {

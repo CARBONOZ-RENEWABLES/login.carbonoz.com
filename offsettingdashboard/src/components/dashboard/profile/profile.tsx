@@ -1,17 +1,17 @@
 import { Form } from 'antd'
+import { Pencil } from 'lucide-react'
 import { FC, ReactElement, useEffect, useState } from 'react'
-import { Edit2, User, MapPin, Phone, Globe, Clock } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { Button, Card, EmptyState, Field, FormSection, Skeleton } from '../../../design'
 import handleAPIRequests from '../../../helpers/handleApiRequest'
+import { Avatar } from '../../../layout/HeaderControls'
+import { tokenClaims } from '../../../layout/ShellContext'
 import {
   AdditionalInfoInt,
   additionalInfoInt,
   useEditAdditionalInfoMutation,
   useGetAssetsQuery,
-  useGetUserPortsQuery,
 } from '../../../lib/api/user/userEndPoints'
 import CustomButton from '../../common/button/button'
-import CustomImage from '../../common/image/customImage'
 import CustomModal from '../../common/modal/customModal'
 import EditUserInformationForm from '../../forms/edituserInfo'
 
@@ -19,32 +19,16 @@ interface props {
   additionalData: AdditionalInfoInt | undefined
 }
 
-const InfoRow: FC<{ icon: ReactElement; label: string; value: string | undefined }> = ({ icon, label, value }) => (
-  <motion.div
-    initial={{ opacity: 0, x: -20 }}
-    animate={{ opacity: 1, x: 0 }}
-    className='flex items-center gap-4 p-4 rounded-xl transition-all duration-200'
-    style={{ background: 'var(--surface-overlay)' }}
-  >
-    <div className='w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0' style={{ background: 'rgba(222,175,11,0.1)' }}>
-      {icon}
-    </div>
-    <div className='flex-1 min-w-0'>
-      <p className='text-xs font-semibold uppercase tracking-wider mb-1' style={{ color: 'var(--text-muted)' }}>{label}</p>
-      <p className='text-sm font-semibold truncate' style={{ color: 'var(--text-primary)' }}>{value || 'N/A'}</p>
-    </div>
-  </motion.div>
-)
+const val = (v: unknown) => (v === undefined || v === null || v === '' ? <span className='text-subtle'>Not provided</span> : String(v))
 
 const Profile: FC<props> = ({ additionalData }): ReactElement => {
-  const { data, refetch: refetchPort } = useGetUserPortsQuery()
   const [isVisible, setIsVisible] = useState<boolean>(false)
-  const { data: assetsData, refetch } = useGetAssetsQuery()
+  const { data: assetsData, refetch, isLoading: assetsLoading } = useGetAssetsQuery()
+  const { email } = tokenClaims()
 
   useEffect(() => {
-    refetchPort()
     refetch()
-  }, [refetchPort, refetch])
+  }, [refetch])
 
   const handleCancel = () => setIsVisible(false)
   const [editAdditionalInfo, { isLoading }] = useEditAdditionalInfoMutation()
@@ -58,154 +42,96 @@ const Profile: FC<props> = ({ additionalData }): ReactElement => {
     })
   }
 
+  const asset = assetsData?.data
+
   return (
     <>
       <CustomModal
         isVisible={isVisible}
         setIsVisible={setIsVisible}
-        title='Edit User Information'
-        width={1000}
+        title='Edit profile'
+        subTitle='Update your personal and contact information.'
+        width={760}
         handleCancel={handleCancel}
         footerContent={
-          <CustomButton type='primary' htmlType='submit' form='edit-user-info-form' loading={isLoading} className='h-[52px] px-6'>
-            Save Changes
-          </CustomButton>
+          <div className='flex justify-end gap-2'>
+            <CustomButton variant='ghost' onClick={handleCancel}>
+              Cancel
+            </CustomButton>
+            <CustomButton type='primary' htmlType='submit' form='edit-user-info-form' loading={isLoading}>
+              Save changes
+            </CustomButton>
+          </div>
         }
+        footerWidth={24}
       >
         <EditUserInformationForm form={form} data={additionalData} onFinish={onFinish} />
       </CustomModal>
 
-      <div className='space-y-6'>
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className='flex items-center gap-4'>
-          <div className='w-12 h-12 rounded-xl flex items-center justify-center' style={{ background: 'rgba(222,175,11,0.1)' }}>
-            <User size={24} style={{ color: '#DEAF0B' }} />
+      <div className='flex flex-col gap-4'>
+        <FormSection title='Profile' description='Your account on CARBONOZ.'>
+          <div className='flex flex-wrap items-center gap-4 rounded-lg border border-line bg-panel-2 p-3.5'>
+            <Avatar first={additionalData?.firstName} last={additionalData?.lastName} email={email} size={52} />
+            <div className='min-w-0 flex-1'>
+              <p className='truncate text-[15px] font-semibold text-fg'>{[additionalData?.firstName, additionalData?.lastName].filter(Boolean).join(' ') || 'Your name'}</p>
+              <p className='truncate text-[12.5px] text-muted'>{email ?? 'Customer'}</p>
+            </div>
+            <Button variant='outline' size='sm' onClick={() => setIsVisible(true)}>
+              <Pencil size={13} /> Edit
+            </Button>
           </div>
-          <div>
-            <h1 className='text-3xl font-bold tracking-tight' style={{ color: 'var(--text-primary)' }}>Profile</h1>
-            <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>Manage your account information</p>
-          </div>
-        </motion.div>
+        </FormSection>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className='rounded-xl border overflow-hidden shadow-md transition-all duration-200'
-          style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
-        >
-          <div className='flex justify-between items-center p-6 border-b border-l-4' style={{ borderBottomColor: 'var(--border)', borderLeftColor: '#DEAF0B' }}>
-            <div className='flex items-center gap-4'>
-              <div className='w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold text-black' style={{ background: '#DEAF0B' }}>
-                {additionalData?.firstName?.[0]}{additionalData?.lastName?.[0]}
+        <FormSection title='Personal information' description='Used for certificates, reports and support.'>
+          <div className='grid gap-x-4 gap-y-3.5 rounded-lg border border-line bg-panel-2 p-4 sm:grid-cols-2 xl:grid-cols-3'>
+            <Field label='First name'>{val(additionalData?.firstName)}</Field>
+            <Field label='Last name'>{val(additionalData?.lastName)}</Field>
+            <Field label='Telephone'>{val(additionalData?.telephone)}</Field>
+            <Field label='Street'>{val(additionalData?.street)}</Field>
+            <Field label='City'>{val(additionalData?.city)}</Field>
+            <Field label='Language'>{val(additionalData?.customerLanguage)}</Field>
+            <Field label='Timezone'>{val(additionalData?.customerTimezone)}</Field>
+          </div>
+        </FormSection>
+
+        <FormSection title='Asset information' description='Details of your solar installation submitted during onboarding.'>
+          {assetsLoading ? (
+            <Skeleton className='h-40 rounded-lg' />
+          ) : !asset ? (
+            <EmptyState title='No asset information' description='Asset details are collected during onboarding.' />
+          ) : (
+            <>
+              <div className='grid gap-x-4 gap-y-3.5 rounded-lg border border-line bg-panel-2 p-4 sm:grid-cols-2 xl:grid-cols-3'>
+                <Field label='Asset name'>{val(asset.assetName)}</Field>
+                <Field label='Asset owner'>{val(asset.assetOwner)}</Field>
+                <Field label='Country'>{val(asset.country)}</Field>
+                <Field label='Capacity (kWp)'>{val(asset.capacityKwp)}</Field>
+                <Field label='Fuel type'>{val(asset.fuelType)}</Field>
+                <Field label='Panel brand'>{val(asset.panelBrand)}</Field>
+                <Field label='Inverter brand'>{val(asset.inverterBrand)}</Field>
+                <Field label='Inverters'>{val(asset.amountOfInverters)}</Field>
+                <Field label='Panels'>{val(asset.amountOfPanels)}</Field>
+                <Field label='Monitoring system'>{val(asset.monitoringSystemName)}</Field>
               </div>
-              <div>
-                <h2 className='text-xl font-bold' style={{ color: 'var(--text-primary)' }}>
-                  {additionalData?.firstName} {additionalData?.lastName}
-                </h2>
-                <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>User Profile</p>
-              </div>
-            </div>
-            <CustomButton onClick={() => setIsVisible(true)} icon={<Edit2 size={18} />} variant='primary' className='h-[52px] px-6'>
-              Edit
-            </CustomButton>
-          </div>
-          <div className='p-6 grid md:grid-cols-2 gap-4'>
-            <InfoRow icon={<User size={20} style={{ color: '#DEAF0B' }} />} label='First Name' value={additionalData?.firstName} />
-            <InfoRow icon={<User size={20} style={{ color: '#DEAF0B' }} />} label='Last Name' value={additionalData?.lastName} />
-            <InfoRow icon={<MapPin size={20} style={{ color: '#DEAF0B' }} />} label='Street' value={additionalData?.street} />
-            <InfoRow icon={<MapPin size={20} style={{ color: '#DEAF0B' }} />} label='City' value={additionalData?.city} />
-            <InfoRow icon={<Phone size={20} style={{ color: '#DEAF0B' }} />} label='Telephone' value={additionalData?.telephone} />
-            <InfoRow icon={<Globe size={20} style={{ color: '#DEAF0B' }} />} label='Language' value={additionalData?.customerLanguage} />
-            <InfoRow icon={<Clock size={20} style={{ color: '#DEAF0B' }} />} label='Timezone' value={additionalData?.customerTimezone} />
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className='rounded-xl border overflow-hidden shadow-md'
-          style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
-        >
-          <div className='p-6 border-b border-l-4' style={{ borderBottomColor: 'var(--border)', borderLeftColor: '#DEAF0B' }}>
-            <h2 className='text-xl font-bold' style={{ color: 'var(--text-primary)' }}>Device Configuration</h2>
-          </div>
-          <div className='p-6 grid md:grid-cols-3 gap-4'>
-            <div className='p-4 rounded-xl' style={{ background: 'var(--surface-overlay)' }}>
-              <p className='text-xs font-semibold uppercase tracking-wider mb-2' style={{ color: 'var(--text-muted)' }}>MQTT Host</p>
-              <p className='text-sm font-semibold font-mono' style={{ color: 'var(--text-primary)' }}>{data?.data[0]?.port}</p>
-            </div>
-            <div className='p-4 rounded-xl' style={{ background: 'var(--surface-overlay)' }}>
-              <p className='text-xs font-semibold uppercase tracking-wider mb-2' style={{ color: 'var(--text-muted)' }}>MQTT Port</p>
-              <p className='text-sm font-semibold font-mono' style={{ color: 'var(--text-primary)' }}>{data?.data[0]?.mqttPort}</p>
-            </div>
-            <div className='p-4 rounded-xl' style={{ background: 'var(--surface-overlay)' }}>
-              <p className='text-xs font-semibold uppercase tracking-wider mb-2' style={{ color: 'var(--text-muted)' }}>MQTT Username</p>
-              <p className='text-sm font-semibold font-mono' style={{ color: 'var(--text-primary)' }}>{data?.data[0]?.mqttUsername}</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className='rounded-xl border overflow-hidden shadow-md'
-          style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
-        >
-          <div className='p-6 border-b border-l-4' style={{ borderBottomColor: 'var(--border)', borderLeftColor: '#DEAF0B' }}>
-            <h2 className='text-xl font-bold' style={{ color: 'var(--text-primary)' }}>Asset Information</h2>
-          </div>
-          <div className='p-6 space-y-6'>
-            <div className='grid md:grid-cols-2 lg:grid-cols-3 gap-4'>
-              {[
-                { label: 'Asset Name', value: assetsData?.data?.assetName },
-                { label: 'Asset Owner', value: assetsData?.data?.assetOwner },
-                { label: 'Country', value: assetsData?.data?.country },
-                { label: 'Capacity (kWp)', value: assetsData?.data?.capacityKwp },
-                { label: 'Fuel Type', value: assetsData?.data?.fuelType },
-                { label: 'Panel Brand', value: assetsData?.data?.panelBrand },
-                { label: 'Inverter Brand', value: assetsData?.data?.inverterBrand },
-                { label: 'Amount of Inverters', value: assetsData?.data?.amountOfInverters },
-                { label: 'Amount of Panels', value: assetsData?.data?.amountOfPanels },
-                { label: 'Monitoring System', value: assetsData?.data?.monitoringSystemName },
-              ].map((item, idx) => (
-                <div key={idx} className='p-4 rounded-xl' style={{ background: 'var(--surface-overlay)' }}>
-                  <p className='text-xs font-semibold uppercase tracking-wider mb-2' style={{ color: 'var(--text-muted)' }}>{item.label}</p>
-                  <p className='text-sm font-semibold' style={{ color: 'var(--text-primary)' }}>{item.value || 'N/A'}</p>
-                </div>
-              ))}
-            </div>
-
-            <div>
-              <h3 className='text-lg font-bold mb-4' style={{ color: 'var(--text-primary)' }}>Asset Photos</h3>
-              <div className='grid md:grid-cols-3 gap-6'>
+              <div className='grid gap-3 sm:grid-cols-3'>
                 {[
-                  { label: 'Building Photo', src: assetsData?.data?.buildingPhotoUpload },
-                  { label: 'Inverter Setup', src: assetsData?.data?.inverterSetupPhotoUpload },
-                  { label: 'Solar Panels', src: assetsData?.data?.solarPanelsPhotoUpload },
-                ].map((photo, idx) => (
-                  <motion.div
-                    key={idx}
-                    whileHover={{ scale: 1.02 }}
-                    className='group relative overflow-hidden rounded-xl border-2 transition-all duration-200'
-                    style={{ borderColor: 'var(--border)' }}
-                  >
-                    <CustomImage
-                      src={photo.src}
-                      className='w-full h-48 object-cover'
-                      width={300}
-                      height={200}
-                      style={{ objectFit: 'cover' }}
-                    />
-                    <div className='absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end'>
-                      <p className='text-white font-semibold p-4'>{photo.label}</p>
-                    </div>
-                  </motion.div>
+                  { label: 'Building', src: asset.buildingPhotoUpload },
+                  { label: 'Inverter setup', src: asset.inverterSetupPhotoUpload },
+                  { label: 'Solar panels', src: asset.solarPanelsPhotoUpload },
+                ].map((photo) => (
+                  <Card key={photo.label} className='group overflow-hidden'>
+                    {photo.src ? (
+                      <img src={photo.src} alt={photo.label} className='h-44 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]' />
+                    ) : (
+                      <div className='grid h-44 place-items-center bg-panel-2 text-[12px] text-muted'>No photo</div>
+                    )}
+                    <p className='border-t border-line px-3 py-2 text-[12.5px] font-medium text-fg-2'>{photo.label}</p>
+                  </Card>
                 ))}
               </div>
-            </div>
-          </div>
-        </motion.div>
+            </>
+          )}
+        </FormSection>
       </div>
     </>
   )
