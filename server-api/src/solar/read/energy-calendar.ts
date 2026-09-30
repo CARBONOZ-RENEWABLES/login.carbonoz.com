@@ -1,8 +1,10 @@
 /**
- * Calendar maths for energy history, in the site's own time zone: which local
+ * Calendar maths for energy history, in one IANA time zone (the viewer's
+ * profile zone or the site's, see energyTimeZone): which local
  * days, months and years a range covers, and where they start and end in UTC
  * (DST days are 23 or 25 hours long). Pure functions, no I/O.
  */
+import { isIanaTimeZone } from 'src/__shared__/utils/timezone';
 
 export type EnergyRange = '30d' | '1y' | '10y';
 export type Resolution = 'day' | 'month' | 'year';
@@ -31,6 +33,24 @@ export function safeTimeZone(tz: string | null | undefined): string {
   } catch {
     return 'UTC';
   }
+}
+
+export type TimeZoneSource = 'profile' | 'site' | 'default';
+
+/**
+ * The calendar of a viewer's energy history: their profile time zone
+ * (UserInformation.customerTimezone) when it is a valid IANA name, else the
+ * site's, else UTC. An invalid profile value is ignored, never repaired.
+ */
+export function energyTimeZone(
+  site: string | null | undefined,
+  profile: string | null | undefined,
+): { timezone: string; source: TimeZoneSource } {
+  // `GMT` is in the profile's zone list; it is the IANA link to Etc/GMT.
+  if (profile && (isIanaTimeZone(profile) || profile === 'GMT'))
+    return { timezone: profile, source: 'profile' };
+  const tz = safeTimeZone(site);
+  return { timezone: tz, source: tz === site ? 'site' : 'default' };
 }
 
 const fmtCache = new Map<string, Intl.DateTimeFormat>();

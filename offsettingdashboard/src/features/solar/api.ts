@@ -103,7 +103,10 @@ export interface EnergyBucket {
 export interface EnergyHistory {
   range: EnergyRange
   resolution: 'day' | 'month' | 'year'
+  /** Calendar of the buckets: the viewer's profile time zone, else the site's, else UTC. */
   timezone: string
+  timezoneSource?: 'profile' | 'site' | 'default'
+  siteTimezone?: string | null
   anchor: string
   previousAnchor: string
   nextAnchor: string | null

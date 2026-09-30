@@ -19,6 +19,8 @@ export function EnergyHistory({ siteId, siteName }: { siteId: string; siteName?:
   const [anchors, setAnchors] = useState<Partial<Record<EnergyRange, string>>>({})
   const q = useGetSolarEnergyQuery({ siteId, range, anchor: anchors[range] })
   const data = q.data?.data
+  // "Africa/Kigali (your profile)": the calendar and where it comes from.
+  const tzLabel = data ? `${data.timezone} (${t(`energy.tzSource.${data.timezoneSource ?? 'site'}`)})` : ''
   const rows = useMemo(() => (data ? data.buckets.map((b) => toRow(b)) : []), [data])
   const res: Resolution = data?.resolution ?? (range === '30d' ? 'day' : range === '1y' ? 'month' : 'year')
   const anyData = rows.some((r) => r.hasData)
@@ -31,7 +33,7 @@ export function EnergyHistory({ siteId, siteName }: { siteId: string; siteName?:
           <h2 id='energy-history-title' className='text-[15px] font-semibold text-fg'>
             {t('energy.title')}
           </h2>
-          <p className='text-[12px] text-muted'>{data ? t('energy.subtitle', { period: periodLabel(rows, res), tz: data.timezone }) : t('energy.subtitleLoading')}</p>
+          <p className='text-[12px] text-muted'>{data ? t('energy.subtitle', { period: periodLabel(rows, res), tz: tzLabel }) : t('energy.subtitleLoading')}</p>
         </div>
         <div className='flex flex-wrap items-center gap-2'>
           <Button size='icon-sm' variant='outline' aria-label={t('energy.earlier')} title={t('energy.earlier')} disabled={!data} onClick={() => go(data?.previousAnchor)}>
@@ -60,7 +62,7 @@ export function EnergyHistory({ siteId, siteName }: { siteId: string; siteName?:
       ) : (
         <div className={q.isFetching ? 'opacity-70 transition-opacity' : undefined}>
           <Charts rows={rows} res={res} />
-          <EnergyTable siteId={siteId} siteName={siteName ?? ''} timezone={data.timezone} chartRows={rows} chartRes={res} />
+          <EnergyTable siteId={siteId} siteName={siteName ?? ''} timezone={data.timezone} timezoneLabel={tzLabel} chartRows={rows} chartRes={res} />
           <p className='mt-2 text-[11.5px] leading-relaxed text-subtle'>{t('energy.method')}</p>
         </div>
       )}

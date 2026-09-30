@@ -201,7 +201,8 @@ const userEndpoints = baseAPI.injectEndpoints({
       }),
     }),
     editAdditionalInfo: builder.mutation<unknown, additionalInfoInt>({
-      invalidatesTags: ['Info'],
+      // The profile time zone sets the energy history calendar: refetch Solar data.
+      invalidatesTags: ['Info', 'Solar-Site'],
       query: (DTO) => ({
         url: `user/edit-user`,
         method: 'PATCH',

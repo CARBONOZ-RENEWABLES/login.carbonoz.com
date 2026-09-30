@@ -23,6 +23,7 @@ import {
   ESolarEventSeverity,
   ESolarIngestStatus,
   Site,
+  User,
 } from '@prisma/client';
 import {
   queryBool,
@@ -34,7 +35,7 @@ import {
 import { SolarAdminService } from './admin/solar-admin.service';
 import { SolarEnergyHistoryService } from './read/solar-energy-history.service';
 import { GenericResponse } from 'src/__shared__/dto';
-import { AllowRoles } from 'src/auth/decorators';
+import { AllowRoles, GetUser } from 'src/auth/decorators';
 import { JwtGuard } from 'src/auth/guard/jwt.guard';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
 import {
@@ -71,20 +72,33 @@ export class SolarController {
   constructor(
     private readonly read: SolarReadService,
     private readonly energy: SolarEnergyHistoryService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @ApiOperation({
     summary:
-      'Energy history: daily (30d), monthly (1y) or yearly (10y) kWh in the site time zone',
+      "Energy history: daily (30d), monthly (1y) or yearly (10y) kWh in the viewer's profile time zone (Customer Timezone), else the site's",
   })
   @Get('energy')
   async energyHistory(
     @CurrentSite() site: Site,
     @Query() q: EnergyHistoryQueryDto,
+    @GetUser() user: User,
   ) {
+    // The same profile record the Profile page shows and edits.
+    const profile = await this.prisma.userInformation.findFirst({
+      where: { userId: user.id },
+      select: { customerTimezone: true },
+    });
     return new GenericResponse(
       'solar-energy',
-      await this.energy.history(site, q.range ?? '30d', q.anchor),
+      await this.energy.history(
+        site,
+        q.range ?? '30d',
+        q.anchor,
+        new Date(),
+        profile?.customerTimezone,
+      ),
     );
   }
 

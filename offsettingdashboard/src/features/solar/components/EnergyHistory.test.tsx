@@ -204,4 +204,35 @@ describe('energy history view', () => {
     expect(report.filename).toMatch(/^carbonoz-energy-.*\.pdf$/)
     vi.doUnmock('../energyPdf')
   })
+
+  it("uses the API's calendar (viewer's profile zone) on screen and in both exports, labelled", async () => {
+    stubApi(() => ({ body: { data: history('30d', DAYS, { timezone: 'Africa/Kigali', timezoneSource: 'profile', siteTimezone: 'Europe/Berlin' }) } }))
+    const blobs: Blob[] = []
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: (b: Blob) => (blobs.push(b), 'blob:x'), revokeObjectURL: () => undefined }))
+    const pdf = vi.fn(async () => undefined)
+    vi.doMock('../energyPdf', () => ({ exportPdf: pdf }))
+    mount()
+    await screen.findByTestId('energy-table')
+    expect(screen.getAllByText(/Africa\/Kigali \(your profile\)/).length).toBeGreaterThan(0)
+
+    fireEvent.click(screen.getByRole('button', { name: /Export/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /CSV/ }))
+    const csv = await new Promise<string>((ok) => {
+      const r = new FileReader()
+      r.onload = () => ok(String(r.result))
+      r.readAsText(blobs[0])
+    })
+    expect(csv).toContain('# Time zone: Africa/Kigali (your profile)')
+    // "Generated" is written in that zone and says so, not in the browser's zone.
+    const generated = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Kigali' }).format(new Date())
+    expect(csv).toContain(`# Generated: ${generated} (Africa/Kigali)`)
+
+    fireEvent.click(screen.getByRole('button', { name: /Export/ }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /PDF/ }))
+    await waitFor(() => expect(pdf).toHaveBeenCalledTimes(1))
+    const report = (pdf.mock.calls[0] as unknown as [{ meta: string[] }])[0]
+    expect(report.meta).toContain('Time zone: Africa/Kigali (your profile)')
+    expect(report.meta.some((m) => m.endsWith('(Africa/Kigali)'))).toBe(true)
+    vi.doUnmock('../energyPdf')
+  })
 })
