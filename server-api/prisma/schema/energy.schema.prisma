@@ -1,3 +1,7 @@
+// Historical daily energy totals written by the retired MQTT pipeline
+// (carbonoz-unified-service). Nothing writes this collection any more; it is
+// read only as the Redex fallback for months without SolarBMS data
+// (RedexService.getMonthlyData). Remove once no reporting year needs it.
 model TotalEnergy {
   id                String  @id @default(auto()) @map("_id") @db.ObjectId
   pvPower           String?

@@ -48,29 +48,20 @@ const AdminRedexInformation = () => {
 
   return (
     <div className='w-[100%]'>
-      <motion.h1
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className='text-2xl mb-6 font-bold tracking-tight'
-        style={{ color: 'var(--text-primary)' }}
-      >
-        Redex Requests
-      </motion.h1>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className='mt-8 border rounded-xl overflow-hidden shadow-md'
-        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
+        className='overflow-hidden rounded-xl border border-line bg-panel shadow-card'
       >
-        <div className='flex justify-between items-center p-6 border-b border-l-4' style={{ borderBottomColor: 'var(--border)', borderLeftColor: '#DEAF0B' }}>
-          <h1 className='text-lg font-bold' style={{ color: 'var(--text-primary)' }}>
+        <div className='flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3.5'>
+          <h2 className='text-[15px] font-semibold tracking-[-0.01em] text-fg'>
             {data?.data.items.length} Redex requests
-          </h1>
+          </h2>
         </div>
-        <div className='p-6'>
+        <div className='p-4'>
           <div className='mb-6 flex sm:justify-between sm:items-end flex-col sm:flex-row gap-4'>
             <div className='w-full sm:w-[30%]'>
-              <label className='text-sm font-semibold mb-2 block' style={{ color: 'var(--text-secondary)' }}>
+              <label className='mb-1 block text-[12px] font-medium text-muted'>
                 Filter by status
               </label>
               <Select
@@ -79,13 +70,12 @@ const AdminRedexInformation = () => {
                 className='w-full'
                 options={options}
                 defaultValue={'false'}
-                size='large'
               />
             </div>
             <CustomButton
               htmlType='button'
               icon={<Send size={18} />}
-              className='h-[52px] px-6'
+              
               onClick={onFinish}
               loading={isLoading}
               variant='primary'

@@ -3,6 +3,7 @@ import { Col, Form, Row } from 'antd'
 import { FC, ReactElement, useEffect, useState } from 'react'
 import requiredField from '../../../helpers/requiredField'
 
+import { FieldGuide } from '../../../design'
 import CustomInput from '../../common/input/customInput'
 import {
   MeterDTO,
@@ -75,8 +76,7 @@ const MeterInfo: FC<props> = ({ setLoadingAction, makeStep }): ReactElement => {
 
   return (
     <>
-      <div className='mb-8 p-4 border border-gray-300 rounded  mr-8'>
-        <h2 className='text-lg font-bold mb-4'>Field Explanations</h2>
+      <FieldGuide title='Field guide'>
         <ul className='list-disc ml-4 space-y-2'>
           <li>
             <strong>Meter ID:</strong> The unique identifier for the meter
@@ -96,16 +96,16 @@ const MeterInfo: FC<props> = ({ setLoadingAction, makeStep }): ReactElement => {
             required.
           </li>
         </ul>
-      </div>
+      </FieldGuide>
       <Form
-        className='space-y-12'
+        requiredMark={false}
         name='meter-info-form'
         form={form}
         onFinish={onFinish}
         layout='vertical'
       >
-        <Row className='w-[100%]' gutter={{ xs: 8, sm: 16, md: 24, lg: 32 }}>
-          <Col className='gutter-row mt-2 ' span={12}>
+        <Row className='w-[100%]' gutter={16}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Meter ID'
               label='Meter ID'
@@ -113,7 +113,7 @@ const MeterInfo: FC<props> = ({ setLoadingAction, makeStep }): ReactElement => {
               name='meterId'
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Meter Brand'
               label='Meter Brand'
@@ -121,7 +121,7 @@ const MeterInfo: FC<props> = ({ setLoadingAction, makeStep }): ReactElement => {
               name='meterBrand'
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Meter Type'
               label='Meter Type'
@@ -129,10 +129,10 @@ const MeterInfo: FC<props> = ({ setLoadingAction, makeStep }): ReactElement => {
               name='meterType'
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={12}>
+          <Col className='gutter-row' xs={24} md={12}>
             {data?.data ? (
               <div>
-                <p className=' font-bold mb-2'>
+                <p className='mb-1.5 text-[12px] font-medium text-muted'>
                   Metering Evidence Photo Upload
                 </p>
                 <CustomImage

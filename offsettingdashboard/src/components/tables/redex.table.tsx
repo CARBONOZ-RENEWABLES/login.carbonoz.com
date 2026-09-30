@@ -29,7 +29,7 @@ const RedexTable: FC<RedexTableProps> = ({
 
   const getColumnProps = useCallback(
     (label: string) => ({
-      className: 'bg-white dark:bg-gray-800 dark:text-gray-100 c-column',
+      className: 'c-column',
       onCell: () =>
         ({
           'data-label': label,

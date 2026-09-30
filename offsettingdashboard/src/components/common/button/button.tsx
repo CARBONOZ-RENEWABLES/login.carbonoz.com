@@ -31,33 +31,30 @@ const CustomButton: FC<CustomButtonProps> = ({
   style,
 }) => {
   const getStyles = () => {
-    const base = 'inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#DEAF0B]/40'
-    
+    const base =
+      'inline-flex shrink-0 select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg text-[13.5px] font-medium transition-[background-color,color,border-color,box-shadow] duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 min-h-[38px] px-4'
     switch (variant) {
-      case 'primary':
-        return `${base} bg-[#DEAF0B] text-black hover:bg-[#c49a0a] hover:shadow-[0_0_20px_rgba(222,175,11,0.4)]`
       case 'secondary':
-        return `${base} bg-transparent border border-[var(--border)] hover:border-[#DEAF0B] hover:text-[#DEAF0B]`
+        return `${base} border border-line-strong bg-panel/40 text-fg-2 hover:border-subtle hover:bg-panel-2 hover:text-fg`
       case 'ghost':
-        return `${base} bg-transparent hover:bg-[var(--surface-overlay)]`
+        return `${base} text-muted hover:bg-panel-3 hover:text-fg`
       case 'destructive':
-        return `${base} bg-red-500/10 text-red-500 border border-red-500/30 hover:bg-red-500/20`
+        return `${base} border border-danger/25 bg-danger/10 text-danger hover:bg-danger/20`
       default:
-        return `${base} bg-[#DEAF0B] text-black hover:bg-[#c49a0a] hover:shadow-[0_0_20px_rgba(222,175,11,0.4)]`
+        return `${base} bg-accent text-on-accent shadow-[0_6px_18px_-8px_rgb(var(--c-accent)/0.8)] hover:bg-accent-hover`
     }
   }
 
   return (
     <motion.button
-      whileHover={{ scale: disabled ? 1 : 1.02 }}
-      whileTap={{ scale: disabled ? 1 : 0.95 }}
-      transition={{ duration: 0.2 }}
+      whileTap={{ scale: disabled || loading ? 1 : 0.97 }}
+      transition={{ duration: 0.12 }}
       type={htmlType}
       onClick={onClick}
       disabled={disabled || loading}
       form={form}
       className={`${getStyles()} ${className} ${disabled || loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-      style={{ ...style, color: variant === 'primary' ? '#000' : undefined }}
+      style={style}
     >
       {loading && (
         <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

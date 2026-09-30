@@ -31,7 +31,6 @@ import { RegisterUserAssetsDto } from 'src/asset/dto';
 import { AllowRoles, GetUser } from 'src/auth/decorators';
 import { JwtGuard } from 'src/auth/guard/jwt.guard';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
-import { BoxService } from 'src/box/box.service';
 import { CertificationService } from 'src/certification/certification.service';
 import { CertificationDto } from 'src/certification/dto';
 import { RegisterUserInfoDto } from 'src/information/dto';
@@ -58,7 +57,6 @@ export class UserController {
     private readonly assetService: AssetService,
     private readonly additionalInfo: InformationService,
     private readonly redexService: RedexService,
-    private readonly boxService: BoxService,
     private readonly meterService: MeterService,
     private readonly projectService: ProjectService,
     private readonly certificationService: CertificationService,
@@ -243,18 +241,6 @@ export class UserController {
   }
 
   @ApiOkResponse({
-    description: 'user Ports retrieved successfully',
-    type: GenericResponse,
-  })
-  @HttpCode(200)
-  @ApiOperation({ summary: 'user ports' })
-  @Get('ports')
-  async getUserPorts(@GetUser() user: User) {
-    const result = await this.boxService.getUserPorts(user);
-    return new GenericResponse('user-ports', result);
-  }
-
-  @ApiOkResponse({
     description: 'redex file  Id retrieved successfully',
     type: GenericResponse,
   })
@@ -292,13 +278,5 @@ export class UserController {
   async editUserInfo(@Body() dto: EditUserInfoDto, @GetUser() user: User) {
     const result = await this.userService.editUserInformation(dto, user);
     return new GenericResponse('info edited succesfully', result);
-  }
-
-  @ApiOkResponse({ description: ' credentials retreived' })
-  @ApiOperation({ summary: 'User get  credentials' })
-  @Get('credentials')
-  async GenerateCredentials(@GetUser() user: User) {
-    const result = await this.userService.generateCredentials(user);
-    return new GenericResponse('credentials retreived', result);
   }
 }

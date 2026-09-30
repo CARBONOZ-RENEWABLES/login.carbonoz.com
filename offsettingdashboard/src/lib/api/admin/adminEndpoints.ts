@@ -13,8 +13,6 @@ export interface AccountUser {
   firstName: string
   lastName: string
   customerTimezone: string
-  manualAccessOverride?: boolean
-  manualAccessExpiry?: string
 }
 
 export interface LogInfo {
@@ -164,20 +162,6 @@ const adminEndpoints = baseAPI.injectEndpoints({
         body: {},
       }),
     }),
-    grantSubscriptionAccess: builder.mutation<void, string>({
-      invalidatesTags: ['Users'],
-      query: (userId) => ({
-        url: `admin/subscription/grant-access/${userId}`,
-        method: 'POST',
-      }),
-    }),
-    revokeSubscriptionAccess: builder.mutation<void, string>({
-      invalidatesTags: ['Users'],
-      query: (userId) => ({
-        url: `admin/subscription/revoke-access/${userId}`,
-        method: 'POST',
-      }),
-    }),
   }),
 })
 
@@ -188,6 +172,4 @@ export const {
   useLogsQuery,
   useRedexInfosQuery,
   useSendToRedexMutation,
-  useGrantSubscriptionAccessMutation,
-  useRevokeSubscriptionAccessMutation,
 } = adminEndpoints

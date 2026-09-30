@@ -1,14 +1,12 @@
-import { Table, Button, Popconfirm } from 'antd'
+import { Table } from 'antd'
 import dayjs from 'dayjs'
 import timezone from 'dayjs/plugin/timezone'
 import utc from 'dayjs/plugin/utc'
 import { FC, ReactElement, useCallback } from 'react'
 import { useSelector } from 'react-redux'
-import { CheckCircle, XCircle } from 'lucide-react'
 import { EUserStatus } from '../../config/constant'
 import { AccountUser } from '../../lib/api/admin/adminEndpoints'
 import { RootState } from '../../lib/redux/store'
-import { useGrantSubscriptionAccessMutation, useRevokeSubscriptionAccessMutation } from '../../lib/api/admin/adminEndpoints'
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -34,8 +32,6 @@ const UsersTable: FC<UsersTableProps> = ({
   onRowSelectionChange,
 }): ReactElement => {
   const darkMode = useSelector((state: RootState) => state.theme.darkMode)
-  const [grantAccess] = useGrantSubscriptionAccessMutation()
-  const [revokeAccess] = useRevokeSubscriptionAccessMutation()
 
   const rowSelection = {
     selectedRowKeys,
@@ -50,7 +46,7 @@ const UsersTable: FC<UsersTableProps> = ({
 
   const getColumnProps = useCallback(
     (label: string) => ({
-      className: 'bg-white dark:bg-gray-800 dark:text-gray-100 c-column',
+      className: 'c-column',
       onCell: () =>
         ({
           'data-label': label,
@@ -78,7 +74,7 @@ const UsersTable: FC<UsersTableProps> = ({
         key='createdAt'
         {...getColumnProps('Date')}
         render={(record: AccountUser) => (
-          <span className='text-gray-500 font-bold'>
+          <span className='font-medium text-fg-2'>
             {formatDate(record?.createdAt)}
           </span>
         )}
@@ -89,7 +85,7 @@ const UsersTable: FC<UsersTableProps> = ({
         key='email'
         {...getColumnProps('Email')}
         render={(record: AccountUser) => (
-          <span className='font-bold text-blue-500 dark:text-gray-100'>
+          <span className='font-medium text-accent-ink'>
             {record.email}
           </span>
         )}
@@ -100,7 +96,7 @@ const UsersTable: FC<UsersTableProps> = ({
         key='firstName'
         {...getColumnProps('Name')}
         render={(record: AccountUser) => (
-          <span className='font-bold text-blue-500 dark:text-gray-100'>
+          <span className='font-medium text-accent-ink'>
             {record?.firstName} {record?.lastName}
           </span>
         )}
@@ -136,45 +132,6 @@ const UsersTable: FC<UsersTableProps> = ({
           >
             {record?.activeStatus ? EUserStatus.ENABLED : EUserStatus.DISABLED}
           </span>
-        )}
-      />
-      <Column
-        title='Subscription'
-        key='subscription'
-        {...getColumnProps('Subscription')}
-        render={(record: any) => (
-          <div className='flex flex-col gap-2'>
-            <div className='flex items-center gap-2'>
-              {record.manualAccessOverride ? (
-                <Popconfirm
-                  title="Revoke subscription access?"
-                  onConfirm={() => revokeAccess(record.id)}
-                  okText="Yes"
-                  cancelText="No"
-                >
-                  <Button size='small' danger icon={<XCircle size={14} />}>
-                    Revoke
-                  </Button>
-                </Popconfirm>
-              ) : (
-                <Popconfirm
-                  title="Grant subscription access?"
-                  onConfirm={() => grantAccess(record.id)}
-                  okText="Yes"
-                  cancelText="No"
-                >
-                  <Button size='small' type='primary' icon={<CheckCircle size={14} />}>
-                    Grant
-                  </Button>
-                </Popconfirm>
-              )}
-            </div>
-            {record.manualAccessExpiry && (
-              <span className='text-xs text-gray-500'>
-                Expires: {dayjs(record.manualAccessExpiry).format('DD/MM/YYYY')}
-              </span>
-            )}
-          </div>
         )}
       />
     </Table>

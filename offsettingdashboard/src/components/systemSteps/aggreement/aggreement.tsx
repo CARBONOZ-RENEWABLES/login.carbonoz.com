@@ -9,6 +9,7 @@ import {
   AgreementDTO,
   useAddCertificateMutation,
 } from '../../../lib/api/user/userEndPoints'
+import { FieldGuide } from '../../../design'
 import CustomInput from '../../common/input/customInput'
 
 interface props {
@@ -105,8 +106,7 @@ const AgreementInfo: FC<props> = ({
 
   return (
     <>
-      <div className='mb-8 p-4 border border-gray-300 rounded  mr-8'>
-        <h2 className='text-lg font-bold mb-4'>Field Explanations</h2>
+      <FieldGuide title='Field guide'>
         <ul className='list-disc ml-4 space-y-2'>
           <li>
             <strong>Power Purchase Agreement:</strong> Upload a file containing
@@ -139,17 +139,17 @@ const AgreementInfo: FC<props> = ({
             the owner or entity associated with the asset.
           </li>
         </ul>
-      </div>
+      </FieldGuide>
 
       <Form
-        className='space-y-12'
+        requiredMark={false}
         name='agreement-info-form'
         form={form}
         onFinish={onFinish}
         layout='vertical'
       >
-        <Row className='w-[100%]' gutter={{ xs: 8, sm: 16, md: 24, lg: 32 }}>
-          <Col className='gutter-row mt-2 ' span={12}>
+        <Row className='w-[100%]' gutter={16}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Power Purchase Agreement'
               label='Power Purchase Agreement'
@@ -158,7 +158,7 @@ const AgreementInfo: FC<props> = ({
               onChange={onChangePowerPurchaseAgreement}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Interconnection Agreement'
               label='Interconnection Agreement'
@@ -167,7 +167,7 @@ const AgreementInfo: FC<props> = ({
               onChange={onChangeInterconnectionAgreement}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Commissioning Certification to Grid'
               label='Commissioning Certification to Grid'
@@ -176,7 +176,7 @@ const AgreementInfo: FC<props> = ({
               onChange={onChangeCommissioningCertificationToGrid}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Commissioning Certification or Inspection'
               label='Commissioning Certification or Inspection'
@@ -185,7 +185,7 @@ const AgreementInfo: FC<props> = ({
               onChange={onChangeCommissioningCertificationOrInspection}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Power Quality Test'
               label='Power Quality Test'
@@ -194,7 +194,7 @@ const AgreementInfo: FC<props> = ({
               onChange={onChangePowerQualityTest}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='ID Photo Upload or Company Certificate'
               label='ID Photo Upload or Company Certificate (Optional)'

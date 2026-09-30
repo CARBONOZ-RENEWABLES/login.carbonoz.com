@@ -87,6 +87,8 @@ REDIS_URL=redis://192.168.160.155
 FRONTED_URL=http://login.carbonoz.com
 ```
 
+The complete list (Keycloak realms, session cookie, `LEGACY_AUTH_ENABLED`, SolarBMS worker, `SWAGGER_ENABLED`) with placeholders is in `server-api/.env.example`; see also `docs/platform-architecture.md`.
+
 **Frontend (.env in offsettingdashboard/):**
 ```bash
 cd ../offsettingdashboard
@@ -196,7 +198,7 @@ sudo ufw enable
 
 - **Frontend:** http://login.carbonoz.com or http://192.168.160.190
 - **Backend API:** http://192.168.160.190:3000/api
-- **API Docs:** http://192.168.160.190:3000/api/docs
+- **API Docs:** http://192.168.160.190:3000/api/docs (only when `SWAGGER_ENABLED=true`; off in production)
 
 ## Troubleshooting
 

@@ -1,0 +1,119 @@
+// Identity → Carbonoz User → Customer → Site → Installation.
+// User.id stays the tenant/identity key used by every existing collection;
+// these models only add relationships around it.
+
+enum ECustomerType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum ECustomerRole {
+  OWNER
+  ADMIN
+  VIEWER
+}
+
+enum EInstallationKind {
+  SOLARBMS
+}
+
+enum EMachineCredentialType {
+  // Keycloak client (client-credentials grant); only the clientId is stored here.
+  KEYCLOAK_CLIENT
+  // Carbonoz-issued key; only a SHA-256 hash of the secret is stored.
+  API_KEY
+}
+
+// Links an external identity (Keycloak `sub`) to an existing Carbonoz user.
+// A separate collection instead of a nullable unique field on User: MongoDB
+// unique indexes treat missing fields as equal, which would break every
+// existing user document.
+model UserIdentity {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  provider    String // e.g. "keycloak:customers"
+  subject     String // OIDC `sub`
+  email       String?
+  userId      String   @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+  lastLoginAt DateTime @default(now())
+
+  @@unique([provider, subject])
+  @@index([userId])
+}
+
+model Customer {
+  id        String           @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  type      ECustomerType    @default(INDIVIDUAL)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  members   CustomerMember[]
+  sites     Site[]
+}
+
+model CustomerMember {
+  id         String        @id @default(auto()) @map("_id") @db.ObjectId
+  customerId String        @db.ObjectId
+  customer   Customer      @relation(fields: [customerId], references: [id])
+  userId     String        @db.ObjectId
+  user       User          @relation(fields: [userId], references: [id])
+  role       ECustomerRole @default(OWNER)
+  createdAt  DateTime      @default(now())
+
+  @@unique([customerId, userId])
+  @@index([userId])
+}
+
+model Site {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  customerId    String         @db.ObjectId
+  customer      Customer       @relation(fields: [customerId], references: [id])
+  name          String
+  address       String?
+  country       String?
+  latitude      Float?
+  longitude     Float?
+  timezone      String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  installations Installation[]
+
+  @@index([customerId])
+}
+
+model Installation {
+  id                 String              @id @default(auto()) @map("_id") @db.ObjectId
+  siteId             String              @db.ObjectId
+  site               Site                @relation(fields: [siteId], references: [id])
+  kind               EInstallationKind   @default(SOLARBMS)
+  name               String
+  // Identifier the SolarBMS system reports for itself (payload `systemId`).
+  externalSystemId   String?
+  active             Boolean             @default(true)
+  lastSeenAt         DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  machineCredentials MachineCredential[]
+
+  @@index([siteId])
+}
+
+// Machine identity of one SolarBMS device / Raspberry Pi. Never linked to a
+// User: a machine can only write ingestion data for its own installation.
+model MachineCredential {
+  id             String                 @id @default(auto()) @map("_id") @db.ObjectId
+  installationId String                 @db.ObjectId
+  installation   Installation           @relation(fields: [installationId], references: [id])
+  type           EMachineCredentialType
+  // Keycloak client id, or the public part of a Carbonoz API key.
+  clientId       String                 @unique
+  secretHash     String?
+  active         Boolean                @default(true)
+  label          String?
+  createdAt      DateTime               @default(now())
+  lastUsedAt     DateTime?
+  revokedAt      DateTime?
+
+  @@index([installationId])
+}

@@ -8,10 +8,7 @@ import { LoggingInterceptor } from './__shared__/interceptors';
 import { AdminModule } from './admin/admin.module';
 import { AssetModule } from './asset/asset.module';
 import { AuthModule } from './auth/auth.module';
-import { BoxModule } from './box/box.module';
-import { CarbonIntensityModule } from './carbon-intensity/carbon-intensity.module';
 import { CertificationModule } from './certification/certification.module';
-import { EnergyModule } from './energy/energy.module';
 import { EventModule } from './event/event.module';
 import { InformationModule } from './information/information.module';
 import { LogsModule } from './logsM/logs.module';
@@ -21,15 +18,14 @@ import { PartnersModule } from './partners/partners.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProjectModule } from './project/project.module';
 import { RedexModule } from './redex/redex.module';
-import { ReportsModule } from './reports/reports.module';
 import { SeedData } from './seeder';
 import { StepsModule } from './steps/steps.module';
-import { SubscriptionModule } from './subscription/subscription.module';
 import { SystemstepsModule } from './systemsteps/systemsteps.module';
-import { TopicModule } from './topic/topic.module';
 import { UserModule } from './user/user.module';
 import { RedisModule } from './redis/redis.module';
-import { AiChargingModule } from './ai-charging/ai-charging.module';
+import { MachineAuthModule } from './machine-auth/machine-auth.module';
+import { SolarModule } from './solar/solar.module';
+import { TenancyModule } from './tenancy/tenancy.module';
 
 @Module({
   imports: [
@@ -41,10 +37,7 @@ import { AiChargingModule } from './ai-charging/ai-charging.module';
     PrismaModule,
     RedisModule,
     AuthModule,
-    TopicModule,
     EventModule,
-    EnergyModule,
-    BoxModule,
     AssetModule,
     InformationModule,
     UserModule,
@@ -56,12 +49,11 @@ import { AiChargingModule } from './ai-charging/ai-charging.module';
     ProjectModule,
     CertificationModule,
     MailsModule,
-    ReportsModule,
     AdminModule,
     LogsModule,
-    CarbonIntensityModule,
-    SubscriptionModule,
-    AiChargingModule,
+    MachineAuthModule,
+    TenancyModule,
+    SolarModule,
   ],
   controllers: [],
   providers: [

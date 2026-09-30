@@ -149,7 +149,7 @@ const Users: FC = () => {
           <CustomButton
             htmlType='submit'
             form='toogle-status'
-            className='h-[52px] px-6'
+            
             loading={isLoading}
             variant='primary'
           >
@@ -181,7 +181,7 @@ const Users: FC = () => {
           <CustomButton
             htmlType='submit'
             form='add-user-form'
-            className='h-[52px] px-6'
+            
             loading={isAddingUser}
             variant='primary'
           >
@@ -192,38 +192,29 @@ const Users: FC = () => {
         <AddNewUserForm form={userForm} onFinish={onUserFinish} />
       </CustomModal>
       <div className='w-[100%]'>
-        <motion.h1
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className='text-2xl mb-6 font-bold tracking-tight'
-          style={{ color: 'var(--text-primary)' }}
-        >
-          User Management
-        </motion.h1>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className='mt-8 border rounded-xl overflow-hidden shadow-md'
-          style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
+          className='overflow-hidden rounded-xl border border-line bg-panel shadow-card'
         >
-          <div className='flex justify-between items-center p-6 border-b border-l-4' style={{ borderBottomColor: 'var(--border)', borderLeftColor: '#DEAF0B' }}>
-            <h1 className='text-lg font-bold' style={{ color: 'var(--text-primary)' }}>
+          <div className='flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3.5'>
+            <h2 className='text-[15px] font-semibold tracking-[-0.01em] text-fg'>
               {data?.data.totalItems} Users
-            </h1>
+            </h2>
             <CustomButton
               htmlType='button'
               icon={<UserPlus size={18} />}
               onClick={() => setUserModalOpen(true)}
               variant='primary'
-              className='h-[52px] px-6'
+              
             >
               Add User
             </CustomButton>
           </div>
-          <div className='p-6'>
+          <div className='p-4'>
             <div className='mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4'>
               <div>
-                <label className='text-sm font-semibold mb-2 block' style={{ color: 'var(--text-secondary)' }}>
+                <label className='mb-1 block text-[12px] font-medium text-muted'>
                   Filter by status
                 </label>
                 <Select
@@ -232,11 +223,10 @@ const Users: FC = () => {
                   className='w-full'
                   options={options}
                   defaultValue={'active'}
-                  size='large'
                 />
               </div>
               <div>
-                <label className='text-sm font-semibold mb-2 block' style={{ color: 'var(--text-secondary)' }}>
+                <label className='mb-1 block text-[12px] font-medium text-muted'>
                   Filter by Email
                 </label>
                 <Input
@@ -244,12 +234,11 @@ const Users: FC = () => {
                   type='text'
                   placeholder='Email'
                   className='w-full'
-                  size='large'
                   onChange={(e) => onChangeEmail(e.target.value)}
                 />
               </div>
               <div>
-                <label className='text-sm font-semibold mb-2 block' style={{ color: 'var(--text-secondary)' }}>
+                <label className='mb-1 block text-[12px] font-medium text-muted'>
                   Filter by Name
                 </label>
                 <Input
@@ -257,7 +246,6 @@ const Users: FC = () => {
                   type='text'
                   placeholder='Name'
                   className='w-full'
-                  size='large'
                   onChange={(e) => onChangeName(e.target.value)}
                 />
               </div>
@@ -267,7 +255,7 @@ const Users: FC = () => {
                 <CustomButton
                   htmlType='button'
                   icon={<Power size={18} />}
-                  className='h-[52px] px-6'
+                  
                   onClick={() => setOpen(true)}
                   variant='primary'
                 >

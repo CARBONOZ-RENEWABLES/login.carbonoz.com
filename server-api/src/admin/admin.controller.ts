@@ -6,7 +6,6 @@ import {
   Patch,
   Post,
   Query,
-  Param,
   UseGuards,
 } from '@nestjs/common';
 
@@ -131,21 +130,5 @@ export class AdminController {
   async sentToRedex() {
     await this.redexService.sendRegisteredDeviceToRedex();
     return new GenericResponse('redex data sent succesfully', null);
-  }
-
-  @ApiOkResponse({ description: 'Manual access granted' })
-  @ApiOperation({ summary: 'Grant manual subscription access to user' })
-  @Post('subscription/grant-access/:userId')
-  async grantAccess(@Param('userId') userId: string) {
-    const result = await this.adminService.grantManualAccess(userId);
-    return new GenericResponse('Access granted', result);
-  }
-
-  @ApiOkResponse({ description: 'Manual access revoked' })
-  @ApiOperation({ summary: 'Revoke manual subscription access from user' })
-  @Post('subscription/revoke-access/:userId')
-  async revokeAccess(@Param('userId') userId: string) {
-    const result = await this.adminService.revokeManualAccess(userId);
-    return new GenericResponse('Access revoked', result);
   }
 }

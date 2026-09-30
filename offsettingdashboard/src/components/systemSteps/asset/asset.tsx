@@ -17,6 +17,7 @@ import {
   useGetAssetsQuery,
 } from '../../../lib/api/user/userEndPoints'
 import CustomImage from '../../common/image/customImage'
+import { FieldGuide } from '../../../design'
 import CustomInput from '../../common/input/customInput'
 
 interface props {
@@ -108,8 +109,7 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
 
   return (
     <>
-      <div className='mb-8 p-4 border border-gray-300 rounded mr-8'>
-        <h2 className='text-lg font-bold mb-4'>Fields Explanations</h2>
+      <FieldGuide title='Field guide'>
         <ul className='list-disc ml-4 space-y-2'>
           <li>
             <strong>Asset Name:</strong> The unique name of the asset (e.g.,
@@ -217,22 +217,22 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
             first inverter used in the system.
           </li>
         </ul>
-      </div>
+      </FieldGuide>
 
       <Form
-        className='space-y-12'
+        requiredMark={false}
         name='asset-info-form'
         form={form}
         onFinish={onFinish}
         layout='vertical'
       >
-        <Row className='w-[100%]' gutter={{ xs: 8, sm: 16, md: 24, lg: 32 }}>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+        <Row className='w-[100%]' gutter={16}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Asset name'
               customlabel={
-                <span className=' font-bold'>
-                  Asset name<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Asset name<span className='text-danger'>*</span>
                 </span>
               }
               inputType='text'
@@ -240,12 +240,12 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Asset name')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Asset Owner'
               customlabel={
-                <span className=' font-bold'>
-                  Asset Owner<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Asset Owner<span className='text-danger'>*</span>
                 </span>
               }
               inputType='text'
@@ -253,12 +253,12 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Asset Owner')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Fuel type'
               customlabel={
-                <span className=' font-bold'>
-                  Fuel type<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Fuel type<span className='text-danger'>*</span>
                 </span>
               }
               type='select'
@@ -271,12 +271,12 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Fuel type')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Country'
               customlabel={
-                <span className=' font-bold'>
-                  Country<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Country<span className='text-danger'>*</span>
                 </span>
               }
               inputType='text'
@@ -290,12 +290,12 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Country')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Latitude'
               customlabel={
-                <span className=' font-bold'>
-                  Latitude<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Latitude<span className='text-danger'>*</span>
                 </span>
               }
               inputType='number'
@@ -309,12 +309,12 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               ]}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Longitude'
               customlabel={
-                <span className=' font-bold'>
-                  Longitude<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Longitude<span className='text-danger'>*</span>
                 </span>
               }
               inputType='number'
@@ -328,12 +328,12 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               ]}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Capacity Kwp'
               customlabel={
-                <span className=' font-bold'>
-                  Capacity Kwp<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Capacity Kwp<span className='text-danger'>*</span>
                 </span>
               }
               inputType='number'
@@ -341,12 +341,12 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Capacity Kwp')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Service'
               customlabel={
-                <span className=' font-bold'>
-                  Service<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Service<span className='text-danger'>*</span>
                 </span>
               }
               inputType='text'
@@ -354,12 +354,12 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Service')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='COD Date'
               customlabel={
-                <span className=' font-bold'>
-                  COD Date<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  COD Date<span className='text-danger'>*</span>
                 </span>
               }
               inputType='date'
@@ -367,12 +367,12 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('COD Date')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Amount of Inverters'
               customlabel={
-                <span className=' font-bold'>
-                  Amount of Inverters<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Amount of Inverters<span className='text-danger'>*</span>
                 </span>
               }
               inputType='number'
@@ -380,12 +380,12 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Amount of Inverters')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Amount of Panels'
               customlabel={
-                <span className=' font-bold'>
-                  Amount of Panels<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Amount of Panels<span className='text-danger'>*</span>
                 </span>
               }
               inputType='number'
@@ -393,12 +393,12 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Amount of Panels')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Panel Brand'
               customlabel={
-                <span className=' font-bold'>
-                  Panel Brand<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Panel Brand<span className='text-danger'>*</span>
                 </span>
               }
               inputType='text'
@@ -406,12 +406,12 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Panel Brand')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Panel Power (W)'
               customlabel={
-                <span className=' font-bold'>
-                  Panel Power (W)<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Panel Power (W)<span className='text-danger'>*</span>
                 </span>
               }
               inputType='number'
@@ -419,7 +419,7 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Panel Power')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Amount of Batteries'
               label='Amount of Batteries'
@@ -427,7 +427,7 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               name='amountOfBatteries'
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Battery Brand'
               label='Battery Brand'
@@ -435,7 +435,7 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               name='batteryBrand'
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Battery Model'
               label='Battery Model'
@@ -443,12 +443,12 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               name='batteryModel'
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Inverter Model'
               customlabel={
-                <span className=' font-bold'>
-                  Inverter Model<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Inverter Model<span className='text-danger'>*</span>
                 </span>
               }
               inputType='text'
@@ -456,12 +456,12 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Inverter Model')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Monitoring System Name'
               customlabel={
-                <span className=' font-bold'>
-                  Monitoring System Name<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Monitoring System Name<span className='text-danger'>*</span>
                 </span>
               }
               inputType='text'
@@ -469,12 +469,12 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Monitoring System Name')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Monitoring System URL'
               customlabel={
-                <span className=' font-bold'>
-                  Monitoring System URL<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Monitoring System URL<span className='text-danger'>*</span>
                 </span>
               }
               inputType='text'
@@ -482,10 +482,10 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Monitoring System URL')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             {data?.data ? (
               <div>
-                <p className=' font-bold mb-2'>Building Photo Upload</p>
+                <p className='mb-1.5 text-[12px] font-medium text-muted'>Building Photo Upload</p>
                 <CustomImage src={data.data.buildingPhotoUpload} width={120} />
               </div>
             ) : (
@@ -498,10 +498,10 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               />
             )}
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             {data?.data ? (
               <div>
-                <p className=' font-bold mb-2'>Inverter Setup Photo Upload</p>
+                <p className='mb-1.5 text-[12px] font-medium text-muted'>Inverter Setup Photo Upload</p>
                 <CustomImage
                   src={data.data.inverterSetupPhotoUpload}
                   width={120}
@@ -517,10 +517,10 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               />
             )}
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             {data?.data ? (
               <div>
-                <p className=' font-bold mb-2'> Solar Panels Photo Upload</p>
+                <p className='mb-1.5 text-[12px] font-medium text-muted'> Solar Panels Photo Upload</p>
                 <CustomImage
                   src={data.data.solarPanelsPhotoUpload}
                   width={120}
@@ -536,12 +536,12 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               />
             )}
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Inverter brand'
               customlabel={
-                <span className=' font-bold'>
-                  Inverter brand<span className='text-red-500'>*</span>
+                <span className='text-[12px] font-medium text-muted'>
+                  Inverter brand<span className='text-danger'>*</span>
                 </span>
               }
               type='select'
@@ -554,7 +554,7 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('inverterBrand')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Battery Serial Number 1'
               customlabel={
@@ -565,7 +565,7 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Battery Serial Number 1')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Battery Serial Number 2'
               customlabel={
@@ -576,7 +576,7 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Battery Serial Number 2')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Battery Serial Number 3'
               customlabel={
@@ -587,7 +587,7 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Battery Serial Number 3')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Inverter Serial Number 1'
               customlabel={
@@ -598,7 +598,7 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Inverter Serial Number 1')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Inverter Serial Number 2'
               customlabel={
@@ -609,7 +609,7 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
               rules={requiredField('Inverter Serial Number 2')}
             />
           </Col>
-          <Col className='gutter-row mt-2 ' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' xs={24} md={12}>
             <CustomInput
               placeholder='Inverter Serial Number 3'
               customlabel={

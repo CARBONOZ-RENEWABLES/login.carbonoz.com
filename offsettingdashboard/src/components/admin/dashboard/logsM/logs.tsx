@@ -16,26 +16,17 @@ const Logs: FC = () => {
   }, [refetch])
   return (
     <div>
-      <motion.h1
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className='text-2xl mb-6 font-bold tracking-tight'
-        style={{ color: 'var(--text-primary)' }}
-      >
-        System Logs
-      </motion.h1>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className='mt-8 border rounded-xl overflow-hidden shadow-md'
-        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border)' }}
+        className='overflow-hidden rounded-xl border border-line bg-panel shadow-card'
       >
-        <div className='flex justify-between items-center p-6 border-b border-l-4' style={{ borderBottomColor: 'var(--border)', borderLeftColor: '#DEAF0B' }}>
-          <h1 className='text-lg font-bold' style={{ color: 'var(--text-primary)' }}>
+        <div className='flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3.5'>
+          <h2 className='text-[15px] font-semibold tracking-[-0.01em] text-fg'>
             {data?.data.totalItems} Logs
-          </h1>
+          </h2>
         </div>
-        <div className='p-6'>
+        <div className='p-4'>
           <LogsTable data={data?.data.items} isFetching={isFetching} />
           <Paginator
             total={data?.data.totalItems}

@@ -7,6 +7,7 @@ import * as FormData from 'form-data';
 import { lastValueFrom } from 'rxjs';
 import { IAppConfig } from 'src/__shared__/interfaces';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { SolarEnergyService } from 'src/solar/read/solar-energy.service';
 import {
   Redex400ErrorResponse,
   Redex422ErrorResponse,
@@ -24,6 +25,7 @@ export class RedexService {
     private readonly prismaService: PrismaService,
     private readonly httpService: HttpService,
     private readonly configService: ConfigService<IAppConfig>,
+    private readonly solarEnergy: SolarEnergyService,
   ) {}
 
   private async adjustTotals(result: TotalEnergy[]) {
@@ -74,7 +76,9 @@ export class RedexService {
   async generateRedexToken() {
     const redexConfig = this.configService.get('redex');
     if (!redexConfig?.url || !redexConfig?.apiKey) {
-      this.logger.warn('Redex configuration is missing - skipping Redex integration');
+      this.logger.warn(
+        'Redex configuration is missing - skipping Redex integration',
+      );
       return null;
     }
 
@@ -353,6 +357,11 @@ export class RedexService {
       const userId = remoteInv.user.id;
       const remoteInvIdsArray = remoteInv.remoteInvIds;
 
+      const year = new Date().getFullYear();
+      // SolarBMS is the production source. Months it has no data for fall back
+      // to the historical MQTT-era totals, so figures Redex already received
+      // for earlier months are not overwritten with zeros.
+      const solar = await this.solarEnergy.monthlyPvKwh(userId, year);
       const results = await this.prismaService.totalEnergy.findMany({
         where: { userId },
       });
@@ -360,7 +369,6 @@ export class RedexService {
       const adjustedResults = await this.adjustTotals(results);
 
       const monthlyProduction: { [month: string]: number } = {};
-      const year = new Date().getFullYear();
       for (const month of allMonths) {
         monthlyProduction[month] = 0;
       }
@@ -377,7 +385,9 @@ export class RedexService {
 
       for (const month in monthlyProduction) {
         monthlyProduction[month] = parseFloat(
-          monthlyProduction[month].toFixed(3),
+          (solar[month] > 0 ? solar[month] : monthlyProduction[month]).toFixed(
+            3,
+          ),
         );
       }
 

@@ -28,7 +28,7 @@ const LogsTable: FC<UsersTableProps> = ({ data, isFetching }): ReactElement => {
 
   const getColumnProps = useCallback(
     (label: string) => ({
-      className: 'bg-white dark:bg-gray-800 dark:text-gray-100 c-column',
+      className: 'c-column',
       onCell: () =>
         ({
           'data-label': label,
@@ -44,7 +44,7 @@ const LogsTable: FC<UsersTableProps> = ({ data, isFetching }): ReactElement => {
   const renderDescription = (description: string) => {
     const truncatedText =
       description.length > 100 ? description.slice(0, 100) + '...' : description
-    return <span className='text-gray-500 font-bold'>{truncatedText}</span>
+    return <span className='font-medium text-fg-2'>{truncatedText}</span>
   }
 
   return (
@@ -64,7 +64,7 @@ const LogsTable: FC<UsersTableProps> = ({ data, isFetching }): ReactElement => {
       })}
       expandable={{
         expandedRowRender: (record: LogInfo) => (
-          <p className='text-gray-500'>{record.description}</p>
+          <p className='text-muted'>{record.description}</p>
         ),
         expandedRowKeys: expandedRow === null ? [] : [expandedRow],
       }}
@@ -74,7 +74,7 @@ const LogsTable: FC<UsersTableProps> = ({ data, isFetching }): ReactElement => {
         key='createdAt'
         {...getColumnProps('Date')}
         render={(record: LogInfo) => (
-          <span className='text-gray-500 font-bold'>
+          <span className='font-medium text-fg-2'>
             {formatDate(record?.createdAt)}
           </span>
         )}
@@ -92,7 +92,7 @@ const LogsTable: FC<UsersTableProps> = ({ data, isFetching }): ReactElement => {
         key='ipAddress'
         {...getColumnProps('Ip address')}
         render={(record: LogInfo) => (
-          <span className='font-bold text-blue-500 dark:text-gray-100'>
+          <span className='font-medium text-accent-ink'>
             {record?.ipAddress || 'N/A'}
           </span>
         )}
@@ -103,7 +103,7 @@ const LogsTable: FC<UsersTableProps> = ({ data, isFetching }): ReactElement => {
         key='requestUrl'
         {...getColumnProps('Requested Url')}
         render={(record: LogInfo) => (
-          <span className='font-bold text-blue-500 dark:text-gray-100'>
+          <span className='font-medium text-accent-ink'>
             {record?.requestUrl || 'N/A'}
           </span>
         )}
@@ -114,7 +114,7 @@ const LogsTable: FC<UsersTableProps> = ({ data, isFetching }): ReactElement => {
         key='responseTime'
         {...getColumnProps('Response time')}
         render={(record: LogInfo) => (
-          <span className='font-bold text-blue-500 dark:text-gray-100'>
+          <span className='font-medium text-accent-ink'>
             {record?.responseTime || 'N/A'}
           </span>
         )}

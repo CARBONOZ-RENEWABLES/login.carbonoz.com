@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom'
 import ForgotPassword from './components/auth/forgotPassword'
+import SsoEntry from './components/auth/SsoEntry'
 import Login from './components/auth/login'
 import ResetPassword from './components/auth/resetPassword'
 import Signup from './components/auth/signup'
@@ -11,13 +12,14 @@ import UserSteps from './components/steps/steps'
 import SystemUserSteps from './components/systemSteps/systemSteps'
 import { AdminDashboardRoutes } from './routes/admin.dashboard'
 import PrivateDashboard from './routes/dashboard.route'
+import { isSso } from './lib/auth/session'
 
 function App() {
   return (
     <Routes>
-      <Route path='/' element={<Login />} />
-      <Route path='/signup' element={<Signup />} />
-      <Route path='/forgot-password' element={<ForgotPassword />} />
+      <Route path='/' element={isSso ? <SsoEntry /> : <Login />} />
+      <Route path='/signup' element={isSso ? <SsoEntry register /> : <Signup />} />
+      <Route path='/forgot-password' element={isSso ? <SsoEntry /> : <ForgotPassword />} />
       <Route path='/ds/*' element={<PrivateDashboard />} />
       <Route path='/admin/*' element={<AdminDashboardRoutes />} />
       <Route path='/redexsteps' element={<UserSteps />} />

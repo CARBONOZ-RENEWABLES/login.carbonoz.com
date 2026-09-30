@@ -2,7 +2,7 @@
 
 ## Overview
 
-Welcome to the CARBONOZ Login System, the gateway to the CARBONOZ community! This portal allows users to register, log in, and access a wealth of insights and analytics related to their energy consumption and sustainability efforts. Designed with a professional and user-centric approach, the system empowers individuals and organizations to track, analyze, and optimize their energy usage while contributing to a greener future.
+Welcome to the CARBONOZ Login System, the gateway to the CARBONOZ community! This portal allows users to register, log in, and complete the Carbonoz onboarding and follow their SolarBMS installations live. Designed with a professional and user-centric approach, the system empowers individuals and organizations to track, analyze, and optimize their energy usage while contributing to a greener future.
 
 ### Key Features
 
@@ -16,16 +16,12 @@ Welcome to the CARBONOZ Login System, the gateway to the CARBONOZ community! Thi
 . Secure authentication for registered users to access their personalized dashboards.
 . Integrated session management for a smooth and safe experience.
 
-#### Energy Analytics Dashboard
+#### Solar Dashboard (SolarBMS)
 
-. View detailed insights into energy consumption patterns.
-. Monitor historical data with interactive graphs for: Daily, weekly, monthly, and yearly energy usage.
-. Metrics such as load, PV generation, grid interaction, and battery performance.
-
-#### Sustainability Metrics
-
-. Discover your contribution to reducing carbon footprints.
-. Compare energy performance over time and against community benchmarks.
+. Live overview with the Energy Flow house, solar, home usage, battery and grid.
+. Batteries, BMS and every individual cell (voltage, temperature, balancing and any new per-cell value).
+. Inverters, history for any reported metric, forecast, events/alarms and system details.
+. Data comes only from SolarBMS through the Carbonoz API; delayed data is marked, never shown as current.
 
 ### Redex Information
 

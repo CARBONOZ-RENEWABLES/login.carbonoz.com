@@ -1,0 +1,247 @@
+/**
+ * Adapter between the normalized Solar API and the dashboard components.
+ * Components never read raw metric keys directly: they ask this module for a
+ * label, a formatted value and a group, so a metric SolarBMS adds tomorrow is
+ * displayed (with a humanized label) without any component change.
+ */
+import { power } from '../dashboard/format'
+import type { Tone } from '../../design'
+import { deriveFlows, FlowState } from '../../services/energyFlow'
+import { DeviceKind, MetricValue, SolarDevice, SolarOverview } from './api'
+
+export interface MetricMeta {
+  label: string
+  /** Where generic metric lists place it. */
+  group: 'power' | 'energy' | 'battery' | 'cells' | 'temperature' | 'electrical' | 'status' | 'other'
+  /** Metric shown on the device card headline, in this order. */
+  primary?: number
+}
+
+/** Known keys get a curated label; everything else is humanized from the key. */
+const KNOWN: Record<string, MetricMeta> = {
+  pv_power_w: { label: 'Solar power', group: 'power', primary: 1 },
+  load_power_w: { label: 'Home usage', group: 'power', primary: 2 },
+  grid_power_w: { label: 'Grid power', group: 'power', primary: 3 },
+  battery_power_w: { label: 'Battery power', group: 'power', primary: 4 },
+  inverter_power_w: { label: 'Inverter power', group: 'power', primary: 1 },
+  output_power_w: { label: 'Output power', group: 'power', primary: 2 },
+  power_w: { label: 'Power', group: 'power', primary: 1 },
+  soc_pct: { label: 'State of charge', group: 'battery', primary: 1 },
+  soh_pct: { label: 'State of health', group: 'battery' },
+  voltage_v: { label: 'Pack voltage', group: 'electrical', primary: 2 },
+  current_a: { label: 'Current', group: 'electrical', primary: 3 },
+  temperature_c: { label: 'Temperature', group: 'temperature', primary: 4 },
+  cycle_count: { label: 'Cycles', group: 'battery' },
+  remaining_capacity_ah: { label: 'Remaining capacity', group: 'battery' },
+  full_capacity_ah: { label: 'Full capacity', group: 'battery' },
+  cell_count: { label: 'Cells', group: 'cells' },
+  cell_voltage_min_v: { label: 'Min cell voltage', group: 'cells' },
+  cell_voltage_max_v: { label: 'Max cell voltage', group: 'cells' },
+  cell_voltage_avg_v: { label: 'Average cell voltage', group: 'cells' },
+  cell_voltage_spread_mv: { label: 'Cell spread', group: 'cells' },
+  cell_voltage_min_id: { label: 'Lowest cell', group: 'cells' },
+  cell_voltage_max_id: { label: 'Highest cell', group: 'cells' },
+  frequency_hz: { label: 'Frequency', group: 'electrical' },
+  grid_frequency_hz: { label: 'Grid frequency', group: 'electrical' },
+}
+
+const UNIT_SUFFIX = /_(kwh|wh|kw|w|mv|v|ma|ah|a|c|pct|hz|s)$/
+
+export function unitOf(key: string, fallback?: string | null): string | undefined {
+  if (fallback) return fallback
+  const m = key.match(UNIT_SUFFIX)?.[1]
+  return m ? ({ kwh: 'kWh', wh: 'Wh', kw: 'kW', w: 'W', mv: 'mV', v: 'V', ma: 'mA', ah: 'Ah', a: 'A', c: '°C', pct: '%', hz: 'Hz', s: 's' } as Record<string, string>)[m] : undefined
+}
+
+export function metricMeta(key: string): MetricMeta {
+  if (KNOWN[key]) return KNOWN[key]
+  const base = key.replace(UNIT_SUFFIX, '').replace(/_/g, ' ').trim()
+  const label = base.charAt(0).toUpperCase() + base.slice(1)
+  const group: MetricMeta['group'] = /temp/.test(key)
+    ? 'temperature'
+    : /^cell/.test(key)
+    ? 'cells'
+    : /_(k?w)$/.test(key)
+    ? 'power'
+    : /_(k?wh)$/.test(key)
+    ? 'energy'
+    : /_(v|mv|a|ma|hz)$/.test(key)
+    ? 'electrical'
+    : /(status|state|mode|alarm|fault|error|warning)/.test(key)
+    ? 'status'
+    : 'other'
+  return { label: label || key, group }
+}
+
+export interface Formatted {
+  value: string
+  unit: string
+}
+
+export function formatMetric(key: string, v: MetricValue | null | undefined, unit?: string | null): Formatted {
+  if (v == null || v === '') return { value: '—', unit: '' }
+  if (typeof v === 'boolean') return { value: v ? 'Yes' : 'No', unit: '' }
+  if (typeof v === 'string') return { value: v, unit: '' }
+  const u = unitOf(key, unit)
+  if (u === 'W') {
+    // Same W/kW presentation as the rest of the dashboard; sign kept as reported.
+    const p = power(v)
+    return { value: `${v < 0 ? '−' : ''}${p.value}`, unit: p.unit }
+  }
+  const digits = u === 'V' ? (Math.abs(v) < 10 ? 3 : 1) : u === '%' || u === 'mV' ? 0 : u === 'A' || u === '°C' || u === 'kWh' || u === 'kW' ? 1 : Number.isInteger(v) ? 0 : 2
+  return { value: v.toFixed(digits).replace(/^-/, '−'), unit: u ?? '' }
+}
+
+export const num = (v: MetricValue | undefined): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined)
+
+export function deviceTitle(d: Pick<SolarDevice, 'kind' | 'externalId' | 'name' | 'manufacturer' | 'model'>): string {
+  if (d.name) return d.name
+  const what = [d.manufacturer, d.model].filter(Boolean).join(' ')
+  const kind = { SYSTEM: 'System', INVERTER: 'Inverter', BATTERY: 'Battery', BMS: 'BMS' }[d.kind]
+  return what ? `${what}` : `${kind} ${d.externalId}`
+}
+
+/** Headline metrics first (curated order), then every other metric alphabetically. */
+export function orderedMetrics(metrics: Record<string, MetricValue>): [string, MetricValue][] {
+  return Object.entries(metrics).sort(([a], [b]) => {
+    const pa = KNOWN[a]?.primary ?? 99
+    const pb = KNOWN[b]?.primary ?? 99
+    return pa - pb || a.localeCompare(b)
+  })
+}
+
+export interface SiteModel {
+  /** One SYSTEM device per installation (site totals as SolarBMS reports them). */
+  systems: SolarDevice[]
+  inverters: SolarDevice[]
+  batteries: Array<SolarDevice & { bms: SolarDevice[] }>
+  /** BMS not attached to a reported battery. */
+  looseBms: SolarDevice[]
+  allBms: SolarDevice[]
+  unitOf: (kind: DeviceKind, key: string) => string | undefined
+  /** Device title, plus the installation name when a site has several. */
+  labelOf: (d: SolarDevice) => string
+}
+
+/** Device ids are only unique within an installation. */
+export const deviceKey = (d: Pick<SolarDevice, 'installationId' | 'kind' | 'externalId'>) => `${d.installationId}:${d.kind}:${d.externalId}`
+export const seriesKey = (installationId: string, deviceId: string) => `${installationId}:${deviceId}`
+
+/** Builds the Site → Inverters / Batteries → BMS → Cells tree from the flat device list. */
+export function buildSite(o: SolarOverview | undefined, installationNames: Record<string, string> = {}): SiteModel {
+  const devices = o?.devices ?? []
+  const byKind = (k: DeviceKind) => devices.filter((d) => d.kind === k)
+  const allBms = byKind('BMS')
+  const batteries = byKind('BATTERY').map((b) => ({
+    ...b,
+    bms: allBms.filter((m) => m.installationId === b.installationId && m.parentExternalId === b.externalId),
+  }))
+  const attached = new Set(batteries.flatMap((b) => b.bms.map(deviceKey)))
+  const units = new Map((o?.metrics ?? []).map((m) => [`${m.deviceKind}:${m.key}`, m.unit ?? undefined]))
+  const several = new Set(devices.map((d) => d.installationId)).size > 1
+  return {
+    systems: byKind('SYSTEM'),
+    inverters: byKind('INVERTER'),
+    batteries,
+    looseBms: allBms.filter((m) => !attached.has(deviceKey(m))),
+    allBms,
+    unitOf: (kind, key) => units.get(`${kind}:${key}`) ?? unitOf(key),
+    labelOf: (d) => {
+      const title = d.kind === 'SYSTEM' ? installationNames[d.installationId] ?? deviceTitle(d) : deviceTitle(d)
+      return several && d.kind !== 'SYSTEM' && installationNames[d.installationId] ? `${title} · ${installationNames[d.installationId]}` : title
+    },
+  }
+}
+
+/**
+ * Site headline values, summed over every installation.
+ *
+ * Stale readings are never mixed into current totals: when at least one
+ * device is fresh, only fresh devices count and `excludedInstallations` says
+ * how many installations were left out (all their readings delayed). When
+ * everything is delayed, the last readings are used and `allStale` is set so
+ * the UI labels them as such. Prefers the SolarBMS system totals; falls back
+ * to inverters/batteries when no system reports a value.
+ */
+export function headline(site: SiteModel) {
+  const all = [...site.systems, ...site.inverters, ...site.batteries].filter((d) => d.latest)
+  const anyFresh = all.some((d) => !d.latest!.stale)
+  const use = (list: SolarDevice[]) => list.filter((d) => d.latest && (!anyFresh || !d.latest.stale))
+  const systems = use(site.systems)
+  const inverters = use(site.inverters)
+  const batteries = use(site.batteries)
+  const installations = new Set(all.map((d) => d.installationId))
+  const freshInstallations = new Set(all.filter((d) => !d.latest!.stale).map((d) => d.installationId))
+  const sum = (list: SolarDevice[], ...keys: string[]) => {
+    const vals = list.map((d) => keys.map((k) => num(d.latest?.metrics[k])).find((v) => v != null)).filter((v): v is number => v != null)
+    return vals.length ? vals.reduce((a, b) => a + b, 0) : undefined
+  }
+  const avg = (vals: (number | undefined)[]) => {
+    const v = vals.filter((x): x is number => x != null)
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : undefined
+  }
+  return {
+    pv: sum(systems, 'pv_power_w') ?? sum(inverters, 'pv_power_w'),
+    load: sum(systems, 'load_power_w'),
+    grid: sum(systems, 'grid_power_w'),
+    battery: sum(systems, 'battery_power_w') ?? sum(batteries, 'power_w', 'battery_power_w'),
+    soc: avg(systems.map((d) => num(d.latest?.metrics.soc_pct))) ?? avg(batteries.map((b) => num(b.latest?.metrics.soc_pct))),
+    /** Every reading is delayed: the values are the last known ones. */
+    allStale: all.length > 0 && !anyFresh,
+    /** Installations left out of the totals because all their readings are delayed. */
+    excludedInstallations: anyFresh ? installations.size - freshInstallations.size : 0,
+  }
+}
+
+export function freshness(o: SolarOverview | undefined): { tone: 'good' | 'warning' | 'neutral'; label: string } {
+  if (!o || o.source === 'none' || !o.updatedAt) return { tone: 'neutral', label: 'No data yet' }
+  return o.stale ? { tone: 'warning', label: 'Delayed' } : { tone: 'good', label: 'Live' }
+}
+
+/**
+ * SolarBMS sign convention. Assumed grid + = import and battery + = charging
+ * until SolarBMS confirms it; flip here if not. Everything downstream (flow
+ * diagram, hints) uses that normalised convention.
+ */
+export const SOLAR_SIGN = { gridImportPositive: true, batteryChargingPositive: true }
+const IDLE_W = 20
+
+export function gridHint(w?: number) {
+  if (w == null) return undefined
+  if (Math.abs(w) <= IDLE_W) return 'Idle'
+  return (w > 0) === SOLAR_SIGN.gridImportPositive ? 'Importing' : 'Exporting'
+}
+
+export function batteryHint(w?: number) {
+  if (w == null) return undefined
+  if (Math.abs(w) <= IDLE_W) return 'Idle'
+  return (w > 0) === SOLAR_SIGN.batteryChargingPositive ? 'Charging' : 'Discharging'
+}
+
+export function metricCardProps(key: string, v: MetricValue | undefined, unit?: string) {
+  const f = formatMetric(key, v, unit)
+  return { value: f.value, unit: f.unit }
+}
+
+export function statusTone(status?: string): Tone {
+  const s = (status ?? '').toLowerCase()
+  if (!s) return 'neutral'
+  if (/(fault|error|alarm|protect|fail|offline)/.test(s)) return 'critical'
+  if (/(warn|standby|idle|wait)/.test(s)) return 'warning'
+  if (/(normal|ok|online|run|charg|discharg|active|on)/.test(s)) return 'good'
+  return 'info'
+}
+
+/**
+ * SolarBMS headline values → the FlowState the Energy Flow house diagram
+ * draws, in the normalised sign convention; home usage is derived from the
+ * balance when SolarBMS doesn't report it.
+ */
+export function solarFlow(h: ReturnType<typeof headline>): FlowState | null {
+  if (h.pv == null && h.load == null && h.battery == null && h.grid == null) return null
+  // Normalise to grid + = import, battery + = charging.
+  const grid = h.grid == null ? undefined : SOLAR_SIGN.gridImportPositive ? h.grid : -h.grid
+  const battery = h.battery == null ? undefined : SOLAR_SIGN.batteryChargingPositive ? h.battery : -h.battery
+  const load = h.load ?? (h.pv != null ? Math.max(0, h.pv + (grid ?? 0) - (battery ?? 0)) : undefined)
+  return deriveFlows({ pv: h.pv, load, battery, grid, soc: h.soc })
+}

@@ -41,3 +41,10 @@ Thumbs.db
 # Testing
 coverage/
 .nyc_output/
+
+# Server environment files hold credentials — never track them.
+# Use server-api/.env.example (placeholders only) as the template.
+server-api/.env.production
+server-api/.env.oauth
+server-api/.env.*
+!server-api/.env.example

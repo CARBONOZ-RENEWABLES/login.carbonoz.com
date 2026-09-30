@@ -1,35 +1,27 @@
+import { Compass } from 'lucide-react'
 import { FC, ReactElement } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import CustomButton from '../common/button/button'
+import { Button, Card } from '../../design'
+
+export function NotFoundCard({ onHome }: { onHome: () => void }) {
+  return (
+    <Card className='mx-auto my-10 flex w-full max-w-md flex-col items-center px-6 py-12 text-center'>
+      <span className='grid h-12 w-12 place-items-center rounded-full bg-panel-3 text-muted'>
+        <Compass size={22} />
+      </span>
+      <p className='mt-4 text-[40px] font-semibold leading-none tracking-[-0.03em] text-fg'>404</p>
+      <p className='mt-2 text-[14px] text-fg-2'>This page doesn't exist.</p>
+      <Button variant='primary' className='mt-6' onClick={onHome}>
+        Go home
+      </Button>
+    </Card>
+  )
+}
 
 const NotFound: FC = (): ReactElement => {
   const navigate = useNavigate()
   const location = useLocation()
-
-  const handleNavigate = () => {
-    if (location.pathname.includes('admin')) {
-      navigate('/admin')
-    } else {
-      navigate('/ds')
-    }
-  }
-  return (
-    <div className='w-[100%] h-[600px] grid items-center justify-center'>
-      <div>
-        <h1 className='text-[160px] font-bold text_404 text-center'>404</h1>
-        <p className='text-[16px] text-center text-gray-500'>Page not found</p>
-        <div className='mt-6 w-[100%] grid items-center justify-center'>
-          <CustomButton
-            type='primary'
-            className='h-[60px]'
-            onClick={handleNavigate}
-          >
-            Go home
-          </CustomButton>
-        </div>
-      </div>
-    </div>
-  )
+  return <NotFoundCard onHome={() => navigate(location.pathname.includes('admin') ? '/admin' : '/ds')} />
 }
 
 export default NotFound

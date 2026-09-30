@@ -30,23 +30,23 @@ const EditUserInformationForm: FC<EditUserInformationFormProps> = ({
 
   return (
     <>
-      <div className='mb-6 p-4 rounded-xl border' style={{ background: 'var(--surface-overlay)', borderColor: 'var(--border)' }}>
-        <div className='flex items-start gap-3'>
-          <UserCircle size={20} style={{ color: '#DEAF0B', marginTop: '2px' }} />
-          <p className='text-sm' style={{ color: 'var(--text-secondary)' }}>
+      <div className='mb-4 rounded-lg border border-line bg-panel-2 px-3.5 py-3'>
+        <div className='flex items-start gap-2.5'>
+          <UserCircle size={16} className='mt-0.5 shrink-0 text-accent-ink' />
+          <p className='text-[12.5px] text-muted'>
             Update your personal information. All fields are optional but recommended for a complete profile.
           </p>
         </div>
       </div>
       <Form
-        className='space-y-12'
+        className=''
         name='edit-user-info-form'
         form={form}
         onFinish={onFinish}
         layout='vertical'
       >
-        <Row className='w-[100%]' gutter={{ xs: 8, sm: 16, md: 24, lg: 32 }}>
-          <Col className='gutter-row mt-2' span={width <= 720 ? 24 : 12}>
+        <Row className='w-[100%]' gutter={{ xs: 8, sm: 16, md: 16, lg: 16 }}>
+          <Col className='gutter-row' span={width <= 720 ? 24 : 12}>
             <CustomInput
               placeholder='First Name'
               label='First Name'
@@ -54,7 +54,7 @@ const EditUserInformationForm: FC<EditUserInformationFormProps> = ({
               name='firstName'
             />
           </Col>
-          <Col className='gutter-row mt-2' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' span={width <= 720 ? 24 : 12}>
             <CustomInput
               placeholder='Last Name'
               label='Last Name'
@@ -62,7 +62,7 @@ const EditUserInformationForm: FC<EditUserInformationFormProps> = ({
               name='lastName'
             />
           </Col>
-          <Col className='gutter-row mt-2' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' span={width <= 720 ? 24 : 12}>
             <CustomInput
               placeholder='Street'
               label='Street'
@@ -70,7 +70,7 @@ const EditUserInformationForm: FC<EditUserInformationFormProps> = ({
               name='street'
             />
           </Col>
-          <Col className='gutter-row mt-2' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' span={width <= 720 ? 24 : 12}>
             <CustomInput
               placeholder='City'
               label='City'
@@ -78,7 +78,7 @@ const EditUserInformationForm: FC<EditUserInformationFormProps> = ({
               name='city'
             />
           </Col>
-          <Col className='gutter-row mt-2' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' span={width <= 720 ? 24 : 12}>
             <CustomInput
               placeholder='Telephone'
               label='Telephone'
@@ -86,7 +86,7 @@ const EditUserInformationForm: FC<EditUserInformationFormProps> = ({
               name='telephone'
             />
           </Col>
-          <Col className='gutter-row mt-2' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' span={width <= 720 ? 24 : 12}>
             <CustomInput
               placeholder='Customer Language'
               label='Customer Language'
@@ -99,7 +99,7 @@ const EditUserInformationForm: FC<EditUserInformationFormProps> = ({
               }))}
             />
           </Col>
-          <Col className='gutter-row mt-2' span={width <= 720 ? 24 : 12}>
+          <Col className='gutter-row' span={width <= 720 ? 24 : 12}>
             <CustomInput
               placeholder='Customer Timezone'
               label='Customer Timezone'
