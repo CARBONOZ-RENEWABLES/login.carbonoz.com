@@ -4,6 +4,7 @@
  * label, a formatted value and a group, so a metric SolarBMS adds tomorrow is
  * displayed (with a humanized label) without any component change.
  */
+import { formatFixed, getLocale, MessageKey, translate } from '../../i18n'
 import { power } from '../dashboard/format'
 import type { Tone } from '../../design'
 import { deriveFlows, FlowState } from '../../services/energyFlow'
@@ -17,32 +18,32 @@ export interface MetricMeta {
   primary?: number
 }
 
-/** Known keys get a curated label; everything else is humanized from the key. */
-const KNOWN: Record<string, MetricMeta> = {
-  pv_power_w: { label: 'Solar power', group: 'power', primary: 1 },
-  load_power_w: { label: 'Home usage', group: 'power', primary: 2 },
-  grid_power_w: { label: 'Grid power', group: 'power', primary: 3 },
-  battery_power_w: { label: 'Battery power', group: 'power', primary: 4 },
-  inverter_power_w: { label: 'Inverter power', group: 'power', primary: 1 },
-  output_power_w: { label: 'Output power', group: 'power', primary: 2 },
-  power_w: { label: 'Power', group: 'power', primary: 1 },
-  soc_pct: { label: 'State of charge', group: 'battery', primary: 1 },
-  soh_pct: { label: 'State of health', group: 'battery' },
-  voltage_v: { label: 'Pack voltage', group: 'electrical', primary: 2 },
-  current_a: { label: 'Current', group: 'electrical', primary: 3 },
-  temperature_c: { label: 'Temperature', group: 'temperature', primary: 4 },
-  cycle_count: { label: 'Cycles', group: 'battery' },
-  remaining_capacity_ah: { label: 'Remaining capacity', group: 'battery' },
-  full_capacity_ah: { label: 'Full capacity', group: 'battery' },
-  cell_count: { label: 'Cells', group: 'cells' },
-  cell_voltage_min_v: { label: 'Min cell voltage', group: 'cells' },
-  cell_voltage_max_v: { label: 'Max cell voltage', group: 'cells' },
-  cell_voltage_avg_v: { label: 'Average cell voltage', group: 'cells' },
-  cell_voltage_spread_mv: { label: 'Cell spread', group: 'cells' },
-  cell_voltage_min_id: { label: 'Lowest cell', group: 'cells' },
-  cell_voltage_max_id: { label: 'Highest cell', group: 'cells' },
-  frequency_hz: { label: 'Frequency', group: 'electrical' },
-  grid_frequency_hz: { label: 'Grid frequency', group: 'electrical' },
+/** Known keys get a curated, translated label (`metrics.<key>`); everything else is humanized from the key. */
+const KNOWN: Record<string, Omit<MetricMeta, 'label'>> = {
+  pv_power_w: { group: 'power', primary: 1 },
+  load_power_w: { group: 'power', primary: 2 },
+  grid_power_w: { group: 'power', primary: 3 },
+  battery_power_w: { group: 'power', primary: 4 },
+  inverter_power_w: { group: 'power', primary: 1 },
+  output_power_w: { group: 'power', primary: 2 },
+  power_w: { group: 'power', primary: 1 },
+  soc_pct: { group: 'battery', primary: 1 },
+  soh_pct: { group: 'battery' },
+  voltage_v: { group: 'electrical', primary: 2 },
+  current_a: { group: 'electrical', primary: 3 },
+  temperature_c: { group: 'temperature', primary: 4 },
+  cycle_count: { group: 'battery' },
+  remaining_capacity_ah: { group: 'battery' },
+  full_capacity_ah: { group: 'battery' },
+  cell_count: { group: 'cells' },
+  cell_voltage_min_v: { group: 'cells' },
+  cell_voltage_max_v: { group: 'cells' },
+  cell_voltage_avg_v: { group: 'cells' },
+  cell_voltage_spread_mv: { group: 'cells' },
+  cell_voltage_min_id: { group: 'cells' },
+  cell_voltage_max_id: { group: 'cells' },
+  frequency_hz: { group: 'electrical' },
+  grid_frequency_hz: { group: 'electrical' },
 }
 
 const UNIT_SUFFIX = /_(kwh|wh|kw|w|mv|v|ma|ah|a|c|pct|hz|s)$/
@@ -54,7 +55,7 @@ export function unitOf(key: string, fallback?: string | null): string | undefine
 }
 
 export function metricMeta(key: string): MetricMeta {
-  if (KNOWN[key]) return KNOWN[key]
+  if (KNOWN[key]) return { ...KNOWN[key], label: translate(`metrics.${key}` as MessageKey) }
   const base = key.replace(UNIT_SUFFIX, '').replace(/_/g, ' ').trim()
   const label = base.charAt(0).toUpperCase() + base.slice(1)
   const group: MetricMeta['group'] = /temp/.test(key)
@@ -88,7 +89,7 @@ function epochOf(key: string, v: number): Date | undefined {
   return ms ? new Date(ms) : undefined
 }
 
-const formatTime = (d: Date) => d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+const formatTime = (d: Date) => d.toLocaleString(getLocale(), { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
 /**
  * Generic rendering for any metric, including ones SolarBMS adds later:
@@ -97,7 +98,7 @@ const formatTime = (d: Date) => d.toLocaleString(undefined, { year: 'numeric', m
  */
 export function formatMetric(key: string, v: MetricValue | null | undefined, unit?: string | null): Formatted {
   if (v == null || v === '') return { value: '—', unit: '' }
-  if (typeof v === 'boolean') return { value: v ? 'Yes' : 'No', unit: '' }
+  if (typeof v === 'boolean') return { value: translate(v ? 'common.yes' : 'common.no'), unit: '' }
   if (typeof v === 'string') {
     if (ISO_TS.test(v.trim()) && !Number.isNaN(Date.parse(v))) return { value: formatTime(new Date(v)), unit: '' }
     return { value: v, unit: '' }
@@ -111,7 +112,7 @@ export function formatMetric(key: string, v: MetricValue | null | undefined, uni
     return { value: `${v < 0 ? '−' : ''}${p.value}`, unit: p.unit }
   }
   const digits = u === 'V' ? (Math.abs(v) < 10 ? 3 : 1) : u === '%' || u === 'mV' ? 0 : u === 'A' || u === '°C' || u === 'kWh' || u === 'kW' ? 1 : Number.isInteger(v) ? 0 : 2
-  return { value: v.toFixed(digits).replace(/^-/, '−'), unit: u ?? '' }
+  return { value: formatFixed(v, digits).replace(/^-/, '−'), unit: u ?? '' }
 }
 
 export const num = (v: MetricValue | undefined): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined)
@@ -242,8 +243,8 @@ export function headline(site: SiteModel) {
 }
 
 export function freshness(o: SolarOverview | undefined): { tone: 'good' | 'warning' | 'neutral'; label: string } {
-  if (!o || o.source === 'none' || !o.updatedAt) return { tone: 'neutral', label: 'No data yet' }
-  return o.stale ? { tone: 'warning', label: 'Delayed' } : { tone: 'good', label: 'Live' }
+  if (!o || o.source === 'none' || !o.updatedAt) return { tone: 'neutral', label: translate('solar.fresh.none') }
+  return o.stale ? { tone: 'warning', label: translate('solar.fresh.delayed') } : { tone: 'good', label: translate('solar.fresh.live') }
 }
 
 /**
@@ -256,14 +257,14 @@ const IDLE_W = 20
 
 export function gridHint(w?: number) {
   if (w == null) return undefined
-  if (Math.abs(w) <= IDLE_W) return 'Idle'
-  return (w > 0) === SOLAR_SIGN.gridImportPositive ? 'Importing' : 'Exporting'
+  if (Math.abs(w) <= IDLE_W) return translate('solar.hints.idle')
+  return translate((w > 0) === SOLAR_SIGN.gridImportPositive ? 'solar.hints.importing' : 'solar.hints.exporting')
 }
 
 export function batteryHint(w?: number) {
   if (w == null) return undefined
-  if (Math.abs(w) <= IDLE_W) return 'Idle'
-  return (w > 0) === SOLAR_SIGN.batteryChargingPositive ? 'Charging' : 'Discharging'
+  if (Math.abs(w) <= IDLE_W) return translate('solar.hints.idle')
+  return translate((w > 0) === SOLAR_SIGN.batteryChargingPositive ? 'solar.hints.charging' : 'solar.hints.discharging')
 }
 
 export function metricCardProps(key: string, v: MetricValue | undefined, unit?: string) {

@@ -1,3 +1,4 @@
+import { translate } from '../../i18n'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { ReactNode, useEffect, useId, useRef } from 'react'
@@ -100,7 +101,7 @@ export function Dialog({ open, onClose, title, description, children, footer, si
               <button
                 type='button'
                 onClick={onClose}
-                aria-label='Close dialog'
+                aria-label={translate('common.closeDialog')}
                 className='-mr-1 grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-panel-3 hover:text-fg'
               >
                 <X size={16} />

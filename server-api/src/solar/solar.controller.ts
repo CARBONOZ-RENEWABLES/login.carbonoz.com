@@ -32,6 +32,7 @@ import {
   queryString,
 } from 'src/__shared__/utils/query';
 import { SolarAdminService } from './admin/solar-admin.service';
+import { SolarEnergyHistoryService } from './read/solar-energy-history.service';
 import { GenericResponse } from 'src/__shared__/dto';
 import { AllowRoles } from 'src/auth/decorators';
 import { JwtGuard } from 'src/auth/guard/jwt.guard';
@@ -52,6 +53,7 @@ import {
   CellsQueryDto,
   DeviceKindQueryDto,
   EventsQueryDto,
+  EnergyHistoryQueryDto,
   HistoryQueryDto,
 } from './dto';
 import { SolarIngestService } from './ingest/solar-ingest.service';
@@ -66,7 +68,25 @@ import { SolarStoreService } from './store/solar-store.service';
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Unauthorized' })
 export class SolarController {
-  constructor(private readonly read: SolarReadService) {}
+  constructor(
+    private readonly read: SolarReadService,
+    private readonly energy: SolarEnergyHistoryService,
+  ) {}
+
+  @ApiOperation({
+    summary:
+      'Energy history: daily (30d), monthly (1y) or yearly (10y) kWh in the site time zone',
+  })
+  @Get('energy')
+  async energyHistory(
+    @CurrentSite() site: Site,
+    @Query() q: EnergyHistoryQueryDto,
+  ) {
+    return new GenericResponse(
+      'solar-energy',
+      await this.energy.history(site, q.range ?? '30d', q.anchor),
+    );
+  }
 
   @ApiOperation({
     summary:

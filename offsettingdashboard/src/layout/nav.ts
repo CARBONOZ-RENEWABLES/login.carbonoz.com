@@ -1,3 +1,4 @@
+import { translate } from '../i18n'
 import { Activity, Building2, Cpu, Database, FileText, Gauge, House, Inbox, KeyRound, LayoutDashboard, MapPin, Settings, User, Users, type LucideIcon } from 'lucide-react'
 
 export interface NavItem {
@@ -10,13 +11,23 @@ export interface NavItem {
   description: string
   /** Sidebar group heading; items with the same section are listed together. */
   section?: string
+  /** Translated label/description (customer navigation); admin items stay as written. */
+  i18n?: 'dashboard' | 'profile' | 'settings'
+}
+
+/** Label, short label and description in the current language. */
+export function navText(item: NavItem) {
+  if (!item.i18n) return { label: item.label, short: item.short ?? item.label, description: item.description }
+  const k = item.i18n
+  const label = translate(`nav.${k}.label`)
+  return { label, short: k === 'dashboard' ? translate('nav.dashboard.short') : label, description: translate(`nav.${k}.description`) }
 }
 
 /** Customer navigation. SolarBMS is the only data source, so the Solar dashboard is home. */
 export const USER_NAV: NavItem[] = [
-  { to: '/ds/solar', label: 'Dashboard', short: 'Home', icon: House, description: 'Your SolarBMS system: energy, batteries, cells, inverters and history.' },
-  { to: '/ds/profile', label: 'Profile', icon: User, description: 'Your personal and contact information.' },
-  { to: '/ds/settings', label: 'Settings', icon: Settings, description: 'Preferences for this device.' },
+  { to: '/ds/solar', i18n: 'dashboard', label: 'Dashboard', short: 'Home', icon: House, description: 'Your SolarBMS system: energy, batteries, cells, inverters and history.' },
+  { to: '/ds/profile', i18n: 'profile', label: 'Profile', icon: User, description: 'Your personal and contact information.' },
+  { to: '/ds/settings', i18n: 'settings', label: 'Settings', icon: Settings, description: 'Preferences for this device.' },
 ]
 
 export const USER_BOTTOM_NAV = ['/ds/solar', '/ds/profile', '/ds/settings']

@@ -1,3 +1,4 @@
+import { translate as t } from '../../../i18n'
 import { Activity, Cpu } from 'lucide-react'
 import { ReactNode } from 'react'
 import { BatteryGlyph, Card, CardHeader, cn, EmptyState, StatusBadge } from '../../../design'
@@ -46,7 +47,7 @@ export function StatusCard({ title, icon, items, action }: { title: ReactNode; i
  */
 export function MetricList({ metrics, unitOf, kind, exclude = [] }: { metrics: Record<string, MetricValue>; unitOf: (kind: DeviceKind, key: string) => string | undefined; kind: DeviceKind; exclude?: string[] }) {
   const rows = orderedMetrics(metrics).filter(([k]) => !exclude.includes(k))
-  if (!rows.length) return <p className='text-[12.5px] text-muted'>No values reported.</p>
+  if (!rows.length) return <p className='text-[12.5px] text-muted'>{t('solar.empty.noValuesShort')}</p>
   return (
     <dl className='grid grid-cols-2 gap-x-4 gap-y-2.5 sm:grid-cols-3'>
       {rows.map(([k, v]) => {
@@ -78,7 +79,7 @@ function DeviceHeader({ d, icon, title }: { d: SolarDevice; icon: ReactNode; tit
       action={
         <>
           {/* A delayed device's status is its last known one, so it is not shown as current. */}
-          {d.latest?.stale ? <StatusBadge tone='warning'>Delayed</StatusBadge> : status && <StatusBadge tone={statusTone(status)} dot>{status}</StatusBadge>}
+          {d.latest?.stale ? <StatusBadge tone='warning'>{t('solar.fresh.delayed')}</StatusBadge> : status && <StatusBadge tone={statusTone(status)} dot>{status}</StatusBadge>}
           {d.latest?.ts && <span className='hidden text-[11.5px] text-muted sm:inline'>{relativeTime(Date.parse(d.latest.ts))}</span>}
         </>
       }
@@ -90,7 +91,7 @@ export function InverterCard({ d, unitOf, title }: { d: SolarDevice; unitOf: (ki
   return (
     <Card className='p-4'>
       <DeviceHeader d={d} title={title} icon={<Cpu size={16} />} />
-      <div className='mt-4'>{d.latest ? <MetricList metrics={d.latest.metrics} unitOf={unitOf} kind='INVERTER' /> : <p className='text-[12.5px] text-muted'>No recent data.</p>}</div>
+      <div className='mt-4'>{d.latest ? <MetricList metrics={d.latest.metrics} unitOf={unitOf} kind='INVERTER' /> : <p className='text-[12.5px] text-muted'>{t('solar.empty.noRecent')}</p>}</div>
     </Card>
   )
 }
@@ -103,15 +104,15 @@ export function BatteryCard({ d, bms, unitOf, title }: { d: SolarDevice; bms: So
       {soc != null && (
         <div className='mt-4'>
           <div className='flex items-baseline justify-between'>
-            <span className='text-[12px] text-muted'>State of charge</span>
+            <span className='text-[12px] text-muted'>{t('metrics.soc_pct')}</span>
             <span className='tabular text-[18px] font-semibold text-fg'>{Math.round(soc)}%</span>
           </div>
-          <div className='mt-1.5 h-2 overflow-hidden rounded-full bg-panel-3' role='meter' aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(soc)} aria-label='State of charge'>
+          <div className='mt-1.5 h-2 overflow-hidden rounded-full bg-panel-3' role='meter' aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(soc)} aria-label={t('metrics.soc_pct')}>
             <div className='h-full rounded-full bg-batt' style={{ width: `${Math.max(0, Math.min(100, soc))}%` }} />
           </div>
         </div>
       )}
-      <div className='mt-4'>{d.latest ? <MetricList metrics={d.latest.metrics} unitOf={unitOf} kind='BATTERY' exclude={['soc_pct']} /> : <p className='text-[12.5px] text-muted'>No recent data.</p>}</div>
+      <div className='mt-4'>{d.latest ? <MetricList metrics={d.latest.metrics} unitOf={unitOf} kind='BATTERY' exclude={['soc_pct']} /> : <p className='text-[12.5px] text-muted'>{t('solar.empty.noRecent')}</p>}</div>
       {bms.length > 0 && (
         <p className='mt-4 border-t border-line pt-3 text-[12px] text-muted'>
           BMS: {bms.map((b) => deviceTitle(b)).join(', ')}
@@ -131,7 +132,7 @@ export function BMSCard({ d, unitOf, battery, title }: { d: SolarDevice; unitOf:
   return (
     <Card className='p-4'>
       <DeviceHeader d={d} title={title} icon={<Activity size={16} />} />
-      {battery && <p className='mt-1 text-[12px] text-muted'>Pack: {battery}</p>}
+      {battery && <p className='mt-1 text-[12px] text-muted'>{t('solar.pack', { name: battery })}</p>}
       {summary.length > 0 && (
         <div className='mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4'>
           {summary.map((k) => {
@@ -152,11 +153,11 @@ export function BMSCard({ d, unitOf, battery, title }: { d: SolarDevice; unitOf:
         {cells.length ? (
           <CellVoltageTable cells={cells} minId={m.cell_voltage_min_id as string | undefined} maxId={m.cell_voltage_max_id as string | undefined} />
         ) : (
-          <EmptyState title='No cell data' description='This BMS has not reported individual cell voltages yet.' className='py-6' />
+          <EmptyState title={t('solar.empty.noCells')} description={t('solar.empty.noCellsHint')} className='py-6' />
         )}
       </div>
       <details className='mt-4 border-t border-line pt-3'>
-        <summary className='cursor-pointer text-[12.5px] font-medium text-fg-2 hover:text-fg'>All BMS values</summary>
+        <summary className='cursor-pointer text-[12.5px] font-medium text-fg-2 hover:text-fg'>{t('solar.allBmsValues')}</summary>
         <div className='mt-3'>
           <MetricList metrics={m} unitOf={unitOf} kind='BMS' exclude={CELL_KEYS} />
         </div>

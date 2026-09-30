@@ -20,6 +20,8 @@ export const SolarKeys = {
   metrics: (siteId: string) => `solar:metrics:${siteId}`,
   /** Set while the metric catalogue's lastSeenAt was refreshed recently. */
   metricsTouched: (siteId: string) => `solar:metrics-touched:${siteId}`,
+  /** Changes whenever the worker drops cached energy days of a site (cache-write guard). */
+  energyDirty: (siteId: string) => `solar:energy-dirty:${siteId}`,
   /** Hash per installation: accepted / duplicate counters (admin monitoring only). */
   stats: (installationId: string) => `solar:stats:${installationId}`,
 };

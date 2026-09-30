@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ESolarDeviceKind } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
+  IsIn,
   IsBoolean,
   IsDate,
   IsEnum,
@@ -88,4 +89,19 @@ export class EventsQueryDto {
   @Type(() => Date)
   @IsDate()
   before?: Date;
+}
+
+export class EnergyHistoryQueryDto {
+  @ApiPropertyOptional({ enum: ['30d', '1y', '10y'], default: '30d' })
+  @IsOptional()
+  @IsIn(['30d', '1y', '10y'])
+  range?: '30d' | '1y' | '10y';
+
+  @ApiPropertyOptional({
+    description:
+      'Last bucket of the range: YYYY-MM-DD (30d), YYYY-MM (1y) or YYYY (10y). Default: now.',
+  })
+  @IsOptional()
+  @Matches(/^\d{4}(-\d{2}(-\d{2})?)?$/)
+  anchor?: string;
 }

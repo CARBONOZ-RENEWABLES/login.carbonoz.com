@@ -12,6 +12,10 @@ import {
 } from '../normalize/solarbms.normalizer';
 import { toMongoSafe } from '../normalize/mongo-safe';
 import {
+  ENERGY_SETTLE_MS,
+  SolarEnergyHistoryService,
+} from '../read/solar-energy-history.service';
+import {
   MAX_METRICS_PER_SITE,
   METRIC_TOUCH_SECONDS,
   SolarKeys,
@@ -64,6 +68,7 @@ export class SolarStoreService {
     config: ConfigService<IAppConfig>,
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly energy: SolarEnergyHistoryService,
   ) {
     this.cfg = config.get('solar');
   }
@@ -192,6 +197,7 @@ export class SolarStoreService {
         });
       }
       await this.storeEvents(siteId, installationId, ingestId, n);
+      await this.invalidateEnergy(siteId, n);
       if (n.forecast) {
         await this.prisma.solarForecast.create({
           data: {
@@ -481,6 +487,21 @@ export class SolarStoreService {
     );
     await this.redis.raw.sAdd(key, fresh);
     return rejected;
+  }
+
+  /** Old SYSTEM readings (backfill, reprocess) may change cached daily energy totals. */
+  private async invalidateEnergy(siteId: string, n: NormalizedBatch) {
+    const ts = n.samples
+      .filter((s) => s.kind === 'SYSTEM')
+      .map((s) => s.ts.getTime());
+    if (!ts.length) return;
+    const min = Math.min(...ts);
+    if (min >= Date.now() - ENERGY_SETTLE_MS) return;
+    await this.energy.invalidate(
+      siteId,
+      new Date(min),
+      new Date(Math.max(...ts)),
+    );
   }
 
   /**

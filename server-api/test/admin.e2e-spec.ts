@@ -268,6 +268,21 @@ describe('installations and machine credentials', () => {
     ).toBe(400);
   });
 
+  it('rotates reliably right after the Pi used the key (no write-conflict 500)', async () => {
+    const owner = await signup(t.api, 'rotate-race');
+    const p = await provision(t.api, admin, owner.user.id);
+    let credentialId = p.credentialId;
+    let key = p.key;
+    for (let i = 0; i < 25; i++) {
+      // Using the key updates lastUsedAt on the credential row in the background.
+      expect((await ingest(t.api, key, reading())).status).toBe(202);
+      const rot = await post(`/admin/credentials/${credentialId}/rotate`);
+      expect([i, rot.status]).toEqual([i, 201]);
+      credentialId = rot.data.data.id;
+      key = rot.data.data.apiKey;
+    }
+  });
+
   it('revokes a credential', async () => {
     const owner = await signup(t.api, 'revoke');
     const p = await provision(t.api, admin, owner.user.id);

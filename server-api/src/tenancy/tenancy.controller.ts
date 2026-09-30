@@ -658,21 +658,35 @@ export class AdminTenancyController {
     if (credentialStatus(old) !== 'active')
       throw new BadRequestException('Only an active credential can be rotated');
     const key = MachineAuthService.newApiKey();
-    const [cred] = await this.prisma.$transaction([
-      this.prisma.machineCredential.create({
-        data: {
-          installationId: old.installationId,
-          type: EMachineCredentialType.API_KEY,
-          clientId: key.clientId,
-          secretHash: sha256(key.secret),
-          label: old.label,
-        },
-      }),
-      this.prisma.machineCredential.update({
-        where: { id: old.id },
-        data: { active: false, revokedAt: new Date() },
-      }),
-    ]);
+    const rotate = () =>
+      this.prisma.$transaction([
+        this.prisma.machineCredential.create({
+          data: {
+            installationId: old.installationId,
+            type: EMachineCredentialType.API_KEY,
+            clientId: key.clientId,
+            secretHash: sha256(key.secret),
+            label: old.label,
+          },
+        }),
+        this.prisma.machineCredential.update({
+          where: { id: old.id },
+          data: { active: false, revokedAt: new Date() },
+        }),
+      ]);
+    // The machine guard updates lastUsedAt on this row while the Pi sends data;
+    // MongoDB aborts a transaction that races it (P2034). An aborted
+    // transaction wrote nothing, so it is simply retried.
+    let cred: Awaited<ReturnType<typeof rotate>>[0];
+    for (let attempt = 1; ; attempt++) {
+      try {
+        [cred] = await rotate();
+        break;
+      } catch (e) {
+        if ((e as { code?: string }).code !== 'P2034' || attempt >= 5) throw e;
+        await new Promise((r) => setTimeout(r, 20 * attempt));
+      }
+    }
     this.machines.forget(old.id);
     return new GenericResponse(
       'credential rotated (the apiKey is shown only once)',

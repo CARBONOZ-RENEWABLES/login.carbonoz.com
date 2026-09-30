@@ -153,3 +153,23 @@ model SolarDeadLetter {
   @@unique([streamId])
   @@index([siteId, createdAt])
 }
+
+// Settled daily energy totals of a site (one local day in `timezone`),
+// integrated from SYSTEM power readings. A cache: always rebuildable from
+// SolarSample, dropped by the worker when older readings arrive for that day.
+// `values`: { pvWh, pvHours, loadWh, loadHours, gridPositiveWh, gridNegativeWh,
+// gridHours, batteryPositiveWh, batteryNegativeWh, batteryHours } — hours are
+// installation-hours with readings; a metric without any is absent, not zero.
+model SolarEnergyDay {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  siteId     String   @db.ObjectId
+  timezone   String
+  // Local calendar day, YYYY-MM-DD.
+  day        String
+  start      DateTime
+  values     Json
+  computedAt DateTime @default(now())
+
+  @@unique([siteId, timezone, day])
+  @@index([siteId, start])
+}

@@ -115,6 +115,7 @@ Minimum/maximum cell voltage, cell spread and average are calculated by Carbonoz
 
 - **Any field name works.** Names MongoDB can't store (containing a NUL byte or `.`, or starting with `$`) are stored under a substitute name, and Carbonoz also keeps your message exactly as sent.
 - **Nothing is silently dropped.** A message Carbonoz can't process even after retries is kept for inspection and can be re-run once the cause is fixed.
+- **Energy history uses power, not counters.** Daily/monthly/yearly kWh are integrated from `pvPower`, `loadPower`, `gridPower` and `batteryPower`. Energy counters you send (e.g. `dailyPvEnergyKwh`) are stored and shown, but not used for history until we agree on their exact meaning (reset time, cumulative or interval).
 - **Limit on new metric names.** Carbonoz tracks at most 2000 distinct metric names per site. Beyond that, new names are kept in the stored message but not charted; a well-behaved system never reaches this.
 
 ## 4. Sending

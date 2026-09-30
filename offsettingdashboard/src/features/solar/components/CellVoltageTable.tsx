@@ -1,4 +1,4 @@
-import dayjs from 'dayjs'
+import { formatDate, formatFixed, translate as t } from '../../../i18n'
 import { useMemo } from 'react'
 import { cn, StatusBadge } from '../../../design'
 import { Cell } from '../api'
@@ -36,10 +36,10 @@ export function CellVoltageTable({ cells, minId, maxId }: { cells: Cell[]; minId
   return (
     <div>
       <div className='mb-2 flex items-center justify-between'>
-        <p className='text-[12.5px] font-medium text-fg-2'>Cell voltages</p>
-        <span className='text-[11.5px] text-muted'>{cells.length} cells</span>
+        <p className='text-[12.5px] font-medium text-fg-2'>{t('solar.cells.voltages')}</p>
+        <span className='text-[11.5px] text-muted'>{t('solar.cells.count', { count: cells.length })}</span>
       </div>
-      <ul className='grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8' aria-label='Cell voltages'>
+      <ul className='grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8' aria-label={t('solar.cells.voltages')}>
         {sorted.map((c) => {
           const isLow = c.id === low
           const isHigh = c.id === high && span > 0
@@ -48,18 +48,18 @@ export function CellVoltageTable({ cells, minId, maxId }: { cells: Cell[]; minId
           return (
             <li key={c.id} className={cn('rounded-lg border bg-panel-2 px-2.5 py-2', isLow ? 'border-accent/40' : isHigh ? 'border-gridp/40' : 'border-line')}>
               <div className='flex h-5 items-center justify-between gap-1'>
-                <span className='text-[11px] text-muted'>Cell {c.id}</span>
-                {isLow && <StatusBadge tone='info'>min</StatusBadge>}
-                {isHigh && <StatusBadge tone='warning'>max</StatusBadge>}
+                <span className='text-[11px] text-muted'>{t('solar.cells.cell', { id: c.id })}</span>
+                {isLow && <StatusBadge tone='info'>{t('solar.cells.min')}</StatusBadge>}
+                {isHigh && <StatusBadge tone='warning'>{t('solar.cells.max')}</StatusBadge>}
               </div>
-              <p className='tabular mt-0.5 text-[14px] font-semibold text-fg'>{c.voltage == null ? '—' : `${c.voltage.toFixed(3)} V`}</p>
+              <p className='tabular mt-0.5 text-[14px] font-semibold text-fg'>{c.voltage == null ? '—' : `${formatFixed(c.voltage, 3)} V`}</p>
               <div className='mt-1.5 h-1 overflow-hidden rounded-full bg-panel-3'>
                 <div className={cn('h-full rounded-full', isLow ? 'bg-accent' : isHigh ? 'bg-gridp' : 'bg-batt')} style={{ width: `${Math.max(6, pos)}%` }} />
               </div>
               <p className='tabular mt-1 text-[10.5px] text-muted'>
                 {dev == null ? '' : `${dev > 0 ? '+' : dev < 0 ? '−' : '±'}${Math.abs(dev)} mV`}
-                {c.temperature != null && ` · ${c.temperature.toFixed(1)} °C`}
-                {c.balancing && ' · balancing'}
+                {c.temperature != null && ` · ${formatFixed(c.temperature, 1)} °C`}
+                {c.balancing && ` · ${t('solar.cells.balancing')}`}
               </p>
               {extras.slice(0, 2).map((k) => {
                 if (c[k] == null) return null
@@ -76,17 +76,17 @@ export function CellVoltageTable({ cells, minId, maxId }: { cells: Cell[]; minId
         })}
       </ul>
       <details className='mt-3'>
-        <summary className='cursor-pointer text-[12.5px] font-medium text-fg-2 hover:text-fg'>All cell values</summary>
+        <summary className='cursor-pointer text-[12.5px] font-medium text-fg-2 hover:text-fg'>{t('solar.cells.all')}</summary>
         <div className='mt-2'>
           <DataTable<Cell>
             rows={sorted}
             rowKey={(c) => c.id}
             columns={[
-              { title: 'Cell', key: 'id', render: (_, c) => <span className='font-medium text-fg'>{c.id}</span> },
-              { title: 'Voltage', key: 'v', render: (_, c) => <span className='tabular'>{c.voltage == null ? '—' : `${c.voltage.toFixed(3)} V`}</span> },
-              { title: 'Δ avg', key: 'd', render: (_, c) => <span className='tabular text-fg-2'>{c.voltage == null ? '—' : `${Math.round((c.voltage - avg) * 1000)} mV`}</span> },
-              ...(sorted.some((c) => c.temperature != null) ? [{ title: 'Temperature', key: 't', render: (_: unknown, c: Cell) => <span className='tabular'>{c.temperature == null ? '—' : `${c.temperature.toFixed(1)} °C`}</span> }] : []),
-              ...(sorted.some((c) => c.balancing != null) ? [{ title: 'Balancing', key: 'b', render: (_: unknown, c: Cell) => (c.balancing ? <StatusBadge tone='info'>balancing</StatusBadge> : c.balancing === false ? 'No' : '—') }] : []),
+              { title: t('solar.cells.cellColumn'), key: 'id', render: (_, c) => <span className='font-medium text-fg'>{c.id}</span> },
+              { title: t('solar.cells.voltage'), key: 'v', render: (_, c) => <span className='tabular'>{c.voltage == null ? '—' : `${formatFixed(c.voltage, 3)} V`}</span> },
+              { title: t('solar.cells.deltaAvg'), key: 'd', render: (_, c) => <span className='tabular text-fg-2'>{c.voltage == null ? '—' : `${Math.round((c.voltage - avg) * 1000)} mV`}</span> },
+              ...(sorted.some((c) => c.temperature != null) ? [{ title: t('solar.cells.temperature'), key: 't', render: (_: unknown, c: Cell) => <span className='tabular'>{c.temperature == null ? '—' : `${formatFixed(c.temperature, 1)} °C`}</span> }] : []),
+              ...(sorted.some((c) => c.balancing != null) ? [{ title: t('solar.cells.balancingColumn'), key: 'b', render: (_: unknown, c: Cell) => (c.balancing ? <StatusBadge tone='info'>{t('solar.cells.balancing')}</StatusBadge> : c.balancing === false ? t('common.no') : '—') }] : []),
               ...extras.map((k) => ({
                 title: metricMeta(k).label,
                 key: k,
@@ -95,7 +95,7 @@ export function CellVoltageTable({ cells, minId, maxId }: { cells: Cell[]; minId
                   return <span className='tabular'>{f.value}{f.unit && ` ${f.unit}`}</span>
                 },
               })),
-              ...(sorted.some((c) => c.ts) ? [{ title: 'Measured', key: 'ts', render: (_: unknown, c: Cell) => <span className='tabular text-fg-2'>{c.ts ? dayjs(c.ts).format('HH:mm:ss') : '—'}</span> }] : []),
+              ...(sorted.some((c) => c.ts) ? [{ title: t('solar.cells.measured'), key: 'ts', render: (_: unknown, c: Cell) => <span className='tabular text-fg-2'>{c.ts ? formatDate(c.ts, { timeStyle: 'medium' }) : '—'}</span> }] : []),
             ]}
           />
         </div>

@@ -118,7 +118,7 @@ describe('dynamic metrics', () => {
     expect(formatMetric('last_update_ts', 1790755200).value).toMatch(/2026/)
     expect(formatMetric('last_update_ts', 1790755200000).value).toMatch(/2026/)
     // A number that is not a timestamp stays a number, even under a time-like key.
-    expect(formatMetric('uptime', 1790755200).value).toBe('1790755200')
+    expect(formatMetric('uptime', 1790755200).value).toBe('1,790,755,200')
     expect(formatMetric('charge_time', 42).value).toBe('42')
     expect(metricMeta('future_metric').label).toBe('Future metric')
   })

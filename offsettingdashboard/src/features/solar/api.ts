@@ -81,6 +81,39 @@ export interface Forecast {
   points: Array<{ ts: string } & Record<string, MetricValue>>
 }
 
+export type EnergyRange = '30d' | '1y' | '10y'
+
+/** One day, month or year of energy; `null` = no reading of that metric (not zero). */
+export interface EnergyBucket {
+  key: string
+  start: string
+  end: string
+  partial: boolean
+  expectedHours: number
+  completeness: number | null
+  pvKwh: number | null
+  loadKwh: number | null
+  /** Energy while grid_power_w was positive / negative (sign convention mapped in the adapter). */
+  gridPositiveKwh: number | null
+  gridNegativeKwh: number | null
+  batteryPositiveKwh: number | null
+  batteryNegativeKwh: number | null
+}
+
+export interface EnergyHistory {
+  range: EnergyRange
+  resolution: 'day' | 'month' | 'year'
+  timezone: string
+  anchor: string
+  previousAnchor: string
+  nextAnchor: string | null
+  firstDataAt: string | null
+  installations: number
+  sources: { device: 'SYSTEM'; pv: string; load: string; grid: string; battery: string }
+  method: string
+  buckets: EnergyBucket[]
+}
+
 interface Envelope<T> {
   data: T
 }
@@ -97,7 +130,10 @@ const solarApi = baseAPI.injectEndpoints({
       query: ({ siteId, ...q }) => ({ url: `/solar/sites/${siteId}/events`, params: Object.fromEntries(Object.entries(q).filter(([, v]) => v != null)) }),
     }),
     getSolarForecast: b.query<Envelope<Forecast | null>, string>({ query: (siteId) => `/solar/sites/${siteId}/forecast` }),
+    getSolarEnergy: b.query<Envelope<EnergyHistory>, { siteId: string; range: EnergyRange; anchor?: string }>({
+      query: ({ siteId, range, anchor }) => ({ url: `/solar/sites/${siteId}/energy`, params: anchor ? { range, anchor } : { range } }),
+    }),
   }),
 })
 
-export const { useGetSitesQuery, useGetSolarOverviewQuery, useGetSolarHistoryQuery, useGetSolarEventsQuery, useGetSolarForecastQuery } = solarApi
+export const { useGetSitesQuery, useGetSolarOverviewQuery, useGetSolarHistoryQuery, useGetSolarEventsQuery, useGetSolarForecastQuery, useGetSolarEnergyQuery } = solarApi

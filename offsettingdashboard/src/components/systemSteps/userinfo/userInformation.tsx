@@ -177,10 +177,10 @@ const UserInformation: FC<Props> = ({
               }
               name='customerLanguage'
               type='select'
-              options={language.map((item, index) => ({
-                key: index,
-                value: item,
-                label: item,
+              options={language.map((item) => ({
+                key: item.value,
+                value: item.value,
+                label: item.label,
               }))}
               rules={requiredField('Language')}
             />

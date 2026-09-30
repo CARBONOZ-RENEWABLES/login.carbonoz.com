@@ -145,7 +145,7 @@ All under `/api/v1`.
 |---|---|
 | Auth | `GET auth/config` · `GET auth/oidc/login` · `GET auth/oidc/callback` · `GET auth/session` · `POST auth/logout` · legacy (until cut-over): `POST auth/{login,sign-up,forgot-password,verify-user,verify-user-email}` |
 | Tenancy | `GET customers/me` · `GET sites` · `GET sites/:siteId` |
-| Solar (customer) | `GET solar/sites/:siteId/{overview, devices, inverters, batteries, bms, cells, metrics, history, events, forecast, access}` |
+| Solar (customer) | `GET solar/sites/:siteId/{overview, devices, inverters, batteries, bms, cells, metrics, history, events, forecast, access}` · `GET solar/sites/:siteId/energy?range=30d\|1y\|10y&anchor=` (energy history) |
 | Ingestion (machine) | `POST ingest/solarbms` |
 | Admin · tenancy | `GET/POST admin/customers` (list with member/site/installation counts, status, last activity; `?q=`) · `GET/PATCH admin/customers/:id` · `POST/DELETE admin/customers/:id/members` · `POST admin/customers/:id/sites` · `GET admin/sites` (`?q=&customerId=`) · `GET/POST admin/sites/:id/installations` · `GET admin/installations` (`?q=&siteId=&customerId=`) · `PATCH admin/installations/:id` (name, systemId, active) |
 | Admin · machine credentials | `GET admin/credentials` (`?installationId=&status=&q=`, never secrets) · `POST admin/installations/:id/credentials` · `POST admin/credentials/:id/rotate` (API keys) · `DELETE admin/credentials/:id` |
@@ -177,6 +177,25 @@ All under `/api/v1`.
 - **New metrics appear on their own:** device cards, the History picker, and the System tab's *All reported values* table (every current value of every device, searchable, with its update time) and metric table. Numbers get their unit, booleans Yes/No, ISO or epoch timestamps a local date/time. Only important canonical metrics get curated cards.
 - **Empty states.** A customer without a site, or a site without an installation, sees "No SolarBMS system connected".
 
+## 6a. Energy history — `GET solar/sites/:siteId/energy`
+
+Daily (30 days), monthly (12 months) and yearly (10 years) energy for one site, behind the same `SiteAccessGuard` as every Solar endpoint (other customers' sites → 404).
+
+- **Source metrics (fixed meaning, SYSTEM device only):** `pv_power_w`, `load_power_w`, `grid_power_w`, `battery_power_w`. Other metrics — including energy counters such as `daily_pv_energy_kwh` or `pv_energy_today_kwh` — are stored and shown generically but never used here until their semantics are confirmed with SolarBMS.
+- **Integration:** SolarBMS reports power, so energy = average power of every installation-hour with readings × 1 h. Duplicate readings don't inflate it (average), hours without readings add nothing and are reported via `completeness` (readings ÷ expected installation-hours); a metric without any reading in a bucket is `null`, never 0.
+- **Signed parts:** the API returns `gridPositiveKwh`/`gridNegativeKwh` and `batteryPositiveKwh`/`batteryNegativeKwh`. The dashboard maps them to import/export and charged/discharged with `SOLAR_SIGN` (assumed grid + = import, battery + = charging — **pending SolarBMS confirmation**; one place to flip).
+- **Calendar:** buckets are local days/months/years in the site's `timezone` (UTC if unset/invalid). Months and years are sums of days, so DST days (23/25 h) and month/year boundaries are exact. `partial` marks a bucket still running or one in which data started. `anchor` pages back/forward; never into the future.
+- **PV coverage** (dashboard): (consumption − grid import) ÷ consumption, 0–100 %; only when both values exist.
+- **Cache:** settled days (ended > 48 h ago) are stored in `SolarEnergyDay` (rebuildable). The worker drops cached days when older readings arrive (backfill, reprocess); a per-site marker in Redis (`solar:energy-dirty:<site>`) prevents a request from caching a day the worker changed meanwhile. Without Redis nothing is cached.
+- **Dashboard:** Energy tab → *Energy history*: totals, charts per resolution (daily: PV vs consumption, battery charged vs discharged, grid import, coverage line; monthly/yearly: separate bars, coverage bars, value labels on yearly bars), and a table (cards on phones). Incomplete buckets are drawn lighter and labelled; missing values show "—".
+
+## 7b. Languages — `offsettingdashboard/src/i18n`
+
+- English, German, French, Spanish. Central catalogues in `src/i18n/messages/` (`en.ts` is the source and the fallback; missing keys fall back to English, then to the key). Keys are type-checked (`t('solar.tabs.overview')`).
+- Selector on **Profile → Language**. The UI switches immediately (the app subtree re-renders, the API cache stays), the choice is stored on the device and in the profile field `customerLanguage` (`en`/`de`/`fr`/`es`; older values like "English"/"french" are understood), and a profile value is applied on every device at sign-in.
+- Dates and numbers use `Intl` with the language's locale (de-DE, fr-FR, es-ES, en-GB); antd's own texts follow via its locale.
+- Translated: the customer shell and navigation, the whole Solar dashboard (tabs, cards, tables, charts, energy flow, empty/loading/error states), Profile and Settings. Not yet translated (English): the admin panel, onboarding/Redex forms and the sign-in pages.
+
 ## 7a. Admin panel — `offsettingdashboard/src/features/admin`
 
 Same shell and design system as the rest of the app; the sidebar groups the admin menu into **SolarBMS** and **Carbonoz**. Every page calls the admin API above — no local data.
@@ -202,8 +221,8 @@ Same shell and design system as the rest of the app; the sidebar groups the admi
 | Suite | Command | Covers |
 |---|---|---|
 | Backend unit | `npm test` | Normalizer (contract example from `solarbms-ingestion.md`, fixtures, robustness, system-level alarms), MongoDB-safe keys, return-address allowlist, exact email matching |
-| Backend e2e | `npm run test:e2e` | Disposable MongoDB replica set, `redis-server` and mock Keycloak; the real API in-process: Keycloak login and login-CSRF, email-takeover regression, CSRF, refresh revocation/back-off, legacy cut-over, tenant isolation, machine auth, ingestion and dynamic data, out-of-order state, outage drills (Redis/MongoDB kill and restart, dead-letter, locking, two workers), admin panel API (provisioning, members, rotation/revocation, deactivation, ingestion stats, failed-then-reprocessed messages, alarms kept through reprocess, metric catalogue, non-admin denial) |
-| Frontend unit | `npm test` (offsettingdashboard) | Headline totals (fresh/stale/mixed/none), site model, formatting, energy flow, dynamic metrics (types, timestamps, all-values list), 16/24/32 cells, admin status and formatting helpers |
+| Backend e2e | `npm run test:e2e` | Disposable MongoDB replica set, `redis-server` and mock Keycloak; the real API in-process: Keycloak login and login-CSRF, email-takeover regression, CSRF, refresh revocation/back-off, legacy cut-over, tenant isolation, machine auth, ingestion and dynamic data, out-of-order state, outage drills (Redis/MongoDB kill and restart, dead-letter, locking, two workers), admin panel API (provisioning, members, rotation/revocation, deactivation, ingestion stats, failed-then-reprocessed messages, alarms kept through reprocess, metric catalogue, non-admin denial), energy history (hourly integration, duplicates, local midnight/month/New Year in Europe/Berlin, missing ≠ zero, unknown metrics ignored, backfill cache refresh, 30d/1y/10y, validation, site authorization) |
+| Frontend unit | `npm test` (offsettingdashboard) | Headline totals (fresh/stale/mixed/none), site model, formatting, energy flow, dynamic metrics (types, timestamps, all-values list), 16/24/32 cells, admin helpers, i18n (4 languages, fallback, plurals, completeness of catalogues, locale formats), language switching rendered in jsdom (immediate change, persistence, profile save), energy history adapter and view (loading/empty/error, localized table, ranges, phone layout) |
 
 CI (`.github/workflows/ci.yml`) runs type checks, lint of the platform code, both unit suites, both builds and the e2e suite.
 
