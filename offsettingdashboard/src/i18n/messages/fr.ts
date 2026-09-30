@@ -322,6 +322,8 @@ export const fr: Catalogue = {
     title: "Historique de l'énergie",
     subtitle: '{period} · fuseau horaire {tz}',
     subtitleLoading: 'Énergie quotidienne, mensuelle et annuelle à partir de vos mesures SolarBMS',
+    /** Where the time zone of the energy calendar comes from. */
+    tzSource: { profile: 'votre profil', site: 'site', default: 'par défaut, aucun défini' },
     range: "Période de l'historique",
     ranges: { '30d': '30 jours', '1y': '1 an', '10y': '10 ans' },
     earlier: 'Période précédente',

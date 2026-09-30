@@ -7,10 +7,10 @@ import { SolarKeys } from '../solar.keys';
 import {
   addDays,
   EnergyRange,
+  energyTimeZone,
   localDay,
   localMidnight,
   planRange,
-  safeTimeZone,
   validAnchor,
 } from './energy-calendar';
 
@@ -84,7 +84,7 @@ const kwh = (wh: number, hours: number) =>
 
 /**
  * Energy history of a site: daily (30 days), monthly (12 months) or yearly
- * (10 years) totals in the site's time zone.
+ * (10 years) totals in the viewer's profile time zone, or the site's.
  *
  * SolarBMS reports power, not energy counters, so energy is integrated: the
  * average power of every installation-hour with readings × 1 h. Hours without
@@ -112,11 +112,13 @@ export class SolarEnergyHistoryService {
     }
   }
 
+  /** `profileTimeZone`: the viewer's profile zone; it replaces the site's when valid. */
   async history(
     site: Pick<Site, 'id' | 'timezone'>,
     range: EnergyRange,
     anchor?: string,
     now = new Date(),
+    profileTimeZone?: string | null,
   ) {
     if (anchor !== undefined && !validAnchor(range, anchor))
       throw new BadRequestException(
@@ -126,7 +128,8 @@ export class SolarEnergyHistoryService {
           ? 'anchor must be YYYY-MM'
           : 'anchor must be YYYY',
       );
-    const tz = safeTimeZone(site.timezone);
+    const zone = energyTimeZone(site.timezone, profileTimeZone);
+    const tz = zone.timezone;
     const plan = planRange(range, anchor, tz, now);
 
     const [first, installations] = await Promise.all([
@@ -194,6 +197,9 @@ export class SolarEnergyHistoryService {
       range: plan.range,
       resolution: plan.resolution,
       timezone: tz,
+      /** Where `timezone` comes from: the viewer's profile, the site, or UTC (neither set). */
+      timezoneSource: zone.source,
+      siteTimezone: site.timezone ?? null,
       anchor: plan.anchor,
       previousAnchor: plan.previousAnchor,
       nextAnchor: plan.nextAnchor,

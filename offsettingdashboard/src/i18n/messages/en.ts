@@ -336,6 +336,8 @@ export const en = {
     title: 'Energy history',
     subtitle: '{period} · time zone {tz}',
     subtitleLoading: 'Daily, monthly and yearly energy from your SolarBMS readings',
+    /** Where the time zone of the energy calendar comes from. */
+    tzSource: { profile: 'your profile', site: 'site', default: 'default, none set' },
     range: 'Energy history range',
     ranges: { '30d': '30 days', '1y': '1 year', '10y': '10 years' },
     earlier: 'Earlier period',

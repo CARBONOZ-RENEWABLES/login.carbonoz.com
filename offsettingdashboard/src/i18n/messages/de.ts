@@ -322,6 +322,8 @@ export const de: Catalogue = {
     title: 'Energieverlauf',
     subtitle: '{period} · Zeitzone {tz}',
     subtitleLoading: 'Tägliche, monatliche und jährliche Energie aus Ihren SolarBMS-Messwerten',
+    /** Where the time zone of the energy calendar comes from. */
+    tzSource: { profile: 'Ihr Profil', site: 'Standort', default: 'Standard, keine festgelegt' },
     range: 'Zeitraum des Energieverlaufs',
     ranges: { '30d': '30 Tage', '1y': '1 Jahr', '10y': '10 Jahre' },
     earlier: 'Früherer Zeitraum',

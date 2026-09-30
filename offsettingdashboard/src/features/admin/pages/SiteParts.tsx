@@ -8,7 +8,7 @@ import { SiteRow, useCreateSiteMutation, useGetAdminCustomersQuery, useUpdateSit
 import { apiError, knownTimeZone, timeZoneOptions, utcOffset } from '../model'
 import { FormField, Mono } from '../ui'
 
-const TZ_HINT = 'IANA name. Sets the calendar days, months and years of this site’s energy history (DST included).'
+const TZ_HINT = 'IANA name. Calendar of this site’s energy history (DST included) for viewers without a Customer Timezone in their profile.'
 
 /** Searchable IANA time zone picker; the stored value is the IANA name shown. */
 export function TimeZoneSelect({ value, onChange, id }: { value: string; onChange: (tz: string) => void; id?: string }) {
@@ -33,8 +33,9 @@ export function TimeZoneSelect({ value, onChange, id }: { value: string; onChang
         </div>
       )}
       filterOption={(input, o) => `${o?.value ?? ''} ${o?.offset ?? ''}`.toLowerCase().replace(/_/g, ' ').includes(input.toLowerCase().replace(/_/g, ' '))}
-      // Inside the dialog, so choosing an option isn't an "outside" click.
-      getPopupContainer={(el) => el.parentElement ?? document.body}
+      // Rendered on <body> (antd's default, above the dialog's z-index) so the
+      // list is never clipped by the dialog's scroll area. The dialog only
+      // closes on its own backdrop, which the list covers.
       listHeight={280}
     />
   )

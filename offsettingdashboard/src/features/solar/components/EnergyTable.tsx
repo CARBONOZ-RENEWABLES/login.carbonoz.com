@@ -60,7 +60,8 @@ function RowState({ r }: { r: EnergyRow }) {
  * Energy table: follows the chart range by default; users can pick any period
  * (presets or dates) and a resolution, sort, and export CSV or PDF.
  */
-export function EnergyTable({ siteId, siteName, timezone, chartRows, chartRes }: { siteId: string; siteName: string; timezone: string; chartRows: EnergyRow[]; chartRes: Resolution }) {
+/** `timezone`: calendar of the buckets (viewer's profile zone, else the site's); `timezoneLabel` adds where it comes from. */
+export function EnergyTable({ siteId, siteName, timezone, timezoneLabel = timezone, chartRows, chartRes }: { siteId: string; siteName: string; timezone: string; timezoneLabel?: string; chartRows: EnergyRow[]; chartRes: Resolution }) {
   const { t, lang } = useI18n()
   const today = todayIn(timezone)
   const [custom, setCustom] = useState<{ group: Group; period: Period; preset?: PresetId } | null>(null)
@@ -111,8 +112,9 @@ export function EnergyTable({ siteId, siteName, timezone, chartRows, chartRes }:
   const meta = () => [
     `${t('energy.table.site')}: ${siteName}`,
     `${t('energy.table.period')}: ${periodText} (${t(`energy.table.groups.${res}`)})`,
-    `${t('energy.table.timezone')}: ${timezone}`,
-    `${t('energy.table.generated')}: ${formatDate(new Date(), { dateStyle: 'medium', timeStyle: 'short' })}`,
+    `${t('energy.table.timezone')}: ${timezoneLabel}`,
+    // In the same zone as the data, labelled (not the browser's).
+    `${t('energy.table.generated')}: ${formatDate(new Date(), { dateStyle: 'medium', timeStyle: 'short' }, timezone)} (${timezone})`,
   ]
   const filename = (ext: string) => `carbonoz-energy-${slug(siteName)}-${period?.from ?? ''}_${period?.to ?? ''}.${ext}`
   const chronological = [...rows]
@@ -164,7 +166,7 @@ export function EnergyTable({ siteId, siteName, timezone, chartRows, chartRes }:
         <div className='min-w-0'>
           <h3 className='text-[15px] font-semibold text-fg'>{t('energy.table.title')}</h3>
           <p className='text-[12px] text-muted'>
-            {t(`energy.table.count.${res}`, { count: rows.length })} · {periodText} · {timezone}
+            {t(`energy.table.count.${res}`, { count: rows.length })} · {periodText} · {timezoneLabel}
             {incompleteCount > 0 && <> · {t('energy.table.incompleteCount', { count: incompleteCount })}</>}
           </p>
         </div>
