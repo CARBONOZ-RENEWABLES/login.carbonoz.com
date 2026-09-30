@@ -1,7 +1,7 @@
 import { AlertTriangle, Building2, Cpu, Database, Inbox, RefreshCw, Server, Workflow } from 'lucide-react'
 import { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Card, CardHeader, LoadingState, StatusBadge } from '../../../design'
+import { Button, Card, CardHeader, PageSkeleton, StatusBadge } from '../../../design'
 import { useGetAdminCustomersQuery, useGetAdminSitesQuery, useGetSolarHealthQuery } from '../api'
 import { ago, count } from '../model'
 import { QueryError } from '../ui'
@@ -31,7 +31,7 @@ export default function OverviewPage() {
   const sites = useGetAdminSitesQuery({})
   const h = health.data?.data
 
-  if (health.isLoading) return <LoadingState rows={4} />
+  if (health.isLoading) return <PageSkeleton cards={3} />
   if (health.isError || !h) return <QueryError error={health.error} onRetry={health.refetch} what='system health' />
 
   const failed24 = h.ingests24h.FAILED
@@ -44,7 +44,7 @@ export default function OverviewPage() {
         <p className='text-[12.5px] text-muted'>
           Checked {ago(h.checkedAt)} · last SolarBMS message {ago(h.lastReceivedAt)} · readings older than {Math.round(h.staleAfterSeconds / 60)} min count as offline
         </p>
-        <Button size='sm' variant='outline' onClick={() => health.refetch()} loading={health.isFetching}>
+        <Button size='sm' variant='outline' onClick={() => health.refetch()}>
           <RefreshCw size={14} /> Refresh
         </Button>
       </div>

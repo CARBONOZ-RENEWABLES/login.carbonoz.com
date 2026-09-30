@@ -1,7 +1,7 @@
 import { Activity, BatteryCharging, Cpu, Server } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Card, CardHeader, EmptyState, ErrorState, inputClass, LoadingState, Segmented, StatusBadge, TabItem, Tabs } from '../../design'
+import { Card, CardHeader, EmptyState, ErrorState, inputClass, PageSkeleton, Segmented, StatusBadge, TabItem, Tabs } from '../../design'
 import { relativeTime, useShell } from '../../layout/ShellContext'
 import { RangeId } from '../../services/energyFlow'
 import { DeviceKind, MetricValue, SiteSummary, SolarDevice, SolarOverview, useGetSitesQuery, useGetSolarEnergyQuery, useGetSolarEventsQuery, useGetSolarForecastQuery, useGetSolarOverviewQuery } from './api'
@@ -41,7 +41,7 @@ export default function SolarPage({ basePath = '/ds/solar' }: { basePath?: strin
   const tab: TabId = TAB_IDS.includes(routeTab as TabId) ? (routeTab as TabId) : 'overview'
   const go = (s: string | undefined, tab: TabId) => navigate(`${basePath}/${s ?? ''}${tab === 'overview' ? '' : `/${tab}`}`, { replace: true })
 
-  if (sites.isLoading) return <LoadingState rows={3} />
+  if (sites.isLoading) return <PageSkeleton tabs />
   if (sites.isError) return <ErrorState title={t('solar.errors.sites')} onRetry={sites.refetch} />
   if (!siteId) {
     return (
@@ -102,7 +102,7 @@ function SiteView({ summary, tab, onTab }: { summary: SiteSummary; tab: TabId; o
       />
     )
   }
-  if (overview.isLoading) return <LoadingState rows={3} />
+  if (overview.isLoading) return <PageSkeleton />
   if (overview.isError || !o) return <ErrorState title={t('solar.errors.data')} onRetry={refetch} />
 
   switch (tab) {
@@ -243,14 +243,14 @@ function RangePicker({ value, onChange }: { value: RangeId; onChange: (r: RangeI
 function EnergyTab({ siteId, o, site }: { siteId: string; o: SolarOverview; site: SiteModel }) {
   const h = headline(site)
   const hasLive = [h.pv, h.load, h.grid, h.battery].some((v) => v != null)
-  // One loading screen for the whole page: wait for the first energy data too.
+  // First energy data: the page's skeleton, not a loader of its own.
   const energy = useGetSolarEnergyQuery({ siteId, range: '30d' })
-  if (energy.isLoading) return <LoadingState />
+  if (energy.isLoading) return <PageSkeleton />
   return (
     <div className='flex flex-col gap-4'>
       <Freshness o={o} />
       {hasLive ? <LiveEnergy siteId={siteId} o={o} site={site} /> : <EmptyState title={t('solar.empty.noEnergy')} description={t('solar.empty.noEnergyHint')} />}
-      <EnergyHistory siteId={siteId} />
+      <EnergyHistory siteId={siteId} siteName={o.site.name} />
     </div>
   )
 }
@@ -361,7 +361,7 @@ function HistoryTab({ siteId, o, site }: { siteId: string; o: SolarOverview; sit
 
 function ForecastTab({ siteId }: { siteId: string }) {
   const f = useGetSolarForecastQuery(siteId)
-  if (f.isLoading) return <LoadingState />
+  if (f.isLoading) return <PageSkeleton variant='list' />
   if (f.isError) return <ErrorState title={t('solar.errors.forecast')} onRetry={f.refetch} />
   const fc = f.data?.data
   const keys = fc ? [...new Set(fc.points.flatMap((p) => Object.keys(p).filter((k) => k !== 'ts')))] : []
@@ -392,7 +392,7 @@ function ForecastTab({ siteId }: { siteId: string }) {
 function EventsTab({ siteId }: { siteId: string }) {
   const [filter, setFilter] = useState<'all' | 'active'>('all')
   const ev = useGetSolarEventsQuery({ siteId, active: filter === 'active' ? true : undefined, limit: 200 }, { pollingInterval: POLL_MS })
-  if (ev.isLoading) return <LoadingState />
+  if (ev.isLoading) return <PageSkeleton variant='list' />
   if (ev.isError) return <ErrorState title={t('solar.errors.events')} onRetry={ev.refetch} />
   return (
     <div className='flex flex-col gap-3'>

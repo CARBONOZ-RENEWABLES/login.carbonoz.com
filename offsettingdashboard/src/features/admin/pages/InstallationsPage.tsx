@@ -166,7 +166,7 @@ function CreateInstallationDialog({ open, presetSiteId, onClose }: { open: boole
       <form id='create-installation' onSubmit={submit} className='space-y-4'>
         <FormField label='Site'>
           <select className={inputClass} value={chosenSite} onChange={(e) => setSiteId(e.target.value)} required>
-            <option value=''>{sites.isFetching ? 'Loading…' : 'Choose a site'}</option>
+            <option value=''>Choose a site</option>
             {sites.data?.data.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name} · {s.customer.name}

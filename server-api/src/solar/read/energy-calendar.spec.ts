@@ -106,3 +106,32 @@ describe('energy calendar', () => {
     expect(safeTimeZone(null)).toBe('UTC');
   });
 });
+
+describe('energy calendar and the server time zone', () => {
+  const original = process.env.TZ;
+  afterAll(() => {
+    process.env.TZ = original;
+  });
+  it('gives the same site days, months and years whatever zone the server runs in', () => {
+    const now = new Date('2026-09-30T22:30:00Z'); // 1 Oct 00:30 in Berlin
+    const plans = [
+      'UTC',
+      'Europe/Berlin',
+      'Africa/Kigali',
+      'America/New_York',
+    ].map((server) => {
+      process.env.TZ = server;
+      return JSON.stringify([
+        planRange('30d', undefined, 'Europe/Berlin', now),
+        planRange('1y', undefined, 'Europe/Berlin', now),
+        planRange('10y', undefined, 'Europe/Berlin', now),
+        localDay(now, 'Europe/Berlin'),
+        localMidnight('2026-03-29', 'Europe/Berlin'),
+        localMidnight('2025-10-26', 'Europe/Berlin'),
+      ]);
+    });
+    expect(new Set(plans).size).toBe(1);
+    expect(JSON.parse(plans[0])[3]).toBe('2026-10-01');
+    expect(JSON.parse(plans[0])[0].anchor).toBe('2026-10-01');
+  });
+});

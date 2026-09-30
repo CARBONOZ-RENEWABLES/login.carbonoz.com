@@ -7,7 +7,7 @@ import { SiteRow, useGetAdminSitesQuery } from '../api'
 import { ago, formatDate } from '../model'
 import { LiveBadge, Mono, Panel, QueryError, SearchInput } from '../ui'
 import { useDebounced } from '../hooks'
-import { CreateSiteDialog, SiteActions } from './SiteParts'
+import { CreateSiteDialog, SiteActions, SiteTimeZone } from './SiteParts'
 
 export default function SitesPage() {
   const [params, setParams] = useSearchParams()
@@ -71,6 +71,7 @@ export default function SitesPage() {
                 ),
               },
               { title: 'Location', key: 'loc', render: (_, s) => [s.address, s.country].filter(Boolean).join(', ') || '—' },
+              { title: 'Time zone', key: 'tz', render: (_, s) => <SiteTimeZone site={s} /> },
               { title: 'Installations', key: 'inst', align: 'right', render: (_, s) => s.installationCount },
               { title: 'Status', key: 'status', render: (_, s) => <LiveBadge status={s.status} /> },
               { title: 'Last SolarBMS reading', key: 'seen', render: (_, s) => <span title={formatDate(s.lastSeenAt)}>{ago(s.lastSeenAt)}</span> },

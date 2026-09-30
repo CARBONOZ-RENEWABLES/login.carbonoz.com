@@ -1,6 +1,6 @@
 import { formatDate, translate as t } from '../../../i18n'
 import { useMemo } from 'react'
-import { Card, CardHeader, EmptyState, ErrorState } from '../../../design'
+import { Card, CardHeader, EmptyState, ErrorState, Skeleton } from '../../../design'
 import { SERIES } from '../../../design/theme'
 import { HistoryPoint, RangeId } from '../../../services/energyFlow'
 import { PanelDef } from '../../charts/panels'
@@ -68,7 +68,7 @@ export function HistoryChart({ siteId, metric, kind, deviceId, range, refreshKey
 
   let body
   if (isError) body = <ErrorState title={t('solar.errors.history')} onRetry={refetch} />
-  else if (!h && isFetching) body = null // the page loader covers first loads; no per-chart spinner
+  else if (!h && isFetching) body = <Skeleton className='h-full w-full rounded-lg' /> // subtle shimmer, no spinner
   else if (!rows.length) body = <EmptyState title={t('solar.empty.noHistoryPeriod')} description={t('solar.empty.noHistoryPeriodHint')} className='h-full' />
   else body = <TimeSeriesChart panel={panelFor(metric, unitOf(metric, h?.unit), ids, labels)} data={rows} range={range} />
 
@@ -96,7 +96,12 @@ export function ForecastChart({ forecast, loading }: { forecast: Forecast | null
     return { rows, range, panel: panelFor(first, unit, same, labels) }
   }, [forecast])
 
-  if (loading && !forecast) return <ChartFrame title={t('solar.forecast.title')}>{null}</ChartFrame>
+  if (loading && !forecast)
+    return (
+      <ChartFrame title={t('solar.forecast.title')}>
+        <Skeleton className='h-full w-full rounded-lg' />
+      </ChartFrame>
+    )
   if (!model) {
     return (
       <Card className='p-4'>

@@ -67,3 +67,51 @@ export function prettyJson(v: unknown): string {
     return String(v)
   }
 }
+
+// ── Site time zones ────────────────────────────────────────────────────────
+
+/** Is `tz` a zone this browser knows (Intl), e.g. `Europe/Berlin`? The API checks it again. */
+export function knownTimeZone(tz: string | null | undefined): boolean {
+  if (!tz) return false
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Zones the IANA database renamed, which browsers' zone lists (ICU) still give
+ * under the old name: the selector offers the current name (both work).
+ */
+const RENAMED: Record<string, string> = {
+  'Asia/Calcutta': 'Asia/Kolkata',
+  'Europe/Kiev': 'Europe/Kyiv',
+  'Asia/Katmandu': 'Asia/Kathmandu',
+  'Asia/Saigon': 'Asia/Ho_Chi_Minh',
+  'Asia/Rangoon': 'Asia/Yangon',
+  'America/Godthab': 'America/Nuuk',
+  'Atlantic/Faeroe': 'Atlantic/Faroe',
+  'Pacific/Enderbury': 'Pacific/Kanton',
+  'Pacific/Truk': 'Pacific/Chuuk',
+  'Pacific/Ponape': 'Pacific/Pohnpei',
+}
+
+/** IANA zone names for the selector, from the browser's zone data; `UTC` first, the site's current value kept. */
+export function timeZoneOptions(current?: string | null): string[] {
+  const list = (Intl as unknown as { supportedValuesOf?: (k: 'timeZone') => string[] }).supportedValuesOf?.('timeZone') ?? []
+  const current_ = (z: string) => (RENAMED[z] && knownTimeZone(RENAMED[z]) ? RENAMED[z] : z)
+  const names = new Set(['UTC', ...list.filter((z) => z.includes('/')).map(current_), ...(current && knownTimeZone(current) ? [current] : [])])
+  return [...names].sort((a, b) => (a === 'UTC' ? -1 : b === 'UTC' ? 1 : a.localeCompare(b)))
+}
+
+/** Current UTC offset of a zone: "UTC+02:00", "UTC+05:30", "UTC". */
+export function utcOffset(tz: string, at = new Date()): string {
+  try {
+    const name = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'longOffset' }).formatToParts(at).find((p) => p.type === 'timeZoneName')?.value ?? ''
+    return name.replace(/^GMT/, 'UTC')
+  } catch {
+    return ''
+  }
+}

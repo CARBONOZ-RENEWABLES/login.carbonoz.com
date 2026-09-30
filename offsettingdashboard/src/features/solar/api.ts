@@ -119,10 +119,11 @@ interface Envelope<T> {
 }
 
 /** Everything goes through the Carbonoz API; the browser never talks to Redis, MongoDB or the Raspberry Pi. */
-const solarApi = baseAPI.injectEndpoints({
+export const solarApi = baseAPI.injectEndpoints({
   endpoints: (b) => ({
-    getSites: b.query<Envelope<SiteSummary[]>, void>({ query: () => '/sites' }),
-    getSolarOverview: b.query<Envelope<SolarOverview>, string>({ query: (siteId) => `/solar/sites/${siteId}/overview` }),
+    // Tagged per site, so an admin change of the site (its time zone) refetches them.
+    getSites: b.query<Envelope<SiteSummary[]>, void>({ query: () => '/sites', providesTags: [{ type: 'Solar-Site', id: 'LIST' }] }),
+    getSolarOverview: b.query<Envelope<SolarOverview>, string>({ query: (siteId) => `/solar/sites/${siteId}/overview`, providesTags: (_r, _e, siteId) => [{ type: 'Solar-Site', id: siteId }] }),
     getSolarHistory: b.query<Envelope<HistoryResult>, { siteId: string; metric: string; kind: DeviceKind; deviceId?: string; from: string; to: string }>({
       query: ({ siteId, ...q }) => ({ url: `/solar/sites/${siteId}/history`, params: Object.fromEntries(Object.entries(q).filter(([, v]) => v != null)) }),
     }),
@@ -132,6 +133,7 @@ const solarApi = baseAPI.injectEndpoints({
     getSolarForecast: b.query<Envelope<Forecast | null>, string>({ query: (siteId) => `/solar/sites/${siteId}/forecast` }),
     getSolarEnergy: b.query<Envelope<EnergyHistory>, { siteId: string; range: EnergyRange; anchor?: string }>({
       query: ({ siteId, range, anchor }) => ({ url: `/solar/sites/${siteId}/energy`, params: anchor ? { range, anchor } : { range } }),
+      providesTags: (_r, _e, { siteId }) => [{ type: 'Solar-Site', id: siteId }],
     }),
   }),
 })

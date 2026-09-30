@@ -2,7 +2,7 @@ import { ArrowLeft, Pencil, Plus, UserPlus } from 'lucide-react'
 import { FormEvent, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Notify from '../../../components/common/notification/notification'
-import { Button, Card, Dialog, Field, inputClass, LinkButton, LoadingState, StatusBadge } from '../../../design'
+import { Button, Card, Dialog, Field, inputClass, LinkButton, PageSkeleton, StatusBadge } from '../../../design'
 import { DataTable } from '../../solar/components/tables'
 import { CustomerDetail, CustomerType, Member, MemberRole, SiteDetail, useAddMemberMutation, useGetAdminCustomerQuery, useRemoveMemberMutation, useUpdateCustomerMutation } from '../api'
 import { ago, apiError, formatDate, personName } from '../model'
@@ -19,7 +19,7 @@ export default function CustomerDetailPage() {
   const [addingSite, setAddingSite] = useState(false)
   const c = q.data?.data
 
-  if (q.isLoading) return <LoadingState rows={4} />
+  if (q.isLoading) return <PageSkeleton variant='list' />
   if (q.isError || !c) return <QueryError error={q.error} onRetry={q.refetch} what='this customer' />
 
   return (

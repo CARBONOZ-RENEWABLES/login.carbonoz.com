@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight, RefreshCw, RotateCcw, X } from 'lucide-react
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import Notify from '../../../components/common/notification/notification'
-import { Button, Dialog, Field, LinkButton, LoadingState, StatusBadge } from '../../../design'
+import { Button, Dialog, Field, LinkButton, SkeletonRows, StatusBadge } from '../../../design'
 import { DataTable } from '../../solar/components/tables'
 import {
   DeadLetter,
@@ -50,7 +50,7 @@ export default function IngestionPage() {
       <Panel
         title='SolarBMS installations'
         action={
-          <Button size='sm' variant='outline' onClick={() => stats.refetch()} loading={stats.isFetching}>
+          <Button size='sm' variant='outline' onClick={() => stats.refetch()}>
             <RefreshCw size={14} /> Refresh
           </Button>
         }
@@ -267,7 +267,7 @@ function IngestDialog({ id, onClose }: { id: string; onClose: () => void }) {
       }
     >
       {q.isLoading ? (
-        <LoadingState compact />
+        <SkeletonRows rows={6} />
       ) : q.isError || !r ? (
         <QueryError error={q.error} onRetry={q.refetch} what='this message' />
       ) : (

@@ -94,8 +94,12 @@ it('keeps Keycloak sessions and machine ingestion working', async () => {
       ownerUserId: who.data.data.user.id,
     })
   ).data.data;
-  const site = (await post(`/admin/customers/${cust.id}/sites`, { name: 'S' }))
-    .data.data;
+  const site = (
+    await post(`/admin/customers/${cust.id}/sites`, {
+      name: 'S',
+      timezone: 'Europe/Berlin',
+    })
+  ).data.data;
   const inst = (
     await post(`/admin/sites/${site.id}/installations`, { name: 'Pi' })
   ).data.data;

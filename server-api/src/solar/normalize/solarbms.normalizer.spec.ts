@@ -363,3 +363,70 @@ describe('toMongoSafe', () => {
     expect(typeof cur).toBe('string');
   });
 });
+
+describe('timestamps do not depend on the server time zone', () => {
+  const original = process.env.TZ;
+  afterAll(() => {
+    process.env.TZ = original;
+  });
+  const received = new Date('2026-09-30T12:00:00Z');
+  const tsOf = (timestamp: unknown) =>
+    normalizeSolarBms({ timestamp, measurements: { pvPower: 1 } }, received);
+
+  it.each(['UTC', 'Europe/Berlin', 'Africa/Kigali', 'America/New_York'])(
+    'server in %s',
+    (tz) => {
+      process.env.TZ = tz;
+      // Explicit instants: identical everywhere, no warning.
+      for (const v of [
+        '2026-09-29T10:00:00Z',
+        '2026-09-29T12:00:00+02:00',
+        '2026-09-29T06:00:00-04:00',
+        1790676000,
+        1790676000000,
+        '1790676000',
+      ]) {
+        const n = tsOf(v);
+        expect(n.ts.toISOString()).toBe('2026-09-29T10:00:00.000Z');
+        expect(n.warnings.join()).not.toMatch(/UTC offset/);
+      }
+      // No offset: read as UTC (never the server zone) and flagged.
+      for (const v of [
+        '2026-09-29T10:00:00',
+        '2026-09-29 10:00:00',
+        '2026-09-29T10:00',
+      ]) {
+        const n = tsOf(v);
+        expect(n.ts.toISOString()).toBe('2026-09-29T10:00:00.000Z');
+        expect(n.warnings).toContain(
+          'timestamps with no UTC offset were read as UTC',
+        );
+      }
+      // The flag is per message.
+      expect(tsOf('2026-09-29T10:00:00Z').warnings.join()).not.toMatch(
+        /UTC offset/,
+      );
+    },
+  );
+});
+
+describe('energy counters are never read as power', () => {
+  it('keeps an `energy` object as energy_* metrics, not pv/load/grid/battery power', () => {
+    const n = normalizeSolarBms({
+      timestamp: '2026-09-30T10:00:00Z',
+      measurements: { pvPower: 4200 },
+      energy: { pv: 12.3, load: 8.1, grid: 1.2, battery: 3.4 },
+    });
+    const sys = n.samples.find((s) => s.kind === 'SYSTEM')?.metrics;
+    expect(sys).toMatchObject({
+      pv_power_w: 4200,
+      energy_pv: 12.3,
+      energy_load: 8.1,
+      energy_grid: 1.2,
+      energy_battery: 3.4,
+    });
+    expect(sys).not.toHaveProperty('load_power_w');
+    expect(sys).not.toHaveProperty('grid_power_w');
+    expect(sys).not.toHaveProperty('battery_power_w');
+  });
+});

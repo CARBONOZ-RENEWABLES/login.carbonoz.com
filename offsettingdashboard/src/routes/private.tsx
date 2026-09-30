@@ -1,5 +1,5 @@
 import { ComponentType, FC, useEffect, useState } from 'react'
-import { GeneralContentLoader } from '../components/common/loader/loader'
+import { AppLoader } from '../components/common/loader/loader'
 import { getFromLocal } from '../helpers/handleStorage'
 import { fetchSession, isSso, loginRedirect } from '../lib/auth/session'
 
@@ -19,7 +19,7 @@ const Private = <P extends object>(Wrapped: ComponentType<P>): FC<P> => {
         return null
       }
     }
-    if (state === 'checking') return <GeneralContentLoader />
+    if (state === 'checking') return <AppLoader />
     return <Wrapped {...props} />
   }
   return PrivateComponent

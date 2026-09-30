@@ -277,7 +277,6 @@ export class SolarEnergyHistoryService {
       else runs.push([d]);
     }
     const out = new Map<string, DayValues>();
-    const t = { $toLong: '$ts' };
     const has = (f: string) => ({ $ne: [f, null] });
     const pos = (f: string) => ({ $cond: [has(f), { $max: [f, 0] }, 0] });
     const neg = (f: string) => ({
@@ -303,7 +302,16 @@ export class SolarEnergyHistoryService {
             $project: {
               _id: 0,
               i: '$installationId',
-              h: { $subtract: [t, { $mod: [t, HOUR_MS] }] },
+              // The site's local hour with its UTC offset ("2026-10-25T02+0100"):
+              // never straddles local midnight, also in +05:30 / +05:45 zones,
+              // and the repeated hour of a DST fall-back stays two hours.
+              h: {
+                $dateToString: {
+                  format: '%Y-%m-%dT%H%z',
+                  date: '$ts',
+                  timezone: tz,
+                },
+              },
               pv: `$metrics.${ENERGY_SOURCES.pv}`,
               load: `$metrics.${ENERGY_SOURCES.load}`,
               grid: `$metrics.${ENERGY_SOURCES.grid}`,
@@ -324,13 +332,7 @@ export class SolarEnergyHistoryService {
           // …× 1 h = Wh, summed per local day of the site.
           {
             $group: {
-              _id: {
-                $dateToString: {
-                  format: '%Y-%m-%d',
-                  date: { $toDate: '$_id.h' },
-                  timezone: tz,
-                },
-              },
+              _id: { $substrBytes: ['$_id.h', 0, 10] },
               pvWh: { $sum: pos('$pv') },
               pvHours: { $sum: hours('$pv') },
               loadWh: { $sum: pos('$load') },

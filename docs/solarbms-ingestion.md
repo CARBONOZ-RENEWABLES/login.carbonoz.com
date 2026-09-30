@@ -98,8 +98,8 @@ Send everything the SolarBMS API has. **Unknown fields are accepted and stored**
 |---|---|---|
 | `messageId` | recommended | Unique per message. Makes retries safe: the same id is stored once. If missing, Carbonoz uses a hash of the body. |
 | `systemId` | recommended | Your id for the system. Must match the installation's registered id. |
-| `timestamp` | recommended | Time of the reading: ISO 8601 or epoch seconds/milliseconds. Devices and cells can carry their own `timestamp`. If missing, the receive time is used. |
-| `measurements` | – | System totals. `metrics`, `system`, `energy` and `totals` are accepted too. |
+| `timestamp` | recommended | Time of the reading: ISO 8601 **with** `Z` or an offset (`2026-09-29T12:00:00+02:00`), or epoch seconds/milliseconds. Devices and cells can carry their own `timestamp`. If missing, the receive time is used. A timestamp without offset (`2026-09-29T12:00:00`) is read as UTC and the message is flagged. |
+| `measurements` | – | System totals (power). `metrics`, `system` and `totals` are accepted too. An `energy` object is kept as `energy_*` metrics and never read as power. |
 | `inverters` | – | Array, or an object keyed by id. |
 | `batteries` | – | Array, or an object keyed by id. Each may contain a `bms` object (or array). A top-level `bms` array with `batteryId` also works. |
 | `cells` | – | Numbers (`[3.31, 3.32]`) or objects `{id, voltage, temperature?, balancing?, timestamp?}`. Any other per-cell field (e.g. `cellResistance`, `balancingCurrentMa`) is kept too. Voltages above 100 are read as millivolts. Also accepted as `cellVoltages`. Each BMS may report a different number of cells. |

@@ -37,6 +37,7 @@ import {
   CreateSiteDto,
   UpdateCustomerDto,
   UpdateInstallationDto,
+  UpdateSiteDto,
 } from './dto';
 import { CurrentSite, SiteAccessGuard } from './site-access.guard';
 import { isObjectId, TenancyService } from './tenancy.service';
@@ -345,6 +346,31 @@ export class AdminTenancyController {
     return new GenericResponse(
       'site',
       await this.prisma.site.create({ data: { ...dto, customerId } }),
+    );
+  }
+
+  /**
+   * Changes the site's time zone (the calendar of its energy history). Raw
+   * readings are UTC instants and stay untouched. Cached energy days are
+   * keyed by (site, timezone, day), so the next history request computes the
+   * new zone's days from the readings; rows of the old zone stay correct for
+   * it (backfill invalidation ignores the zone) and are reused if it returns.
+   */
+  @ApiOkResponse({ description: 'Site time zone changed' })
+  @Patch('sites/:siteId')
+  async updateSite(
+    @Param('siteId') siteId: string,
+    @Body() dto: UpdateSiteDto,
+  ) {
+    this.id(siteId, 'Site');
+    const { count } = await this.prisma.site.updateMany({
+      where: { id: siteId },
+      data: { timezone: dto.timezone },
+    });
+    if (!count) throw new NotFoundException('Site not found');
+    return new GenericResponse(
+      'site',
+      await this.prisma.site.findUnique({ where: { id: siteId } }),
     );
   }
 
