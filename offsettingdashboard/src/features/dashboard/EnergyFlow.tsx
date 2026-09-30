@@ -1,7 +1,7 @@
 import { translate as t } from '../../i18n'
 import { House, Info, SolarPanel } from 'lucide-react'
 import { memo, ReactNode, useId } from 'react'
-import { BatteryGlyph, Card, cn, ErrorState, HouseIllustration, Popover, PylonIcon, Skeleton, StatusBadge } from '../../design'
+import { BatteryGlyph, Card, cn, ErrorState, HouseIllustration, Popover, PylonIcon, StatusBadge } from '../../design'
 import { FlowState, IDLE_W, idleFlow, LiveStatus } from '../../services/energyFlow'
 import { power, powerText } from './format'
 
@@ -259,12 +259,7 @@ export function EnergyFlowCard({ flow, status, error, onRetry, className, footer
         </span>
       </div>
 
-      {status === 'loading' && !flow ? (
-        <div className='flex flex-1 items-center gap-4 py-6'>
-          <Skeleton className='h-[180px] flex-1 rounded-xl' />
-          <Skeleton className='hidden h-[150px] w-[160px] rounded-lg sm:block' />
-        </div>
-      ) : (
+      {(
         <>
           <div className={cn('flex flex-1 flex-col items-center gap-4 pt-1 sm:flex-row sm:items-center sm:gap-3', !flow && 'opacity-80')}>
             <FlowDiagram flow={flow ?? IDLE_FLOW} className='mx-auto hidden min-w-0 max-w-[620px] flex-1 sm:block' />

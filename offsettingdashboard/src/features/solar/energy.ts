@@ -89,10 +89,11 @@ const keyDate = (key: string) => {
   return new Date(Date.UTC(y, m - 1, d, 12))
 }
 
-/** Axis/table label: 30.09. (de) · 30/09 (en, fr, es) · Sep 26 · 2026. */
-export function bucketLabel(key: string, res: Resolution, style: 'short' | 'long' = 'short'): string {
+/** Axis/table label: 30.09. (de) · 30/09 (en, fr, es) · Sep 26 · 2026; `medium` = "5 Mar" / "5. März". */
+export function bucketLabel(key: string, res: Resolution, style: 'short' | 'medium' | 'long' = 'short'): string {
   const d = keyDate(key)
   if (res === 'year') return key
+  if (style === 'medium') return formatDate(d, res === 'month' ? { month: 'short' } : { day: 'numeric', month: 'short' }, 'UTC')
   if (res === 'month') return formatDate(d, style === 'long' ? { month: 'long', year: 'numeric' } : { month: 'short', year: '2-digit' }, 'UTC')
   return formatDate(d, style === 'long' ? { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' } : { day: '2-digit', month: '2-digit' }, 'UTC')
 }
@@ -116,4 +117,14 @@ export function formatKwh(v: number | null, res: Resolution = 'day'): string {
 
 export function formatPct(v: number | null): string {
   return v == null ? '—' : formatNumber(v / 100, { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 })
+}
+
+export type GrafanaKey = 'pv' | 'consumption' | 'gridImport' | 'coverage'
+
+/** Min / max / mean / total over the values that exist (gaps are not zeros). */
+export function seriesStats(rows: EnergyRow[], key: GrafanaKey) {
+  const v = rows.map((r) => r[key]).filter((x): x is number => x != null)
+  if (!v.length) return null
+  const total = v.reduce((a, b) => a + b, 0)
+  return { min: Math.min(...v), max: Math.max(...v), mean: total / v.length, total, last: v[v.length - 1], count: v.length }
 }

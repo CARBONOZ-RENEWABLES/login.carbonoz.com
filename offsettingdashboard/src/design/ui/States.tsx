@@ -3,7 +3,6 @@ import { CircleAlert, Inbox, RefreshCw, WifiOff } from 'lucide-react'
 import { ReactNode } from 'react'
 import { cn } from '../cn'
 import { Button } from './Button'
-import { Skeleton } from './Skeleton'
 
 export function EmptyState({
   title,
@@ -59,13 +58,27 @@ export function ErrorState({
   )
 }
 
-/** Card-shaped skeleton block list for page-level loading. */
-export function LoadingState({ rows = 3, className }: { rows?: number; className?: string }) {
+/** Brand spinner (same ring as the app loader). */
+export function Spinner({ size = 28, className }: { size?: number; className?: string }) {
+  return <span className={cn('inline-block shrink-0 animate-spin rounded-full border-2 border-line-strong border-t-accent', className)} style={{ width: size, height: size }} aria-hidden />
+}
+
+/**
+ * The page loading screen: one spinner centred horizontally and vertically in
+ * the page area. Sections inside a page don't show their own loaders.
+ * `compact` is for the rare self-contained box (e.g. a dialog).
+ */
+export function LoadingState({ className, compact }: { rows?: number; className?: string; compact?: boolean }) {
   return (
-    <div className={cn('grid gap-3', className)} aria-busy='true' aria-label={translate('common.loading')}>
-      {Array.from({ length: rows }, (_, i) => (
-        <Skeleton key={i} className={cn('rounded-xl', i === 0 ? 'h-24' : 'h-40')} />
-      ))}
+    <div
+      role='status'
+      aria-busy='true'
+      aria-label={translate('common.loading')}
+      className={cn('flex w-full flex-1 flex-col items-center justify-center gap-3', className)}
+      style={{ minHeight: compact ? 96 : 'calc(100dvh - 260px)' }}
+    >
+      <Spinner size={compact ? 22 : 28} />
+      <span className='text-[12.5px] text-muted'>{translate('common.loading')}</span>
     </div>
   )
 }

@@ -9,6 +9,8 @@ import { SolarEvent } from '../api'
 /** Thin wrapper so every Solar table uses the app's existing antd table styling. */
 export function DataTable<T extends object>({ rows, columns, rowKey, loading, empty, pageSize }: { rows: T[] | undefined; columns: ColumnsType<T>; rowKey: (r: T) => string; loading?: boolean; empty?: { title: string; description?: string }; pageSize?: number }) {
   const darkMode = useSelector((s: RootState) => s.theme.darkMode)
+  // No rows yet: keep the space quietly; the page loader is the only spinner.
+  if (loading && !rows?.length) return <div className='min-h-[120px]' aria-busy='true' />
   if (!loading && !rows?.length) return <EmptyState title={empty?.title ?? 'No data available'} description={empty?.description} />
   return (
     <Table<T>
@@ -16,7 +18,7 @@ export function DataTable<T extends object>({ rows, columns, rowKey, loading, em
       dataSource={rows}
       columns={columns}
       rowKey={rowKey}
-      loading={loading}
+      loading={false}
       pagination={pageSize ? { pageSize, hideOnSinglePage: true, showSizeChanger: false } : false}
       bordered={false}
       scroll={{ x: 'max-content' }}

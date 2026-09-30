@@ -1,19 +1,20 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { ReactNode, useMemo, useState } from 'react'
-import { Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Button, Card, CardHeader, EmptyState, ErrorState, Segmented, Skeleton, StatusBadge, useChartTheme } from '../../../design'
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Button, Card, CardHeader, EmptyState, ErrorState, Segmented, StatusBadge, useChartTheme } from '../../../design'
 import { SERIES } from '../../../design/theme'
 import { formatNumber, MessageKey, useT } from '../../../i18n'
 import { EnergyRange, useGetSolarEnergyQuery } from '../api'
 import { bucketLabel, EnergyRow, formatKwh, formatPct, periodLabel, Resolution, toRow, totals } from '../energy'
 import { DataTable } from './tables'
+import { GrafanaChart } from './GrafanaChart'
 
 const COLORS = {
   pv: SERIES.pv,
   consumption: SERIES.load,
   gridImport: SERIES.grid,
   batteryCharged: SERIES.soc,
-  batteryDischarged: SERIES.battPower,
+  batteryDischarged: SERIES.temp,
   coverage: SERIES.export,
 }
 
@@ -74,50 +75,16 @@ export function EnergyHistory({ siteId }: { siteId: string }) {
 
       {q.isError ? (
         <ErrorState title={t('energy.error')} description={t('errors.tryAgain')} onRetry={q.refetch} />
-      ) : !data ? (
-        <div className='grid gap-3' aria-busy='true' aria-label={t('common.loading')}>
-          <Skeleton className='h-20 rounded-xl' />
-          <div className='grid gap-3 lg:grid-cols-2'>
-            <Skeleton className='h-64 rounded-xl' />
-            <Skeleton className='h-64 rounded-xl' />
-          </div>
-        </div>
-      ) : !anyData ? (
+      ) : !data ? null : !anyData ? (
         <EmptyState title={t('energy.empty')} description={data.firstDataAt ? t('energy.emptyPeriod') : t('energy.emptyNever')} />
       ) : (
         <div className={q.isFetching ? 'opacity-70 transition-opacity' : undefined}>
-          <Totals sum={sum} res={res} />
           <Charts rows={rows} res={res} />
-          <HistoryTable rows={rows} res={res} />
+          <HistoryTable rows={rows} res={res} sum={sum} />
           <p className='mt-2 text-[11.5px] leading-relaxed text-subtle'>{t('energy.method')}</p>
         </div>
       )}
     </section>
-  )
-}
-
-function Totals({ sum, res }: { sum: ReturnType<typeof totals>; res: Resolution }) {
-  const t = useT()
-  const items: { k: Series | 'coverage'; v: string }[] = [
-    { k: 'pv', v: formatKwh(sum.pv, res) },
-    { k: 'consumption', v: formatKwh(sum.consumption, res) },
-    { k: 'gridImport', v: formatKwh(sum.gridImport, res) },
-    { k: 'batteryCharged', v: formatKwh(sum.batteryCharged, res) },
-    { k: 'batteryDischarged', v: formatKwh(sum.batteryDischarged, res) },
-    { k: 'coverage', v: formatPct(sum.coverage) },
-  ]
-  return (
-    <div className='mb-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6' aria-label={t('energy.totals')}>
-      {items.map((i) => (
-        <Card key={i.k} className='min-w-0 px-3.5 py-3'>
-          <p className='flex items-center gap-1.5 truncate text-[11.5px] text-muted'>
-            <span className='h-2 w-2 shrink-0 rounded-sm' style={{ background: COLORS[i.k] }} aria-hidden />
-            {t(SERIES_LABEL[i.k])}
-          </p>
-          <p className='tabular mt-1 truncate text-[16px] font-semibold text-fg'>{i.v}</p>
-        </Card>
-      ))}
-    </div>
   )
 }
 
@@ -130,10 +97,29 @@ function Charts({ rows, res }: { rows: EnergyRow[]; res: Resolution }) {
   if (res === 'day') {
     return (
       <div className='mb-3 grid gap-3 lg:grid-cols-2'>
-        <EnergyBars title={t('energy.charts.pvVsConsumption')} points={points} series={['pv', 'consumption']} res={res} />
-        <EnergyBars title={t('energy.charts.batteryDaily')} points={points} series={['batteryCharged', 'batteryDischarged']} res={res} />
-        <EnergyBars title={t('energy.charts.gridImportDaily')} points={points} series={['gridImport']} res={res} />
-        <CoverageLine title={t('energy.charts.coverageDaily')} points={points} res={res} />
+        <BatteryFlowChart title={t('energy.charts.batteryDaily')} points={points} res={res} className='lg:col-span-2' />
+        <GrafanaChart
+          title={t('energy.charts.pvVsConsumption')}
+          rows={rows}
+          unit='kWh'
+          className='lg:col-span-2'
+          series={[
+            { key: 'pv', label: t('energy.pv'), color: COLORS.pv },
+            { key: 'consumption', label: t('energy.consumption'), color: COLORS.consumption },
+          ]}
+        />
+        <GrafanaChart title={t('energy.charts.gridImportDaily')} rows={rows} unit='kWh' meanLine='gridImport' series={[{ key: 'gridImport', label: t('energy.gridImport'), color: COLORS.gridImport }]} />
+        <GrafanaChart
+          title={t('energy.charts.coverageDaily')}
+          rows={rows}
+          unit='%'
+          series={[{ key: 'coverage', label: t('energy.coverage'), color: COLORS.coverage }]}
+          thresholds={[
+            { from: 0, to: 50, color: 'rgb(var(--c-danger))' },
+            { from: 50, to: 80, color: 'rgb(var(--c-gridp))' },
+            { from: 80, to: 100, color: 'rgb(var(--c-batt))' },
+          ]}
+        />
       </div>
     )
   }
@@ -150,11 +136,11 @@ function Charts({ rows, res }: { rows: EnergyRow[]; res: Resolution }) {
   )
 }
 
-function ChartCard({ title, unit, summary, className, children }: { title: string; unit: string; summary: string; className?: string; children: ReactNode }) {
+function ChartCard({ title, unit, summary, className, tall, children }: { title: string; unit: string; summary: string; className?: string; tall?: boolean; children: ReactNode }) {
   return (
     <Card className={`flex min-w-0 flex-col p-4 ${className ?? ''}`}>
       <CardHeader title={title} subtitle={unit} />
-      <figure className='mt-3 h-[230px] min-w-0' aria-label={`${title}. ${summary}`}>
+      <figure className={`mt-3 min-w-0 ${tall ? 'h-[300px]' : 'h-[230px]'}`} aria-label={`${title}. ${summary}`}>
         {children}
       </figure>
     </Card>
@@ -233,26 +219,79 @@ function EnergyBars({ title, points, series, res, labels }: { title: string; poi
   )
 }
 
-function CoverageLine({ title, points, res }: { title: string; points: Point[]; res: Resolution }) {
+/** Vertical dashed hover line (instead of a highlighted band). */
+function DashedCursor({ x = 0, y = 0, width = 0, height = 0 }: { x?: number; y?: number; width?: number; height?: number }) {
+  const cx = x + width / 2
+  return <line x1={cx} x2={cx} y1={y} y2={y + height} stroke='rgb(var(--c-accent))' strokeWidth={1.2} strokeDasharray='4 4' />
+}
+
+type FlowPoint = Point & { charged: number | null; discharged: number | null; axis: string }
+
+function BatteryFlowTooltip({ active, payload }: { active?: boolean; payload?: readonly { payload?: FlowPoint }[] }) {
   const t = useT()
-  const { grid, tick } = useAxes()
-  const has = points.some((p) => p.coverage != null)
+  const theme = useChartTheme()
+  const p = payload?.[0]?.payload
+  if (!active || !p) return null
+  const net = p.batteryCharged != null && p.batteryDischarged != null ? p.batteryCharged - p.batteryDischarged : null
+  const row = (color: string, label: string, v: number | null, sign: 1 | -1) => (
+    <p className='flex items-center gap-2.5 py-0.5'>
+      <span className='h-2.5 w-2.5 rounded-full' style={{ background: color }} />
+      <span className='text-fg-2'>{label}:</span>
+      <span className='tabular ml-auto pl-4 font-medium'>{v == null ? t('energy.noData') : formatKwh(sign * v, 'month')}</span>
+    </p>
+  )
   return (
-    <ChartCard title={title} unit='%' summary={`${t('energy.coverage')}: ${formatPct(totals(points).coverage)}`}>
+    <div className='min-w-[220px] rounded-xl border px-3.5 py-3 text-[12.5px] shadow-xl' style={{ background: theme.tooltipBg, borderColor: theme.tooltipBorder, color: theme.text }}>
+      <p className='mb-1.5 text-center text-[13px] font-semibold'>{bucketLabel(p.key, 'day', 'long')}</p>
+      {row(COLORS.batteryCharged, t('energy.batteryCharged'), p.batteryCharged, 1)}
+      {row(COLORS.batteryDischarged, t('energy.batteryDischarged'), p.batteryDischarged, -1)}
+      {net != null && (
+        <p className='mt-1.5 border-t pt-1.5 font-semibold' style={{ borderColor: theme.tooltipBorder }}>
+          {t('energy.net')}: <span className='tabular'>{(net > 0 ? '+' : '') + formatKwh(net, 'month')}</span>
+        </p>
+      )}
+      {p.inProgress ? <p className='mt-1 text-muted'>{t('energy.inProgress')}</p> : p.incomplete && p.completeness != null ? <p className='mt-1 text-muted'>{t('energy.incompleteShare', { pct: formatPct(p.completeness * 100) })}</p> : null}
+    </div>
+  )
+}
+
+/**
+ * Battery charged vs discharged per day as a diverging bar chart: charged above
+ * the zero line, discharged below — translucent fills with a solid outline.
+ */
+function BatteryFlowChart({ title, points, res, className }: { title: string; points: Point[]; res: Resolution; className?: string }) {
+  const t = useT()
+  const { theme, tick } = useAxes()
+  const data: FlowPoint[] = points.map((p) => ({ ...p, charged: p.batteryCharged, discharged: p.batteryDischarged == null ? null : -p.batteryDischarged, axis: bucketLabel(p.key, res, 'medium') }))
+  const has = data.some((p) => p.charged != null || p.discharged != null)
+  const sum = totals(points)
+  const summary = `${t('energy.batteryCharged')}: ${formatKwh(sum.batteryCharged, res)}, ${t('energy.batteryDischarged')}: ${formatKwh(sum.batteryDischarged, res)}`
+  return (
+    <ChartCard title={title} unit='kWh' summary={summary} className={className} tall>
       {!has ? (
-        <EmptyState title={t('energy.noDataCoverage')} className='h-full' />
+        <EmptyState title={t('energy.noDataSeries')} className='h-full' />
       ) : (
         <ResponsiveContainer width='100%' height='100%'>
-          <LineChart data={points} margin={{ top: 6, right: 8, left: 0, bottom: 0 }} accessibilityLayer>
-            {grid}
-            <XAxis dataKey='label' tick={tick} tickLine={false} axisLine={false} interval='preserveStartEnd' minTickGap={8} />
-            <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tick={tick} tickLine={false} axisLine={false} width={48} tickFormatter={axisPct} />
-            <Tooltip content={<EnergyTooltip res={res} series={['coverage']} />} />
-            {/* No interpolation across missing days: connectNulls off, linear segments, dots per real value. */}
-            <Line type='linear' dataKey='coverage' stroke={COLORS.coverage} strokeWidth={2} dot={{ r: 2.5 }} connectNulls={false} isAnimationActive={false} />
-          </LineChart>
+          <BarChart data={data} stackOffset='sign' barCategoryGap='22%' margin={{ top: 8, right: 8, left: 0, bottom: 0 }} accessibilityLayer>
+            <CartesianGrid stroke={theme.grid} />
+            <XAxis dataKey='axis' tick={tick} tickLine={false} axisLine={false} interval='preserveStartEnd' minTickGap={16} />
+            <YAxis tick={tick} tickLine={false} axisLine={false} width={48} tickFormatter={(v: number) => axisKwh(Math.abs(v))} />
+            <ReferenceLine y={0} stroke={theme.axis} strokeOpacity={0.6} />
+            <Tooltip cursor={<DashedCursor />} content={<BatteryFlowTooltip />} />
+            <Bar dataKey='charged' stackId='battery' name={t('energy.batteryCharged')} fill={COLORS.batteryCharged} stroke={COLORS.batteryCharged} strokeWidth={1.5} radius={[5, 5, 0, 0]} maxBarSize={30} isAnimationActive={false}>
+              {data.map((p) => (
+                <Cell key={p.key} fillOpacity={p.incomplete ? 0.22 : 0.45} strokeOpacity={p.incomplete ? 0.5 : 1} />
+              ))}
+            </Bar>
+            <Bar dataKey='discharged' stackId='battery' name={t('energy.batteryDischarged')} fill={COLORS.batteryDischarged} stroke={COLORS.batteryDischarged} strokeWidth={1.5} radius={[5, 5, 0, 0]} maxBarSize={30} isAnimationActive={false}>
+              {data.map((p) => (
+                <Cell key={p.key} fillOpacity={p.incomplete ? 0.22 : 0.45} strokeOpacity={p.incomplete ? 0.5 : 1} />
+              ))}
+            </Bar>
+          </BarChart>
         </ResponsiveContainer>
       )}
+      <Legend series={['batteryCharged', 'batteryDischarged']} />
     </ChartCard>
   )
 }
@@ -309,7 +348,7 @@ function RowState({ r }: { r: EnergyRow }) {
 }
 
 /** Newest first. Table on larger screens, one card per bucket on phones (no sideways scrolling). */
-function HistoryTable({ rows, res }: { rows: EnergyRow[]; res: Resolution }) {
+function HistoryTable({ rows, res, sum }: { rows: EnergyRow[]; res: Resolution; sum: ReturnType<typeof totals> }) {
   const t = useT()
   const list = [...rows].reverse()
   const cell = (v: number | null, pct = false) => (
@@ -374,6 +413,17 @@ function HistoryTable({ rows, res }: { rows: EnergyRow[]; res: Resolution }) {
           </li>
         ))}
       </ul>
+      <dl className='mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-line pt-3 text-[12.5px] sm:grid-cols-3 xl:grid-cols-6' aria-label={t('energy.totals')} data-testid='energy-totals'>
+        {columns.map((c) => (
+          <div key={c.key} className='min-w-0'>
+            <dt className='flex items-center gap-1.5 truncate text-muted'>
+              <span className='h-2 w-2 shrink-0 rounded-sm' style={{ background: COLORS[c.key] }} aria-hidden />
+              {t('energy.periodTotal', { name: t(SERIES_LABEL[c.key]) })}
+            </dt>
+            <dd className='tabular mt-0.5 font-semibold text-fg'>{c.pct ? formatPct(sum[c.key]) : formatKwh(sum[c.key], res)}</dd>
+          </div>
+        ))}
+      </dl>
     </Card>
   )
 }

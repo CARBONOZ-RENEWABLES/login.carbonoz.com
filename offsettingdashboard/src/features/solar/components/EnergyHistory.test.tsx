@@ -79,7 +79,8 @@ describe('energy history view', () => {
       return { body: { data: c.url.includes('range=1y') ? history('1y', MONTHS) : history('30d', DAYS) } }
     })
     mount()
-    expect(screen.getByLabelText('Wird geladen …')).toBeTruthy()
+    // No section-level spinner: the page shows the only loading screen.
+    expect(screen.queryByRole('status')).toBeNull()
     release()
 
     const table = await screen.findByTestId('energy-table')
@@ -98,9 +99,20 @@ describe('energy history view', () => {
     expect(t.getByText('Keine Daten')).toBeTruthy()
     expect(t.queryByText('0,000 kWh')).toBeNull()
     expect(t.getByText('unvollständig')).toBeTruthy()
-    // Charts for the daily view.
+    // Charts for the daily view, with Grafana-style legend tables.
     expect(screen.getByText('PV und Verbrauch (täglich)')).toBeTruthy()
     expect(screen.getByText('PV-Deckung (täglich)')).toBeTruthy()
+    const legends = screen.getAllByTestId('grafana-legend')
+    expect(legends).toHaveLength(3)
+    const pvLegend = within(legends[0])
+    expect(pvLegend.getByText('Mittel')).toBeTruthy()
+    // PV: 41.289 and 12 kWh on two days → max 41,3 · total 53,3 (gaps excluded).
+    expect(pvLegend.getAllByText('41,3 kWh').length).toBeGreaterThan(0)
+    expect(pvLegend.getByText('53,3 kWh')).toBeTruthy()
+    // Clicking a legend row hides that series (and marks it).
+    const pvToggle = pvLegend.getByRole('button', { name: /PV/ })
+    fireEvent.click(pvToggle)
+    expect(pvToggle.getAttribute('aria-pressed')).toBe('false')
 
     // 1 year → monthly aggregation from the API.
     fireEvent.click(screen.getByRole('radio', { name: '1 Jahr' }))

@@ -1,7 +1,7 @@
 import { Form } from 'antd'
 import { Pencil } from 'lucide-react'
 import { FC, ReactElement, useEffect, useState } from 'react'
-import { Button, Card, EmptyState, Field, FormSection, Skeleton } from '../../../design'
+import { Button, Card, EmptyState, Field, FormSection } from '../../../design'
 import handleAPIRequests from '../../../helpers/handleApiRequest'
 import { Avatar } from '../../../layout/HeaderControls'
 import { tokenClaims } from '../../../layout/ShellContext'
@@ -108,7 +108,7 @@ const Profile: FC<props> = ({ additionalData }): ReactElement => {
 
         <FormSection title={t('profile.asset')} description={t('profile.assetHint')}>
           {assetsLoading ? (
-            <Skeleton className='h-40 rounded-lg' />
+            null
           ) : !asset ? (
             <EmptyState title={t('profile.noAsset')} description={t('profile.noAssetHint')} />
           ) : (

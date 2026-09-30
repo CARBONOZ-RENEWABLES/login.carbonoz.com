@@ -4,8 +4,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Card, CardHeader, EmptyState, ErrorState, inputClass, LoadingState, Segmented, StatusBadge, TabItem, Tabs } from '../../design'
 import { relativeTime, useShell } from '../../layout/ShellContext'
 import { RangeId } from '../../services/energyFlow'
-import { DeviceKind, MetricValue, SiteSummary, SolarDevice, SolarOverview, useGetSitesQuery, useGetSolarEventsQuery, useGetSolarForecastQuery, useGetSolarOverviewQuery } from './api'
-import { BatteryCard, BMSCard, InverterCard, MetricCard, MetricList, StatusCard } from './components/cards'
+import { DeviceKind, MetricValue, SiteSummary, SolarDevice, SolarOverview, useGetSitesQuery, useGetSolarEnergyQuery, useGetSolarEventsQuery, useGetSolarForecastQuery, useGetSolarOverviewQuery } from './api'
+import { BMSCard, MetricCard, MetricList, StatusCard } from './components/cards'
 import { ICONS } from './components/icons'
 import { ForecastChart, HistoryChart } from './components/charts'
 import { DataTable, EventTable } from './components/tables'
@@ -13,9 +13,12 @@ import { allMetricRows, batteryHint, buildSite, deviceKey, formatMetric, MetricR
 import { EnergyFlowCard } from '../dashboard/EnergyFlow'
 import { formatDate, translate as t } from '../../i18n'
 import { EnergyHistory } from './components/EnergyHistory'
+import { LiveEnergy } from './components/LiveEnergy'
+import { BatteryCard } from './components/BatteryCard'
+import { InverterCard } from './components/InverterCard'
 
-type TabId = 'overview' | 'energy' | 'battery' | 'bms' | 'inverters' | 'history' | 'forecast' | 'events' | 'system'
-const TAB_IDS: TabId[] = ['overview', 'energy', 'battery', 'bms', 'inverters', 'history', 'forecast', 'events', 'system']
+type TabId = 'overview' | 'energy' | 'power' | 'battery' | 'bms' | 'inverters' | 'history' | 'forecast' | 'events' | 'system'
+const TAB_IDS: TabId[] = ['overview', 'energy', 'power', 'battery', 'bms', 'inverters', 'history', 'forecast', 'events', 'system']
 const tabs = (): TabItem<TabId>[] => TAB_IDS.map((id) => ({ id, label: t(`solar.tabs.${id}`) }))
 const RANGE_IDS: RangeId[] = ['6h', '24h', '7d', '30d']
 const ranges = () => RANGE_IDS.map((id) => ({ id, label: t(`solar.ranges.${id}`) }))
@@ -105,6 +108,8 @@ function SiteView({ summary, tab, onTab }: { summary: SiteSummary; tab: TabId; o
   switch (tab) {
     case 'energy':
       return <EnergyTab siteId={siteId} o={o} site={site} />
+    case 'power':
+      return <PowerTab siteId={siteId} o={o} site={site} />
     case 'battery':
       return <BatteryTab site={site} />
     case 'bms':
@@ -234,23 +239,36 @@ function RangePicker({ value, onChange }: { value: RangeId; onChange: (r: RangeI
   return <Segmented options={ranges()} value={value} onChange={onChange} label={t('solar.timeRange')} />
 }
 
+/** Energy: what flows right now, then daily / monthly / yearly energy history. */
 function EnergyTab({ siteId, o, site }: { siteId: string; o: SolarOverview; site: SiteModel }) {
+  const h = headline(site)
+  const hasLive = [h.pv, h.load, h.grid, h.battery].some((v) => v != null)
+  // One loading screen for the whole page: wait for the first energy data too.
+  const energy = useGetSolarEnergyQuery({ siteId, range: '30d' })
+  if (energy.isLoading) return <LoadingState />
+  return (
+    <div className='flex flex-col gap-4'>
+      <Freshness o={o} />
+      {hasLive ? <LiveEnergy siteId={siteId} o={o} site={site} /> : <EmptyState title={t('solar.empty.noEnergy')} description={t('solar.empty.noEnergyHint')} />}
+      <EnergyHistory siteId={siteId} />
+    </div>
+  )
+}
+
+/** Power curves: SYSTEM power over time, a separate page from energy history. */
+function PowerTab({ siteId, o, site }: { siteId: string; o: SolarOverview; site: SiteModel }) {
   const [range, setRange] = useState<RangeId>('24h')
   const { refreshKey } = useShell()
   const known = ['pv_power_w', 'load_power_w', 'grid_power_w', 'battery_power_w', 'soc_pct']
   const available = known.filter((k) => o.metrics.some((m) => m.deviceKind === 'SYSTEM' && m.key === k))
-  if (!available.length)
-    return (
-      <div className='flex flex-col gap-4'>
-        <EmptyState title={t('solar.empty.noEnergy')} description={t('solar.empty.noEnergyHint')} />
-        <EnergyHistory siteId={siteId} />
-      </div>
-    )
+  if (!available.length) return <EmptyState title={t('solar.empty.noEnergy')} description={t('solar.empty.noEnergyHint')} />
   return (
     <div className='flex flex-col gap-3'>
-      <EnergyHistory siteId={siteId} />
-      <div className='mt-2 flex flex-wrap items-center justify-between gap-2'>
-        <p className='text-[15px] font-semibold text-fg'>{t('solar.powerCurves')}</p>
+      <div className='flex flex-wrap items-center justify-between gap-2'>
+        <div>
+          <h2 className='text-[15px] font-semibold text-fg'>{t('solar.powerCurves')}</h2>
+          <p className='text-[12px] text-muted'>{t('solar.powerCurvesHint')}</p>
+        </div>
         <RangePicker value={range} onChange={setRange} />
       </div>
       <div className='grid gap-3 lg:grid-cols-2'>
@@ -343,6 +361,7 @@ function HistoryTab({ siteId, o, site }: { siteId: string; o: SolarOverview; sit
 
 function ForecastTab({ siteId }: { siteId: string }) {
   const f = useGetSolarForecastQuery(siteId)
+  if (f.isLoading) return <LoadingState />
   if (f.isError) return <ErrorState title={t('solar.errors.forecast')} onRetry={f.refetch} />
   const fc = f.data?.data
   const keys = fc ? [...new Set(fc.points.flatMap((p) => Object.keys(p).filter((k) => k !== 'ts')))] : []
@@ -373,6 +392,7 @@ function ForecastTab({ siteId }: { siteId: string }) {
 function EventsTab({ siteId }: { siteId: string }) {
   const [filter, setFilter] = useState<'all' | 'active'>('all')
   const ev = useGetSolarEventsQuery({ siteId, active: filter === 'active' ? true : undefined, limit: 200 }, { pollingInterval: POLL_MS })
+  if (ev.isLoading) return <LoadingState />
   if (ev.isError) return <ErrorState title={t('solar.errors.events')} onRetry={ev.refetch} />
   return (
     <div className='flex flex-col gap-3'>

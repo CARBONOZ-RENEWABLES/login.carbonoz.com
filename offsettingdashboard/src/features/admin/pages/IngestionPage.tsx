@@ -267,7 +267,7 @@ function IngestDialog({ id, onClose }: { id: string; onClose: () => void }) {
       }
     >
       {q.isLoading ? (
-        <LoadingState rows={3} />
+        <LoadingState compact />
       ) : q.isError || !r ? (
         <QueryError error={q.error} onRetry={q.refetch} what='this message' />
       ) : (
