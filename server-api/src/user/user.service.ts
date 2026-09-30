@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { User } from '@prisma/client';
 import * as argon from 'argon2';
 import { MailsService } from 'src/mails/mails.service';
@@ -47,6 +47,9 @@ export class UserService {
         userId: user.id,
       },
     });
+    // Users who haven't completed the information step have nothing to edit yet.
+    if (!infoToUpdate)
+      throw new NotFoundException('User information not found');
     const userUpdate = await this.prismaService.userInformation.update({
       where: {
         id: infoToUpdate.id,

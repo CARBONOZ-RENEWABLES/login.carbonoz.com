@@ -5,7 +5,8 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import Logo from '../assets/1.jpg'
 import { cn, Dialog, useGreeting } from '../design'
 import { LiveStatusPill, RefreshButton, SystemSelector, ThemeToggle, UserMenu } from './HeaderControls'
-import { activeNav, NavItem } from './nav'
+import { useT } from '../i18n'
+import { activeNav, NavItem, navText } from './nav'
 import { useShell } from './ShellContext'
 
 interface ShellProps {
@@ -28,24 +29,32 @@ export function BrandMark({ size = 30, showName = true, className }: { size?: nu
 
 function Sidebar({ nav, pathname, onNavigate }: { nav: NavItem[]; pathname: string; onNavigate: (to: string) => void }) {
   const active = activeNav(nav, pathname)
+  const t = useT()
   return (
-    <aside aria-label='Primary' className='relative z-20 hidden h-dvh w-[76px] shrink-0 flex-col border-r border-line bg-panel/70 backdrop-blur-sm lg:flex xl:w-[232px]'>
-      <button type='button' onClick={() => onNavigate(nav[0].to)} className='flex h-[72px] items-center px-[23px] xl:px-6' aria-label='CARBONOZ dashboard'>
+    <aside aria-label={t('shell.primaryNav')} className='relative z-20 hidden h-dvh w-[76px] shrink-0 flex-col border-r border-line bg-panel/70 backdrop-blur-sm lg:flex xl:w-[232px]'>
+      <button type='button' onClick={() => onNavigate(nav[0].to)} className='flex h-[72px] items-center px-[23px] xl:px-6' aria-label={t('shell.brandHome')}>
         <BrandMark size={30} showName={false} className='xl:hidden' />
         <BrandMark size={30} className='hidden xl:flex' />
       </button>
       <nav className='px-3 pt-1'>
         <ul className='space-y-1'>
-          {nav.map((item) => {
+          {nav.map((item, i) => {
             const isActive = active?.to === item.to
             const Icon = item.icon
+            const newSection = item.section && item.section !== nav[i - 1]?.section
             return (
               <li key={item.to}>
+                {newSection && (
+                  <>
+                    {i > 0 && <span className='mx-2 my-2 block border-t border-line xl:hidden' aria-hidden />}
+                    <p className={cn('hidden px-3 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-subtle xl:block', i > 0 && 'pt-4')}>{item.section}</p>
+                  </>
+                )}
                 <button
                   type='button'
                   onClick={() => onNavigate(item.to)}
                   aria-current={isActive ? 'page' : undefined}
-                  title={item.label}
+                  title={navText(item).label}
                   className={cn(
                     'relative flex h-[38px] w-full items-center justify-center gap-3 rounded-lg px-3 text-[13.5px] font-medium transition-colors xl:justify-start',
                     isActive ? 'text-on-accent' : 'text-fg-2 hover:bg-panel-3 hover:text-fg',
@@ -59,7 +68,7 @@ function Sidebar({ nav, pathname, onNavigate }: { nav: NavItem[]; pathname: stri
                     />
                   )}
                   <Icon size={17} strokeWidth={1.8} className='relative shrink-0' />
-                  <span className='relative hidden flex-1 truncate text-left xl:inline'>{item.label}</span>
+                  <span className='relative hidden flex-1 truncate text-left xl:inline'>{navText(item).label}</span>
                 </button>
               </li>
             )
@@ -67,9 +76,9 @@ function Sidebar({ nav, pathname, onNavigate }: { nav: NavItem[]; pathname: stri
         </ul>
       </nav>
       <p className='mt-auto hidden px-6 pb-5 text-[11px] leading-relaxed text-subtle xl:block'>
-        CARBONOZ Renewables
+        {t('shell.tagline1')}
         <br />
-        Intelligent solar energy management
+        {t('shell.tagline2')}
       </p>
     </aside>
   )
@@ -96,9 +105,10 @@ function Header({ title, description, isAdmin, firstName, lastName }: { title: R
 
 function MobileTopBar({ home, isAdmin, firstName, lastName }: { home: string; isAdmin?: boolean; firstName?: string; lastName?: string }) {
   const navigate = useNavigate()
+  const t = useT()
   return (
     <header className='sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-line bg-app/85 px-4 py-2.5 backdrop-blur-md lg:hidden' style={{ paddingTop: 'max(10px, env(safe-area-inset-top))' }}>
-      <button type='button' onClick={() => navigate(home)} aria-label='CARBONOZ dashboard'>
+      <button type='button' onClick={() => navigate(home)} aria-label={t('shell.brandHome')}>
         <BrandMark size={26} className='[&>span]:text-[16px]' />
       </button>
       <div className='flex items-center gap-1'>
@@ -119,6 +129,7 @@ export interface QuickAction {
 /** HomeOS bottom bar: two items, raised centre action button, one item, More. */
 function BottomNav({ nav, bottom, pathname, onNavigate, quickActions }: { nav: NavItem[]; bottom: string[]; pathname: string; onNavigate: (to: string) => void; quickActions: QuickAction[] }) {
   const [sheet, setSheet] = useState<'none' | 'quick' | 'more'>('none')
+  const t = useT()
   const active = activeNav(nav, pathname)
   const items = bottom.map((to) => nav.find((n) => n.to === to)).filter(Boolean) as NavItem[]
   const primary = items.slice(0, 2)
@@ -132,14 +143,14 @@ function BottomNav({ nav, bottom, pathname, onNavigate, quickActions }: { nav: N
   const Item = ({ n }: { n: NavItem }) => (
     <button type='button' onClick={() => go(n.to)} aria-current={active?.to === n.to ? 'page' : undefined} className={cn('flex min-w-14 flex-col items-center gap-1 py-1 text-[10.5px] font-medium transition-colors', active?.to === n.to ? 'text-accent-ink' : 'text-muted')}>
       <n.icon size={20} strokeWidth={1.8} />
-      {n.short ?? n.label}
+      {navText(n).short}
     </button>
   )
 
   // Setup mode (no system yet): a single plain item, no action button.
   if (!items.length) {
     return (
-      <nav aria-label='Primary' className='fixed inset-x-0 bottom-0 z-40 flex items-end justify-around border-t border-line bg-panel/90 px-2 pt-1.5 backdrop-blur-lg lg:hidden' style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}>
+      <nav aria-label={t('shell.primaryNav')} className='fixed inset-x-0 bottom-0 z-40 flex items-end justify-around border-t border-line bg-panel/90 px-2 pt-1.5 backdrop-blur-lg lg:hidden' style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}>
         {nav.map((n) => (
           <Item key={n.to} n={n} />
         ))}
@@ -149,14 +160,14 @@ function BottomNav({ nav, bottom, pathname, onNavigate, quickActions }: { nav: N
 
   return (
     <>
-      <nav aria-label='Primary' className='fixed inset-x-0 bottom-0 z-40 flex items-end justify-around border-t border-line bg-panel/90 px-2 pt-1.5 backdrop-blur-lg lg:hidden' style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}>
+      <nav aria-label={t('shell.primaryNav')} className='fixed inset-x-0 bottom-0 z-40 flex items-end justify-around border-t border-line bg-panel/90 px-2 pt-1.5 backdrop-blur-lg lg:hidden' style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}>
         {primary.map((n) => (
           <Item key={n.to} n={n} />
         ))}
         <button
           type='button'
           onClick={() => setSheet('quick')}
-          aria-label='Quick actions'
+          aria-label={t('shell.quickActions')}
           aria-haspopup='dialog'
           className='-mt-6 grid h-14 w-14 place-items-center rounded-full bg-accent text-on-accent shadow-[0_10px_28px_-8px_rgb(222_175_11/0.9)] ring-4 ring-app transition-transform active:scale-95'
         >
@@ -167,11 +178,11 @@ function BottomNav({ nav, bottom, pathname, onNavigate, quickActions }: { nav: N
         ))}
         <button type='button' onClick={() => setSheet('more')} aria-haspopup='dialog' className={cn('flex min-w-14 flex-col items-center gap-1 py-1 text-[10.5px] font-medium', moreActive ? 'text-accent-ink' : 'text-muted')}>
           <Menu size={20} strokeWidth={1.8} />
-          More
+          {t('shell.more')}
         </button>
       </nav>
 
-      <Dialog open={sheet === 'quick'} onClose={() => setSheet('none')} title='Quick actions' size='sm'>
+      <Dialog open={sheet === 'quick'} onClose={() => setSheet('none')} title={t('shell.quickActions')} size='sm'>
         <div className='grid grid-cols-2 gap-2.5'>
           {quickActions.map((a) => (
             <button
@@ -190,7 +201,7 @@ function BottomNav({ nav, bottom, pathname, onNavigate, quickActions }: { nav: N
         </div>
       </Dialog>
 
-      <Dialog open={sheet === 'more'} onClose={() => setSheet('none')} title='Menu' size='sm'>
+      <Dialog open={sheet === 'more'} onClose={() => setSheet('none')} title={t('shell.menu')} size='sm'>
         <ul className='space-y-1'>
           {nav.map((n) => (
             <li key={n.to}>
@@ -201,7 +212,7 @@ function BottomNav({ nav, bottom, pathname, onNavigate, quickActions }: { nav: N
                 className={cn('flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[14px] font-medium transition-colors', active?.to === n.to ? 'bg-accent/15 text-fg' : 'text-fg-2 hover:bg-panel-3')}
               >
                 <n.icon size={18} />
-                <span className='flex-1 text-left'>{n.label}</span>
+                <span className='flex-1 text-left'>{navText(n).label}</span>
               </button>
             </li>
           ))}
@@ -217,6 +228,7 @@ export function AppShell({ nav, bottomNav, isAdmin, firstName, lastName, childre
   const navigate = useNavigate()
   const greeting = useGreeting()
   const { refresh } = useShell()
+  const t = useT()
   const current = activeNav(nav, pathname)
   const isHome = !isAdmin && current?.to === '/ds/solar'
   const title = isHome ? (
@@ -225,26 +237,26 @@ export function AppShell({ nav, bottomNav, isAdmin, firstName, lastName, childre
       {firstName ? `, ${firstName}` : ''} <span aria-hidden>👋</span>
     </>
   ) : (
-    current?.label ?? ('CARBONOZ')
+    (current ? navText(current).label : 'CARBONOZ')
   )
-  const description = isHome ? 'Live overview of your SolarBMS system.' : current?.description
+  const description = isHome ? t('shell.homeDescription') : current ? navText(current).description : undefined
   const quickActions: QuickAction[] = isAdmin
     ? [
-        { label: 'Refresh data', icon: <RefreshCw size={20} />, run: refresh },
+        { label: t('common.refreshData'), icon: <RefreshCw size={20} />, run: refresh },
         { label: 'Users', icon: <Users size={20} />, run: () => navigate('/admin/users') },
         { label: 'Logs', icon: <Activity size={20} />, run: () => navigate('/admin/logs') },
       ]
     : [
-        { label: 'Refresh data', icon: <RefreshCw size={20} />, run: refresh },
-        { label: 'Battery', icon: <BatteryCharging size={20} />, run: () => navigate('/ds/solar/battery') },
-        { label: 'BMS & Cells', icon: <Activity size={20} />, run: () => navigate('/ds/solar/bms') },
-        { label: 'Events', icon: <Bell size={20} />, run: () => navigate('/ds/solar/events') },
+        { label: t('common.refreshData'), icon: <RefreshCw size={20} />, run: refresh },
+        { label: t('shell.battery'), icon: <BatteryCharging size={20} />, run: () => navigate('/ds/solar/battery') },
+        { label: t('shell.bmsCells'), icon: <Activity size={20} />, run: () => navigate('/ds/solar/bms') },
+        { label: t('shell.events'), icon: <Bell size={20} />, run: () => navigate('/ds/solar/events') },
       ]
 
   return (
     <div className='flex h-dvh overflow-hidden text-fg'>
       <a href='#main' className='sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[80] focus:rounded-lg focus:bg-accent focus:px-3 focus:py-2 focus:text-on-accent'>
-        Skip to content
+        {t('shell.skipToContent')}
       </a>
       <Sidebar nav={nav} pathname={pathname} onNavigate={navigate} />
       <main id='main' tabIndex={-1} className='relative min-w-0 flex-1 overflow-y-auto overflow-x-hidden focus:outline-none'>
@@ -264,7 +276,7 @@ export function AppShell({ nav, bottomNav, isAdmin, firstName, lastName, childre
                 <div className='mb-4 lg:hidden'>
                   <p className='text-[16px] text-fg-2'>{greeting},</p>
                   <h1 className='text-[24px] font-semibold tracking-[-0.02em] text-fg'>
-                    {firstName || 'Welcome'} <span aria-hidden>👋</span>
+                    {firstName || t('greeting.welcome')} <span aria-hidden>👋</span>
                   </h1>
                 </div>
               ) : (

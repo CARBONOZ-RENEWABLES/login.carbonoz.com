@@ -89,6 +89,12 @@ export class MachineAuthService {
       if (v.principal.credentialId === credentialId) this.cache.delete(k);
   }
 
+  /** Same for every credential of an installation (deactivated, systemId changed). */
+  forgetInstallation(installationId: string) {
+    for (const [k, v] of this.cache)
+      if (v.principal.installationId === installationId) this.cache.delete(k);
+  }
+
   private async verify(token: string): Promise<MachinePrincipal> {
     if (token.startsWith(`${API_KEY_PREFIX}.`)) {
       if (!this.cfg.apiKeysEnabled)

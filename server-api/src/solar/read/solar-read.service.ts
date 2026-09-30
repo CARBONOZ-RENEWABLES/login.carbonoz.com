@@ -2,11 +2,11 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { ESolarDeviceKind, Site } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
-import { SolarKeys } from '../solar.keys';
+import { LIVE_STALE_MS, SolarKeys } from '../solar.keys';
 import { LiveDevice } from '../store/solar-store.service';
 
 /** Data older than this is flagged stale in the overview. */
-const STALE_MS = 5 * 60_000;
+const STALE_MS = LIVE_STALE_MS;
 const BUCKETS_S = [10, 30, 60, 300, 900, 1800, 3600, 3 * 3600, 6 * 3600, 86400];
 const MAX_POINTS = 400;
 /** Longest raw-history range per request (the dashboard offers up to 30 days). */

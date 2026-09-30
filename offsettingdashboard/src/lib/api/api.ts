@@ -51,6 +51,8 @@ export const baseAPI = createApi({
     'Users',
     'Logs',
     'Redex-Info',
+    'Admin-Tenancy',
+    'Admin-Solar',
   ] as const,
   endpoints: () => ({}),
 })

@@ -604,6 +604,8 @@ export function normalizeSolarBms(
       status: statusOf(p),
     });
   }
+  // Alarms reported for the whole system (top-level `alarms`, `warnings`…).
+  events.push(...parseAlarms(p, 'SYSTEM', systemExternalId, ts));
 
   // ── Inverters ─────────────────────────────────────────────────────────
   asList(pick(p, 'inverters', 'inverter')).forEach((o, i) => {

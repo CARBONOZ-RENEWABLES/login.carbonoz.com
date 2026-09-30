@@ -123,6 +123,7 @@ export class SolarIngestService {
     if (
       !(await this.redis.setIfAbsent(seenKey, 'pending', PENDING_TTL_SECONDS))
     ) {
+      this.count(machine.installationId, 'duplicate');
       return { messageId, status: 'duplicate' };
     }
     const fields: StreamMessage = {
@@ -142,6 +143,17 @@ export class SolarIngestService {
         'Ingestion temporarily unavailable, retry later',
       );
     }
+    this.count(machine.installationId, 'accepted');
     return { messageId, status: 'queued' };
+  }
+
+  /**
+   * Monitoring counters for the admin panel. Fire-and-forget: a failure here
+   * (e.g. a Redis ACL without HINCRBY) must never affect ingestion.
+   */
+  private count(installationId: string, field: 'accepted' | 'duplicate') {
+    this.redis.raw
+      .hIncrBy(SolarKeys.stats(installationId), field, 1)
+      .catch(() => undefined);
   }
 }

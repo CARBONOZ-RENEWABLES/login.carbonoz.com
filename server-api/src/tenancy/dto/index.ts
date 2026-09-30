@@ -6,6 +6,7 @@ import {
   EMachineCredentialType,
 } from '@prisma/client';
 import {
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsMongoId,
@@ -122,4 +123,43 @@ export class CreateMachineCredentialDto {
   @IsString()
   @MaxLength(200)
   label?: string;
+}
+
+export class UpdateCustomerDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  name?: string;
+
+  @ApiPropertyOptional({ enum: ECustomerType })
+  @IsOptional()
+  @IsEnum(ECustomerType)
+  type?: ECustomerType;
+}
+
+export class UpdateInstallationDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  name?: string;
+
+  @ApiPropertyOptional({
+    description: 'systemId the SolarBMS device reports; empty string clears it',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  externalSystemId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'false blocks ingestion for every credential of this installation',
+  })
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
 }

@@ -1,3 +1,4 @@
+import { translate } from '../i18n'
 import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react'
 import { sessionUser } from '../lib/auth/session'
 import { LiveStatus } from '../services/energyFlow'
@@ -45,11 +46,11 @@ export function tokenClaims(): { email?: string; role?: string } {
 
 export function relativeTime(ts: number, now = Date.now()) {
   const s = Math.max(0, Math.round((now - ts) / 1000))
-  if (s < 10) return 'just now'
-  if (s < 60) return `${s}s ago`
+  if (s < 10) return translate('time.justNow')
+  if (s < 60) return translate('time.secondsAgo', { n: s })
   const m = Math.round(s / 60)
-  if (m < 60) return `${m} min ago`
+  if (m < 60) return translate('time.minutesAgo', { n: m })
   const h = Math.round(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.round(h / 24)}d ago`
+  if (h < 24) return translate('time.hoursAgo', { n: h })
+  return translate('time.daysAgo', { n: Math.round(h / 24) })
 }

@@ -294,3 +294,6 @@ export const {
   useResetPasswordMutation,
   useEditAdditionalInfoMutation,
 } = userEndpoints
+
+/** For dispatching outside components (e.g. saving the language while the UI re-renders). */
+export const userApi = userEndpoints

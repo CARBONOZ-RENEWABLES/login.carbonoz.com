@@ -1,5 +1,6 @@
+import { formatDate, translate as t } from '../../../i18n'
 import { useMemo } from 'react'
-import { Card, CardHeader, EmptyState, ErrorState, Skeleton } from '../../../design'
+import { Card, CardHeader, EmptyState, ErrorState } from '../../../design'
 import { SERIES } from '../../../design/theme'
 import { HistoryPoint, RangeId } from '../../../services/energyFlow'
 import { PanelDef } from '../../charts/panels'
@@ -66,13 +67,13 @@ export function HistoryChart({ siteId, metric, kind, deviceId, range, refreshKey
   }, [h])
 
   let body
-  if (isError) body = <ErrorState title='Could not load history' onRetry={refetch} />
-  else if (!h && isFetching) body = <Skeleton className='h-full w-full rounded-lg' />
-  else if (!rows.length) body = <EmptyState title='No history for this period' description='Try a longer time range.' className='h-full' />
+  if (isError) body = <ErrorState title={t('solar.errors.history')} onRetry={refetch} />
+  else if (!h && isFetching) body = null // the page loader covers first loads; no per-chart spinner
+  else if (!rows.length) body = <EmptyState title={t('solar.empty.noHistoryPeriod')} description={t('solar.empty.noHistoryPeriodHint')} className='h-full' />
   else body = <TimeSeriesChart panel={panelFor(metric, unitOf(metric, h?.unit), ids, labels)} data={rows} range={range} />
 
   return (
-    <ChartFrame title={title} subtitle={h ? `${ids.length > 1 ? `${ids.length} devices · ` : ''}${Math.round(h.bucketSeconds / 60) || 1} min buckets` : undefined}>
+    <ChartFrame title={title} subtitle={h ? [ids.length > 1 && t('solar.chart.devices', { count: ids.length }), t('solar.chart.buckets', { n: Math.round(h.bucketSeconds / 60) || 1 })].filter(Boolean).join(' · ') : undefined}>
       {body}
     </ChartFrame>
   )
@@ -95,18 +96,18 @@ export function ForecastChart({ forecast, loading }: { forecast: Forecast | null
     return { rows, range, panel: panelFor(first, unit, same, labels) }
   }, [forecast])
 
-  if (loading && !forecast) return <ChartFrame title='Solar forecast'><Skeleton className='h-full w-full rounded-lg' /></ChartFrame>
+  if (loading && !forecast) return <ChartFrame title={t('solar.forecast.title')}>{null}</ChartFrame>
   if (!model) {
     return (
       <Card className='p-4'>
-        <CardHeader title='Solar forecast' />
-        <EmptyState className='mt-3' title='No forecast available' description='This system does not provide forecast data yet. It will appear here as soon as SolarBMS sends it.' />
+        <CardHeader title={t('solar.forecast.title')} />
+        <EmptyState className='mt-3' title={t('solar.forecast.empty')} description={t('solar.forecast.emptyHint')} />
       </Card>
     )
   }
   return (
-    <ChartFrame title='Solar forecast' subtitle={[forecast?.source, forecast?.generatedAt && `generated ${new Date(forecast.generatedAt).toLocaleString()}`].filter(Boolean).join(' · ')}>
-      <TimeSeriesChart panel={{ ...model.panel, title: 'Solar forecast' }} data={model.rows} range={model.range} />
+    <ChartFrame title={t('solar.forecast.title')} subtitle={[forecast?.source, forecast?.generatedAt && t('solar.forecast.generated', { when: formatDate(forecast.generatedAt, { dateStyle: 'short', timeStyle: 'short' }) })].filter(Boolean).join(' · ')}>
+      <TimeSeriesChart panel={{ ...model.panel, title: t('solar.forecast.title') }} data={model.rows} range={model.range} />
     </ChartFrame>
   )
 }

@@ -1,20 +1,22 @@
 import { FC, ReactElement } from 'react'
 import { FormRow, FormSection, Segmented } from '../../../design'
 import { useTheme } from '../../../lib/hooks/useTheme'
+import { useT } from '../../../i18n'
 
 const Settings: FC = (): ReactElement => {
   const { isDark, toggle } = useTheme()
+  const t = useT()
   return (
     <div className='flex flex-col gap-4'>
-      <FormSection title='Appearance' description='How CARBONOZ looks on this device.'>
-        <FormRow label='Theme' hint='Dark is easier on the eyes for wall-mounted displays.'>
+      <FormSection title={t('settings.appearance')} description={t('settings.appearanceHint')}>
+        <FormRow label={t('settings.theme')} hint={t('settings.themeHint')}>
           <Segmented
-            label='Theme'
+            label={t('settings.theme')}
             value={isDark ? 'dark' : 'light'}
-            onChange={(t) => (t === 'dark') !== isDark && toggle()}
+            onChange={(v) => (v === 'dark') !== isDark && toggle()}
             options={[
-              { id: 'light', label: 'Light' },
-              { id: 'dark', label: 'Dark' },
+              { id: 'light', label: t('settings.light') },
+              { id: 'dark', label: t('settings.dark') },
             ]}
           />
         </FormRow>

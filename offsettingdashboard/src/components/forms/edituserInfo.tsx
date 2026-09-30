@@ -1,3 +1,4 @@
+import { normalizeLanguage } from '../../i18n/languages'
 import { Col, Form, FormInstance, Row } from 'antd'
 import { FC, useEffect } from 'react'
 import { UserCircle } from 'lucide-react'
@@ -24,7 +25,8 @@ const EditUserInformationForm: FC<EditUserInformationFormProps> = ({
 
   useEffect(() => {
     if (data) {
-      form.setFieldsValue(data)
+      // Profiles saved before languages had codes hold e.g. "English" / "french".
+      form.setFieldsValue({ ...data, customerLanguage: normalizeLanguage(data.customerLanguage) ?? data.customerLanguage })
     }
   }, [data, form])
 
@@ -92,10 +94,10 @@ const EditUserInformationForm: FC<EditUserInformationFormProps> = ({
               label='Customer Language'
               name='customerLanguage'
               type='select'
-              options={language.map((item, index) => ({
-                key: index,
-                value: item,
-                label: item,
+              options={language.map((item) => ({
+                key: item.value,
+                value: item.value,
+                label: item.label,
               }))}
             />
           </Col>

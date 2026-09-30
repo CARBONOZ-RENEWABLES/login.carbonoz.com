@@ -1,3 +1,4 @@
+import { LANGUAGES } from '../i18n/languages'
 export enum ERoles {
   USER = 'USER',
   ADMIN = 'ADMIN',
@@ -316,7 +317,8 @@ export const countryOptions = [
 ]
 
 export const frequencyData = ['Daily', 'Monthly']
-export const language = ['English', 'french']
+/** Customer language options (stored as `en`/`de`/`fr`/`es`; also the UI language). */
+export const language = LANGUAGES.map((l) => ({ value: l.code, label: `${l.flag} ${l.label}` }))
 
 export const timezones = [
   'UTC',

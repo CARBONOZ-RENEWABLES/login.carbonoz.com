@@ -1,3 +1,4 @@
+import { formatFixed, formatNumber, getLocale } from '../../i18n'
 import { memo, useId, useMemo } from 'react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useChartTheme } from '../../design'
@@ -10,15 +11,15 @@ const pad = (n: number) => String(n).padStart(2, '0')
 
 export function formatAxisTime(t: number, range: RangeId) {
   const d = new Date(t)
-  if (range === '7d') return d.toLocaleDateString(undefined, { weekday: 'short' })
-  if (range === '30d') return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  if (range === '7d') return d.toLocaleDateString(getLocale(), { weekday: 'short' })
+  if (range === '30d') return d.toLocaleDateString(getLocale(), { month: 'short', day: 'numeric' })
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 function formatTooltipTime(t: number, range: RangeId) {
   const d = new Date(t)
   const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`
-  return range === '7d' || range === '30d' ? `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${time}` : time
+  return range === '7d' || range === '30d' ? `${d.toLocaleDateString(getLocale(), { month: 'short', day: 'numeric' })}, ${time}` : time
 }
 
 /** Ticks aligned to local clock boundaries (00:00, 04:00 …). */
@@ -74,7 +75,7 @@ function ChartTooltip({ active, payload, label, panel, range, theme }: TooltipPr
             <span className='h-2 w-2 rounded-sm' style={{ background: s.color }} />
             <span className='text-fg-2'>{s.name}</span>
             <span className='tabular ml-auto pl-3 font-semibold'>
-              {Number(item.value).toFixed(panel.decimals)} {panel.unit}
+              {formatFixed(Number(item.value), panel.decimals)} {panel.unit}
             </span>
           </p>
         )
@@ -136,7 +137,7 @@ export const TimeSeriesChart = memo(function TimeSeriesChart({ panel, data, rang
     return { yDomain: [start, end] as [number, number], yTicks: t }
   }, [panel, rows])
 
-  const fmtY = (v: number) => (panel.unit === '%' ? `${v}%` : String(Math.round(v * 100) / 100))
+  const fmtY = (v: number) => (panel.unit === '%' ? `${formatNumber(v)}%` : formatNumber(Math.round(v * 100) / 100))
   const yWidth = useMemo(() => {
     const labels = (yTicks ?? [100]).map(fmtY)
     return Math.max(24, Math.max(...labels.map((l) => l.length)) * (large ? 7 : 5.6) + 10)

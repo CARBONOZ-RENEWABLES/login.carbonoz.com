@@ -103,7 +103,7 @@ Send everything the SolarBMS API has. **Unknown fields are accepted and stored**
 | `inverters` | – | Array, or an object keyed by id. |
 | `batteries` | – | Array, or an object keyed by id. Each may contain a `bms` object (or array). A top-level `bms` array with `batteryId` also works. |
 | `cells` | – | Numbers (`[3.31, 3.32]`) or objects `{id, voltage, temperature?, balancing?, timestamp?}`. Any other per-cell field (e.g. `cellResistance`, `balancingCurrentMa`) is kept too. Voltages above 100 are read as millivolts. Also accepted as `cellVoltages`. Each BMS may report a different number of cells. |
-| `alarms` / `warnings` | – | Strings, objects `{code, message, severity, active}`, or flags `{ "overTemp": true }`. Carbonoz records when an alarm appears and when it clears. |
+| `alarms` / `warnings` | – | On a device (inverter, battery, BMS) or at the top level for the whole system. Strings, objects `{code, message, severity, active}`, or flags `{ "overTemp": true }`. Carbonoz records when an alarm appears and when it clears (it clears when a newer reading of that device no longer reports it). |
 | `events` | – | One-off events. |
 | `forecast` | – | `points` / `values` / `hours` with a timestamp each. |
 
@@ -115,6 +115,7 @@ Minimum/maximum cell voltage, cell spread and average are calculated by Carbonoz
 
 - **Any field name works.** Names MongoDB can't store (containing a NUL byte or `.`, or starting with `$`) are stored under a substitute name, and Carbonoz also keeps your message exactly as sent.
 - **Nothing is silently dropped.** A message Carbonoz can't process even after retries is kept for inspection and can be re-run once the cause is fixed.
+- **Energy history uses power, not counters.** Daily/monthly/yearly kWh are integrated from `pvPower`, `loadPower`, `gridPower` and `batteryPower`. Energy counters you send (e.g. `dailyPvEnergyKwh`) are stored and shown, but not used for history until we agree on their exact meaning (reset time, cumulative or interval).
 - **Limit on new metric names.** Carbonoz tracks at most 2000 distinct metric names per site. Beyond that, new names are kept in the stored message but not charted; a well-behaved system never reaches this.
 
 ## 4. Sending

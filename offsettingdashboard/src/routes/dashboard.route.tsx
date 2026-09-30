@@ -14,6 +14,7 @@ import { useGetStepsQuery } from '../lib/api/redexsteps/stepsEndpoints'
 import { useGetSystemStepsQuery } from '../lib/api/systemSteps/systemSteps'
 import { useGetAdditionalInfoQuery } from '../lib/api/user/userEndPoints'
 import Private from './private'
+import { adoptLanguage } from '../i18n'
 
 export const DashboardRoutes: FC = (): ReactElement => {
   const navigate = useNavigate()
@@ -25,6 +26,10 @@ export const DashboardRoutes: FC = (): ReactElement => {
   } = useGetStepsQuery()
   const [partner, setPartner] = useState<Array<string>>([])
   const { data, refetch: refetchData } = useGetAdditionalInfoQuery()
+  // The language saved in the profile follows the user to every device.
+  useEffect(() => {
+    adoptLanguage(data?.data?.customerLanguage)
+  }, [data?.data?.customerLanguage])
   const {
     data: partners,
     refetch: refetchPartners,

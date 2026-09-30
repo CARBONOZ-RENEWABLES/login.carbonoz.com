@@ -1,3 +1,4 @@
+import { translate } from '../../i18n'
 import { RefObject, useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 
 export function useMediaQuery(query: string): boolean {
@@ -67,10 +68,10 @@ export function useFullscreen(ref: RefObject<HTMLElement | null>) {
 export function useGreeting() {
   const calc = () => {
     const h = new Date().getHours()
-    if (h < 5) return 'Good night'
-    if (h < 12) return 'Good morning'
-    if (h < 18) return 'Good afternoon'
-    return 'Good evening'
+    if (h < 5) return translate('greeting.night')
+    if (h < 12) return translate('greeting.morning')
+    if (h < 18) return translate('greeting.afternoon')
+    return translate('greeting.evening')
   }
   const [g, setG] = useState(calc)
   useEffect(() => {
