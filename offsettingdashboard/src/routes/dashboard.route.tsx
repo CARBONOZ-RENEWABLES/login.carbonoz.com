@@ -8,6 +8,7 @@ import { ShellProvider } from '../layout/ShellContext'
 import Profile from '../components/dashboard/profile/profile'
 import Settings from '../components/dashboard/settings/settings'
 import SolarPage from '../features/solar/SolarPage'
+import EnergyFlowPage from '../features/solar/EnergyFlowPage'
 import NotFound from '../components/notfound/notFound'
 import { useGetPartnersQuery } from '../lib/api/partners/partnersEndPoints'
 import { useGetStepsQuery } from '../lib/api/redexsteps/stepsEndpoints'
@@ -112,6 +113,7 @@ export const DashboardRoutes: FC = (): ReactElement => {
     <AppShell nav={USER_NAV} bottomNav={USER_BOTTOM_NAV} firstName={data?.data?.firstName} lastName={data?.data?.lastName}>
       <Routes>
         <Route path='/' element={<Navigate to='/ds/solar' replace />} />
+        <Route path='/solar/:siteId/energy-flow' element={<EnergyFlowPage />} />
         <Route path='/solar/:siteId?/:tab?' element={<SolarPage />} />
         <Route path='/profile' element={<Profile additionalData={data?.data} />} />
         <Route path='/settings' element={<Settings />} />

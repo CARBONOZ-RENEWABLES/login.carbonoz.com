@@ -2,13 +2,17 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
+  MessageEvent,
   NotFoundException,
   Param,
   Post,
   Query,
+  Sse,
   UseGuards,
 } from '@nestjs/common';
+import { Observable } from 'rxjs';
 import {
   ApiAcceptedResponse,
   ApiBearerAuth,
@@ -34,6 +38,7 @@ import {
 } from 'src/__shared__/utils/query';
 import { SolarAdminService } from './admin/solar-admin.service';
 import { SolarEnergyHistoryService } from './read/solar-energy-history.service';
+import { SolarLiveService } from './read/solar-live.service';
 import { GenericResponse } from 'src/__shared__/dto';
 import { AllowRoles, GetUser } from 'src/auth/decorators';
 import { JwtGuard } from 'src/auth/guard/jwt.guard';
@@ -73,7 +78,19 @@ export class SolarController {
     private readonly read: SolarReadService,
     private readonly energy: SolarEnergyHistoryService,
     private readonly prisma: PrismaService,
+    private readonly live: SolarLiveService,
   ) {}
+
+  @ApiOperation({
+    summary:
+      'Realtime state for the Energy Flow (server-sent events): `snapshot` when the latest SYSTEM/INVERTER/BATTERY readings change, `heartbeat` every second otherwise; ends after 10 min (reconnect).',
+  })
+  @Sse('live')
+  // Tell nginx not to buffer the stream.
+  @Header('X-Accel-Buffering', 'no')
+  liveStream(@CurrentSite() site: Site): Observable<MessageEvent> {
+    return this.live.stream(site.id);
+  }
 
   @ApiOperation({
     summary:

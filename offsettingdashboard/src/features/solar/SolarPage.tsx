@@ -1,6 +1,6 @@
 import { Activity, BatteryCharging, Cpu, Server } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Card, CardHeader, EmptyState, ErrorState, inputClass, PageSkeleton, Segmented, StatusBadge, TabItem, Tabs } from '../../design'
 import { relativeTime, useShell } from '../../layout/ShellContext'
 import { RangeId } from '../../services/energyFlow'
@@ -9,7 +9,9 @@ import { BMSCard, MetricCard, MetricList, StatusCard } from './components/cards'
 import { ICONS } from './components/icons'
 import { ForecastChart, HistoryChart } from './components/charts'
 import { DataTable, EventTable } from './components/tables'
-import { allMetricRows, batteryHint, buildSite, deviceKey, formatMetric, MetricRow, freshness, gridHint, headline, metricCardProps, metricMeta, seriesKey, SiteModel, solarFlow } from './model'
+import { allMetricRows, batteryHint, buildSite, deviceKey, formatMetric, MetricRow, freshness, gridHint, headline, metricCardProps, metricMeta, seriesKey, SiteModel } from './model'
+import { energyFlowState } from './flowState'
+import { useLiveDevices, useLiveStatus, withLive } from './live'
 import { EnergyFlowCard } from '../dashboard/EnergyFlow'
 import { formatDate, translate as t } from '../../i18n'
 import { EnergyHistory } from './components/EnergyHistory'
@@ -69,12 +71,12 @@ export default function SolarPage({ basePath = '/ds/solar' }: { basePath?: strin
           </select>
         )}
       </div>
-      <SiteView key={siteId} summary={list.find((s) => s.id === siteId)!} tab={tab} onTab={(id) => go(siteId, id)} />
+      <SiteView key={siteId} summary={list.find((s) => s.id === siteId)!} tab={tab} onTab={(id) => go(siteId, id)} basePath={basePath} />
     </div>
   )
 }
 
-function SiteView({ summary, tab, onTab }: { summary: SiteSummary; tab: TabId; onTab: (t: TabId) => void }) {
+function SiteView({ summary, tab, onTab, basePath }: { summary: SiteSummary; tab: TabId; onTab: (t: TabId) => void; basePath: string }) {
   const siteId = summary.id
   const { refreshKey, setLive } = useShell()
   const overview = useGetSolarOverviewQuery(siteId, { pollingInterval: POLL_MS })
@@ -82,7 +84,10 @@ function SiteView({ summary, tab, onTab }: { summary: SiteSummary; tab: TabId; o
   useEffect(() => {
     if (refreshKey) refetch()
   }, [refreshKey, refetch])
-  const o = overview.data?.data
+  // Realtime readings (live stream) on top of the polled overview: one state for every view.
+  const liveDevices = useLiveDevices(siteId)
+  const polled = overview.data?.data
+  const o = useMemo(() => polled && withLive(polled, liveDevices), [polled, liveDevices])
   const names = useMemo(() => Object.fromEntries(summary.installations.map((i) => [i.id, i.name])), [summary])
   const site = useMemo(() => buildSite(o, names), [o, names])
 
@@ -103,7 +108,8 @@ function SiteView({ summary, tab, onTab }: { summary: SiteSummary; tab: TabId; o
     )
   }
   if (overview.isLoading) return <PageSkeleton />
-  if (overview.isError || !o) return <ErrorState title={t('solar.errors.data')} onRetry={refetch} />
+  // A failed refresh keeps the last data on screen (marked delayed/offline), not an error page.
+  if (!o) return <ErrorState title={t('solar.errors.data')} onRetry={refetch} />
 
   switch (tab) {
     case 'energy':
@@ -125,7 +131,7 @@ function SiteView({ summary, tab, onTab }: { summary: SiteSummary; tab: TabId; o
     case 'system':
       return <SystemTab o={o} site={site} />
     default:
-      return <OverviewTab siteId={siteId} o={o} site={site} onTab={onTab} onRefresh={refetch} />
+      return <OverviewTab siteId={siteId} o={o} site={site} onTab={onTab} onRefresh={refetch} basePath={basePath} />
   }
 }
 
@@ -142,12 +148,12 @@ function Freshness({ o }: { o: SolarOverview }) {
   )
 }
 
-function OverviewTab({ siteId, o, site, onTab, onRefresh }: { siteId: string; o: SolarOverview; site: SiteModel; onTab: (t: TabId) => void; onRefresh: () => void }) {
+function OverviewTab({ siteId, o, site, onTab, basePath }: { siteId: string; o: SolarOverview; site: SiteModel; onTab: (t: TabId) => void; onRefresh: () => void; basePath: string }) {
   const h = headline(site)
   // Delayed data keeps its values but never reads as current.
   const lastSeen = (o.stale || h.allStale) && o.updatedAt ? t('solar.lastReading', { when: relativeTime(Date.parse(o.updatedAt)) }) : null
   const staleTone = lastSeen ? 'text-gridp' : undefined
-  const flow = useMemo(() => solarFlow(h), [h.pv, h.load, h.grid, h.battery, h.soc]) // eslint-disable-line react-hooks/exhaustive-deps
+  const flow = useMemo(() => energyFlowState(h), [h.pv, h.load, h.grid, h.battery, h.soc]) // eslint-disable-line react-hooks/exhaustive-deps
   const cards = [
     h.pv != null && <MetricCard key='pv' icon={ICONS.pv} label={t('solar.cards.solar')} {...metricCardProps('pv_power_w', h.pv)} hint={lastSeen ?? (h.pv > 20 ? t('solar.hints.producing') : t('solar.hints.idle'))} tone={staleTone ?? (h.pv > 20 ? 'text-batt' : undefined)} />,
     h.load != null && <MetricCard key='load' icon={ICONS.load} label={t('solar.cards.homeUsage')} {...metricCardProps('load_power_w', h.load)} hint={lastSeen} tone={staleTone} />,
@@ -171,12 +177,7 @@ function OverviewTab({ siteId, o, site, onTab, onRefresh }: { siteId: string; o:
         <EmptyState title={t('solar.empty.noLive')} description={t('solar.empty.noLiveHint')} />
       )}
       <div className='grid gap-3 xl:grid-cols-3'>
-        <EnergyFlowCard
-          flow={flow}
-          status={o.source === 'none' ? 'no-data' : o.stale ? 'no-data' : 'live'}
-          onRetry={onRefresh}
-          className='min-h-[280px] xl:col-span-2'
-        />
+        <LiveFlowCard siteId={siteId} flow={flow} readingAt={o.updatedAt} to={`${basePath}/${siteId}/energy-flow`} className='min-h-[280px] xl:col-span-2' />
         <StatusCard
           title={t('solar.status.title')}
           icon={<Activity size={16} />}
@@ -506,4 +507,11 @@ function AllValues({ o, site }: { o: SolarOverview; site: SiteModel }) {
       />
     </div>
   )
+}
+
+/** The compact Energy Flow with its live status (re-renders every second for "updated 3s ago"). */
+function LiveFlowCard({ siteId, flow, readingAt, to, className }: { siteId: string; flow: ReturnType<typeof energyFlowState>; readingAt: string | null; to: string; className?: string }) {
+  const status = useLiveStatus(siteId, readingAt ? Date.parse(readingAt) : null)
+  const location = useLocation()
+  return <EnergyFlowCard flow={flow} status={status} to={to} linkState={{ from: location.pathname + location.search }} className={className} />
 }

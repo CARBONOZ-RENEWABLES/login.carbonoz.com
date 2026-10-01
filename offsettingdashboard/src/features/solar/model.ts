@@ -7,7 +7,7 @@
 import { formatFixed, getLocale, MessageKey, translate } from '../../i18n'
 import { power } from '../dashboard/format'
 import type { Tone } from '../../design'
-import { deriveFlows, FlowState } from '../../services/energyFlow'
+import { SOLARBMS_SEMANTICS } from './semantics'
 import { DeviceKind, MetricValue, SolarDevice, SolarOverview } from './api'
 
 export interface MetricMeta {
@@ -248,12 +248,15 @@ export function freshness(o: SolarOverview | undefined): { tone: 'good' | 'warni
 }
 
 /**
- * SolarBMS sign convention. Assumed grid + = import and battery + = charging
- * until SolarBMS confirms it; flip here if not. Everything downstream (flow
- * diagram, hints) uses that normalised convention.
+ * SolarBMS sign convention, from the one semantic mapping (semantics.ts;
+ * still an assumption until SolarBMS confirms it). Energy history and the
+ * card hints read it here; the Energy Flow uses flowState.ts.
  */
-export const SOLAR_SIGN = { gridImportPositive: true, batteryChargingPositive: true }
-const IDLE_W = 20
+export const SOLAR_SIGN = {
+  gridImportPositive: SOLARBMS_SEMANTICS.grid.positive === 'import',
+  batteryChargingPositive: SOLARBMS_SEMANTICS.battery.positive === 'charging',
+}
+const IDLE_W = SOLARBMS_SEMANTICS.idleW
 
 export function gridHint(w?: number) {
   if (w == null) return undefined
@@ -279,18 +282,4 @@ export function statusTone(status?: string): Tone {
   if (/(warn|standby|idle|wait)/.test(s)) return 'warning'
   if (/(normal|ok|online|run|charg|discharg|active|on)/.test(s)) return 'good'
   return 'info'
-}
-
-/**
- * SolarBMS headline values → the FlowState the Energy Flow house diagram
- * draws, in the normalised sign convention; home usage is derived from the
- * balance when SolarBMS doesn't report it.
- */
-export function solarFlow(h: ReturnType<typeof headline>): FlowState | null {
-  if (h.pv == null && h.load == null && h.battery == null && h.grid == null) return null
-  // Normalise to grid + = import, battery + = charging.
-  const grid = h.grid == null ? undefined : SOLAR_SIGN.gridImportPositive ? h.grid : -h.grid
-  const battery = h.battery == null ? undefined : SOLAR_SIGN.batteryChargingPositive ? h.battery : -h.battery
-  const load = h.load ?? (h.pv != null ? Math.max(0, h.pv + (grid ?? 0) - (battery ?? 0)) : undefined)
-  return deriveFlows({ pv: h.pv, load, battery, grid, soc: h.soc })
 }

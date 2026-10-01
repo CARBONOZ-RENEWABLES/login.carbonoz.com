@@ -12,6 +12,7 @@ import InstallationsPage from '../features/admin/pages/InstallationsPage'
 import OverviewPage from '../features/admin/pages/OverviewPage'
 import SitesPage from '../features/admin/pages/SitesPage'
 import SolarDataPage from '../features/admin/pages/SolarDataPage'
+import EnergyFlowPage from '../features/solar/EnergyFlowPage'
 import SolarPage from '../features/solar/SolarPage'
 import { AppShell } from '../layout/AppShell'
 import { ADMIN_BOTTOM_NAV, ADMIN_NAV } from '../layout/nav'
@@ -33,6 +34,7 @@ export const AdminDashboardRoutes: FC = (): ReactElement => {
           <Route path='/solar' element={<IngestionPage />} />
           <Route path='/solar/data' element={<SolarDataPage />} />
           {/* The customer Solar dashboard, for any site (ADMIN may read every site). */}
+          <Route path='/dashboard/:siteId/energy-flow' element={<EnergyFlowPage basePath='/admin/dashboard' />} />
           <Route path='/dashboard/:siteId?/:tab?' element={<SolarPage basePath='/admin/dashboard' />} />
           <Route path='/logs' element={<Logs />} />
           <Route path='/users' element={<Users />} />
