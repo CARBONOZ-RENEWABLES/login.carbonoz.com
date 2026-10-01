@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { DeviceKind, SolarDevice, SolarOverview } from './api'
-import { allMetricRows, buildSite, formatMetric, freshness, headline, metricMeta, solarFlow } from './model'
+import { allMetricRows, buildSite, formatMetric, freshness, headline, metricMeta } from './model'
+import { energyFlowState } from './flowState'
 
 let seq = 0
 function dev(installationId: string, kind: DeviceKind, externalId: string, metrics: Record<string, number | string>, opts: { stale?: boolean; parent?: string; cells?: number } = {}): SolarDevice {
@@ -98,10 +99,10 @@ describe('formatting and flow', () => {
   })
 
   it('derives home usage from the balance when it is not reported', () => {
-    const f = solarFlow({ pv: 3000, load: undefined, grid: 500, battery: 1000, soc: 50, allStale: false, excludedInstallations: 0 })!
-    expect(f.load).toBe(2500)
-    expect(f.battery_state).toBe('charging')
-    expect(f.grid_state).toBe('importing')
+    const f = energyFlowState({ pv: 3000, load: undefined, grid: 500, battery: 1000, soc: 50 })
+    expect(f.load).toEqual({ power: 2500, derived: true })
+    expect(f.battery.state).toBe('charging')
+    expect(f.grid.direction).toBe('import')
   })
 })
 

@@ -5,6 +5,7 @@ import {
   NestInterceptor,
 } from '@nestjs/common';
 import { User } from '@prisma/client';
+import { SSE_METADATA } from '@nestjs/common/constants';
 import { Observable, catchError, tap } from 'rxjs';
 import { LogsService } from 'src/logsM/logs.service';
 
@@ -13,6 +14,9 @@ export class LoggingInterceptor implements NestInterceptor {
   constructor(private logsService: LogsService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    // Server-sent event streams emit for minutes: not a "slow request".
+    if (Reflect.getMetadata(SSE_METADATA, context.getHandler()))
+      return next.handle();
     const req = context.switchToHttp().getRequest();
     const res = context.switchToHttp().getResponse();
     const user: User | undefined = req.user;
