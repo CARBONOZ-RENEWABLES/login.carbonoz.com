@@ -70,7 +70,10 @@ export class AuthService {
   public async convertImageToBase64(): Promise<string> {
     const url =
       'https://res.cloudinary.com/akashi/image/upload/v1726671139/1_wmbtla.jpg';
-    const response = await axios.get(url, { responseType: 'arraybuffer' });
+    const response = await axios.get(url, {
+      responseType: 'arraybuffer',
+      timeout: 10_000,
+    });
     const base64Image = Buffer.from(response.data, 'binary').toString('base64');
     return base64Image;
   }
@@ -84,7 +87,16 @@ export class AuthService {
       'frontedUrl',
     )}/verify-email?token=${token}`;
 
-    const imageBase64 = await this.convertImageToBase64();
+    // The logo is decoration: without it (no internet, CDN down) the email still goes out.
+    const imageBase64 = await this.convertImageToBase64().catch((e) => {
+      this.logger.warn(
+        `Email logo not loaded, sending without it: ${redactText(
+          e?.message ?? e,
+          200,
+        )}`,
+      );
+      return null;
+    });
 
     const resetPasswordUrl = `${this.config.get(
       'frontedUrl',
@@ -93,7 +105,8 @@ export class AuthService {
     const result = await this.mail.sendMail(
       `${user.email}`,
       isForgotPassword ? 'Reset password' : 'Confirm email',
-      '"No Reply" <solar-autopilot@carbonoz.com>',
+      this.config.get('smtp')?.from ??
+        '"No Reply" <solar-autopilot@carbonoz.com>',
       {
         username: user.email,
         verificationUrl: isForgotPassword ? resetPasswordUrl : verificationUrl,
@@ -101,14 +114,16 @@ export class AuthService {
       isForgotPassword
         ? './forgotPassword.template.hbs'
         : './conformation.template.hbs',
-      [
-        {
-          filename: 'image.png',
-          content: Buffer.from(imageBase64, 'base64'),
-          contentDisposition: 'inline',
-          cid: 'logo@carbonoz',
-        },
-      ],
+      imageBase64
+        ? [
+            {
+              filename: 'image.png',
+              content: Buffer.from(imageBase64, 'base64'),
+              contentDisposition: 'inline',
+              cid: 'logo@carbonoz',
+            },
+          ]
+        : [],
     );
     return result;
   }
@@ -135,7 +150,11 @@ export class AuthService {
       return this.generateToken(user);
     }
     const token = this.generateToken(user, true);
-    const message = this.sendEmail(user, token);
+    const message = this.sendEmail(user, token).catch((e) =>
+      this.logger.error(
+        `Verification email failed: ${redactText(e?.message ?? e, 300)}`,
+      ),
+    );
     return {
       data: {
         message,
