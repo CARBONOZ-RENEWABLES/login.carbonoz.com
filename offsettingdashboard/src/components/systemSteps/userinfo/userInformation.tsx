@@ -3,7 +3,6 @@ import { useForm } from 'antd/es/form/Form'
 import { FC, ReactElement, useEffect } from 'react'
 import { ESystemSteps, language, timezones } from '../../../config/constant'
 import handleAPIRequests from '../../../helpers/handleApiRequest'
-import { useWindowSize } from '../../../helpers/interfaceSize'
 import requiredField from '../../../helpers/requiredField'
 import {
   additionalInfoInt,
@@ -60,8 +59,6 @@ const UserInformation: FC<Props> = ({
       onSuccess: onSuccess,
     })
   }
-
-  const { width } = useWindowSize()
 
   return (
     <>

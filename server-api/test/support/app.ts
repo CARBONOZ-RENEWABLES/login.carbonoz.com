@@ -47,6 +47,8 @@ export async function startApi(
     MACHINE_REQUIRED_ROLE: 'solarbms-ingest',
     MACHINE_API_KEYS_ENABLED: 'true',
     LEGACY_AUTH_ENABLED: 'true',
+    // The suite signs up and logs in many users from one IP; the limiter has its own test.
+    AUTH_RATE_LIMIT_ENABLED: 'false',
     SOLAR_WORKER_ENABLED: 'true',
     SOLAR_STREAM_KEY: 'solar:ingest',
     SOLAR_STREAM_MAXLEN: '100000',

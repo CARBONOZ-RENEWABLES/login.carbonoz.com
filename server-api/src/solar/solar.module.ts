@@ -5,6 +5,7 @@ import { SolarStreamWorker } from './ingest/solar-stream.worker';
 import { SolarEnergyService } from './read/solar-energy.service';
 import { SolarEnergyHistoryService } from './read/solar-energy-history.service';
 import { SolarLiveService } from './read/solar-live.service';
+import { SolarIngestBridge } from './bridge/solar-ingest-bridge.service';
 import { SolarReadService } from './read/solar-read.service';
 import {
   AdminSolarController,
@@ -24,6 +25,7 @@ import { SolarStoreService } from './store/solar-store.service';
     SolarAdminService,
     SolarEnergyHistoryService,
     SolarLiveService,
+    SolarIngestBridge,
   ],
   exports: [SolarEnergyService],
 })

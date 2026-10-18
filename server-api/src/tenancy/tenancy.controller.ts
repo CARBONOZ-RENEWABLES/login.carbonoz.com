@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Delete,
   Get,
@@ -19,7 +20,13 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { EMachineCredentialType, ERole, Site, User } from '@prisma/client';
+import {
+  EMachineCredentialType,
+  ERole,
+  Prisma,
+  Site,
+  User,
+} from '@prisma/client';
 import { GenericResponse } from 'src/__shared__/dto';
 import { AllowRoles, GetUser } from 'src/auth/decorators';
 import { JwtGuard } from 'src/auth/guard/jwt.guard';
@@ -153,6 +160,32 @@ export class AdminTenancyController {
   private id(v: string, what: string) {
     if (!isObjectId(v)) throw new NotFoundException(`${what} not found`);
     return v;
+  }
+
+  /**
+   * A systemId routes SolarBMS data (machine credentials, the Raspberry
+   * ingest bridge), so it must belong to exactly one installation. Trimmed;
+   * empty = none. The partial unique index (scripts/installation-system-id-index.js)
+   * is the database-level guard against a race between two requests.
+   */
+  private async freeSystemId(
+    raw: string | undefined,
+    exceptInstallationId?: string,
+  ): Promise<string | null> {
+    const systemId = raw?.trim() || null;
+    if (!systemId) return null;
+    const taken = await this.prisma.installation.findFirst({
+      where: {
+        externalSystemId: systemId,
+        ...(exceptInstallationId && { id: { not: exceptInstallationId } }),
+      },
+      select: { id: true },
+    });
+    if (taken)
+      throw new ConflictException(
+        `systemId "${systemId}" is already used by another installation`,
+      );
+    return systemId;
   }
 
   @ApiOkResponse({
@@ -436,14 +469,17 @@ export class AdminTenancyController {
     this.id(siteId, 'Site');
     const s = await this.prisma.site.findUnique({ where: { id: siteId } });
     if (!s) throw new NotFoundException('Site not found');
-    const data = await this.prisma.installation.create({
-      data: {
-        siteId,
-        name: dto.name,
-        kind: dto.kind ?? 'SOLARBMS',
-        externalSystemId: dto.externalSystemId,
-      },
-    });
+    const externalSystemId = await this.freeSystemId(dto.externalSystemId);
+    const data = await this.prisma.installation
+      .create({
+        data: {
+          siteId,
+          name: dto.name,
+          kind: dto.kind ?? 'SOLARBMS',
+          externalSystemId,
+        },
+      })
+      .catch(systemIdTaken);
     return new GenericResponse('installation', data);
   }
 
@@ -520,16 +556,20 @@ export class AdminTenancyController {
     @Body() dto: UpdateInstallationDto,
   ) {
     this.id(installationId, 'Installation');
-    const { count } = await this.prisma.installation.updateMany({
-      where: { id: installationId },
-      data: {
-        name: dto.name,
-        active: dto.active,
-        ...(dto.externalSystemId !== undefined && {
-          externalSystemId: dto.externalSystemId.trim() || null,
-        }),
-      },
-    });
+    const externalSystemId =
+      dto.externalSystemId !== undefined
+        ? await this.freeSystemId(dto.externalSystemId, installationId)
+        : undefined;
+    const { count } = await this.prisma.installation
+      .updateMany({
+        where: { id: installationId },
+        data: {
+          name: dto.name,
+          active: dto.active,
+          ...(externalSystemId !== undefined && { externalSystemId }),
+        },
+      })
+      .catch(systemIdTaken);
     if (!count) throw new NotFoundException('Installation not found');
     // Cached principals carry `active` and the bound systemId: drop them now.
     this.machines.forgetInstallation(installationId);
@@ -725,4 +765,16 @@ export class AdminTenancyController {
       },
     );
   }
+}
+
+/** The partial unique index rejected the systemId (two requests at once). */
+function systemIdTaken(e: unknown): never {
+  if (
+    e instanceof Prisma.PrismaClientKnownRequestError &&
+    (e.code === 'P2002' || /E11000|duplicate key/.test(e.message))
+  )
+    throw new ConflictException(
+      'systemId is already used by another installation',
+    );
+  throw e;
 }

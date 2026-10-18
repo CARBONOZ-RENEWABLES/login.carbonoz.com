@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { applyHttpSecurity } from '../security/http-security';
 import { IAppConfig } from '../interfaces';
 
 export function appConfig(): IAppConfig {
@@ -11,6 +12,9 @@ export function appConfig(): IAppConfig {
     env: process.env.NODE_ENV,
     jwt: {
       secret: process.env.JWT_SECRET,
+      // Legacy bearer tokens expire; tokens without `exp` (issued before this
+      // setting existed) are refused, so everyone signs in again once.
+      expiresIn: process.env.JWT_EXPIRES_IN || '12h',
     },
     redex: {
       url: process.env.REDEX_API_URL,
@@ -49,6 +53,11 @@ export function appConfig(): IAppConfig {
         process.env.FRONTED_URL,
       scopes: process.env.KEYCLOAK_SCOPES || 'openid email profile',
       linkByEmail: process.env.KEYCLOAK_LINK_BY_EMAIL !== 'false',
+      // Privileged accounts (ADMIN, SUB_ADMIN) are never linked by email
+      // unless explicitly allowed: whoever controls a verified Keycloak email
+      // would otherwise take over the admin account.
+      linkPrivilegedByEmail:
+        process.env.KEYCLOAK_LINK_PRIVILEGED_BY_EMAIL === 'true',
       returnOrigins: [
         process.env.FRONTED_URL,
         ...(process.env.AUTH_RETURN_ORIGINS || '').split(','),
@@ -87,6 +96,22 @@ export function appConfig(): IAppConfig {
       reclaimIdleMs: +(process.env.SOLAR_RECLAIM_IDLE_MS || 60_000),
       maxDeliveries: +(process.env.SOLAR_MAX_DELIVERIES || 5),
     },
+    ingestBridge: {
+      enabled: process.env.INGEST_BRIDGE_ENABLED === 'true',
+      // Read-only account on the ingest Redis (Felix: user `consumer`). Never the admin account.
+      redisUrl: process.env.INGEST_REDIS_URL || '',
+      streamKey: process.env.INGEST_STREAM_KEY || 'ingest:readings',
+      // Stream field holding the delivery JSON; empty = detect it.
+      payloadField: process.env.INGEST_PAYLOAD_FIELD || '',
+      // Where to start when no cursor is stored yet: 0-0 = everything still in the stream.
+      startId: process.env.INGEST_BRIDGE_START || '0-0',
+      batchSize: +(process.env.INGEST_BRIDGE_BATCH || 50),
+      blockMs: +(process.env.INGEST_BRIDGE_BLOCK_MS || 5000),
+      mode: process.env.INGEST_BRIDGE_MODE === 'group' ? 'group' : 'xread',
+      group: process.env.INGEST_GROUP || 'carbonoz-bridge',
+      consumer: process.env.INGEST_CONSUMER || '',
+      claimIdleMs: +(process.env.INGEST_CLAIM_IDLE_MS || 60_000),
+    },
   };
 }
 
@@ -116,6 +141,7 @@ export function configureSwagger(app: INestApplication): void {
 }
 
 export function configure(app: INestApplication): void {
+  applyHttpSecurity(app);
   app.setGlobalPrefix('api/v1');
   // Any origin may call with a bearer token (legacy JWT, machine credential),
   // but never with credentials: the session cookie only works same-origin

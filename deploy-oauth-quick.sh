@@ -2,7 +2,9 @@
 
 SERVER="192.168.160.190"
 USER="localadmin"
-PASSWORD="Adgl5581"
+# The SSH password is NOT stored here: export CARBONOZ_SSH_PASSWORD from the password manager
+# (better: SSH keys). Remote sudo runs non-interactively (sudo -n).
+PASSWORD="${CARBONOZ_SSH_PASSWORD:?Set CARBONOZ_SSH_PASSWORD from the password manager}"
 
 echo "=== Quick OAuth Deployment ==="
 echo "This will deploy the OAuth code to the server."

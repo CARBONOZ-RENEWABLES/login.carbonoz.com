@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- application entry point, not a hot-reloaded module (affects dev hot reload only) */
 import { ConfigProvider } from 'antd'
 import deDE from 'antd/locale/de_DE'
 import enGB from 'antd/locale/en_GB'

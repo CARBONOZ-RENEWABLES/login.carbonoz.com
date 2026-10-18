@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- context, its hook and small helpers belong together (affects dev hot reload only) */
 import { translate } from '../i18n'
 import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react'
 import { sessionUser } from '../lib/auth/session'

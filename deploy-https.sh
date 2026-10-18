@@ -2,7 +2,9 @@
 
 SERVER="192.168.160.190"
 USER="localadmin"
-PASSWORD="Adgl5581"
+# The SSH password is NOT stored here: export CARBONOZ_SSH_PASSWORD from the password manager
+# (better: SSH keys). Remote sudo runs non-interactively (sudo -n).
+PASSWORD="${CARBONOZ_SSH_PASSWORD:?Set CARBONOZ_SSH_PASSWORD from the password manager}"
 
 echo "Deploying HTTPS configuration to $SERVER..."
 
@@ -19,19 +21,19 @@ chmod +x setup-ssl.sh
 
 # Backup existing config
 echo "Backing up existing configuration..."
-echo 'Adgl5581' | sudo -S cp /etc/nginx/sites-available/carbonoz /etc/nginx/sites-available/carbonoz.backup
+sudo -n cp /etc/nginx/sites-available/carbonoz /etc/nginx/sites-available/carbonoz.backup
 
 # Deploy new config
 echo "Deploying new Nginx configuration..."
-echo 'Adgl5581' | sudo -S cp /tmp/nginx-https.conf /etc/nginx/sites-available/carbonoz
+sudo -n cp /tmp/nginx-https.conf /etc/nginx/sites-available/carbonoz
 
 # Test Nginx configuration
 echo "Testing Nginx configuration..."
-echo 'Adgl5581' | sudo -S nginx -t
+sudo -n nginx -t
 
 if [ $? -eq 0 ]; then
     echo "Configuration test passed. Reloading Nginx..."
-    echo 'Adgl5581' | sudo -S systemctl reload nginx
+    sudo -n systemctl reload nginx
     echo "HTTPS configuration deployed successfully!"
     echo ""
     echo "You can now access:"
@@ -42,7 +44,7 @@ if [ $? -eq 0 ]; then
     echo "Click 'Advanced' and 'Proceed' to continue."
 else
     echo "Configuration test failed. Restoring backup..."
-    echo 'Adgl5581' | sudo -S cp /etc/nginx/sites-available/carbonoz.backup /etc/nginx/sites-available/carbonoz
+    sudo -n cp /etc/nginx/sites-available/carbonoz.backup /etc/nginx/sites-available/carbonoz
 fi
 
 # Cleanup

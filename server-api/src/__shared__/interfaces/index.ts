@@ -20,6 +20,7 @@ export interface IAppConfig {
   session?: SessionConfig;
   machineAuth?: MachineAuthConfig;
   solar?: SolarConfig;
+  ingestBridge?: IngestBridgeConfig;
 }
 
 export interface KeycloakConfig {
@@ -32,6 +33,7 @@ export interface KeycloakConfig {
   postLogoutRedirectUri?: string;
   scopes: string;
   linkByEmail: boolean;
+  linkPrivilegedByEmail: boolean;
   /** Origins (besides FRONTED_URL) the login callback may return to. */
   returnOrigins: string[];
 }
@@ -52,6 +54,24 @@ export interface MachineAuthConfig {
   apiKeysEnabled: boolean;
 }
 
+/** Reader of an external ingest stream (Felix's ingest API → Redis `ingest:readings`). */
+export interface IngestBridgeConfig {
+  enabled: boolean;
+  redisUrl: string;
+  streamKey: string;
+  payloadField: string;
+  startId: string;
+  batchSize: number;
+  blockMs: number;
+  /** `xread` (read-only account, cursor in MongoDB) or `group` (Felix's consumer group). */
+  mode: 'xread' | 'group';
+  group: string;
+  /** Stable consumer name (group mode); default carbonoz-<hostname>. */
+  consumer: string;
+  /** Group mode: claim entries another consumer left pending this long. */
+  claimIdleMs: number;
+}
+
 export interface SolarConfig {
   workerEnabled: boolean;
   streamKey: string;
@@ -65,6 +85,7 @@ export interface SolarConfig {
 
 interface JwtConfig {
   secret: string;
+  expiresIn: string;
 }
 
 interface IRedexConfig {

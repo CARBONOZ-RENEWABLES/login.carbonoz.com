@@ -8,9 +8,7 @@ import {
   InverterBrand,
 } from '../../../config/constant'
 import handleAPIRequests from '../../../helpers/handleApiRequest'
-import { useWindowSize } from '../../../helpers/interfaceSize'
 import requiredField from '../../../helpers/requiredField'
-import uploadFile from '../../../helpers/uplaodFile'
 import {
   AssetDTO,
   useAddAssetMutation,
@@ -33,16 +31,13 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
   const [addAsset] = useAddAssetMutation()
   const { data, refetch } = useGetAssetsQuery()
 
-  const [solarPanelsPhotoUpload, setSolarPanelsPhotoUpload] = useState<File[]>(
+  const [, setSolarPanelsPhotoUpload] = useState<File[]>(
     []
   )
-  const [buildingPhotoUpload, setBuildingPhotoUpload] = useState<File[]>([])
-  const [inverterSetupPhotoUpload, setInverterSetupPhotoUpload] = useState<
+  const [, setBuildingPhotoUpload] = useState<File[]>([])
+  const [, setInverterSetupPhotoUpload] = useState<
     File[]
   >([])
-  const [, setUploadSuccess] = useState<boolean>(false)
-  const [, setUploadFailure] = useState<boolean>(false)
-  const [, setUploadedUrls] = useState<string[]>([])
 
   function onChangeSolarPanelsPhotoUpload(e: any) {
     setSolarPanelsPhotoUpload(e)
@@ -100,8 +95,6 @@ const Assets: FC<props> = ({ makeStep, setLoadingAction }): ReactElement => {
       form.setFieldsValue(data.data)
     }
   }, [data, form])
-
-  const { width } = useWindowSize()
 
   const latitudeRegex = /^-?([1-8]?[0-9](\.\d+)?|90(\.0+)?)$/
   const longitudeRegex =

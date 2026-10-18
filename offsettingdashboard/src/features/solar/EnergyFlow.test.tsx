@@ -117,6 +117,13 @@ afterEach(() => {
 })
 
 describe('compact Energy Flow', () => {
+  it('says the grid/battery directions are assumed while the sign convention is unconfirmed', async () => {
+    stubFetch({ pv_power_w: 5000, load_power_w: 1800, grid_power_w: 0, battery_power_w: 3200, soc_pct: 60 })
+    mount(`/ds/solar/${SITE}`)
+    await screen.findByRole('link', { name: 'Open live energy flow details' })
+    expect(screen.getByTestId('energy-flow-signs-assumed').textContent).toMatch(/assumed/)
+  })
+
   it('19. is one accessible link (native Enter), Space opens it too; labelled and described', async () => {
     stubFetch({ pv_power_w: 5000, load_power_w: 1800, grid_power_w: 0, battery_power_w: 3200, soc_pct: 60 })
     mount(`/ds/solar/${SITE}`)

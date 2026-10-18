@@ -122,6 +122,31 @@ Worker (consumer group solar-store; connects to Redis in the background)
 - **Rebuildable.** `POST /admin/solar/ingests/:id/reprocess` re-derives everything from the stored raw payload.
 - **Scaling.** Set `SOLAR_WORKER_ENABLED=false` on API nodes and run more workers; the consumer group shares the stream.
 
+### Raspberry ingest bridge — `src/solar/bridge` (off unless `INGEST_BRIDGE_ENABLED=true`)
+
+Felix's pipeline (ingest guide, 18 Oct 2026): Raspberry → `https://api.carbonoz.com/v1/readings` (Keycloak realm `integrations`) → ingest API on api2 → Redis stream `ingest:readings` on the ingest Redis. The bridge connects that stream to the store above:
+
+```
+ingest:readings ──XREAD or XREADGROUP──▶ SolarIngestBridge ──▶ SolarStoreService (idempotent) ──▶ MongoDB + live state ──▶ API / dashboard
+```
+
+- **Acknowledgement after durable storage.** Every reading of an entry is stored through `SolarStoreService.processStreamMessage` (raw payload, samples, alarms in MongoDB; live state in Redis) before the entry is acknowledged. The worker stream `solar:ingest` is not involved.
+- **Delivery guarantee.** At-least-once reading of the stream, effectively once in MongoDB: each reading has a content id (`<site>@<ts>#<metrics hash>`), and the store's unique `(installationId, messageId)` index skips PROCESSED readings and clears partial rows of an interrupted attempt. Not exactly-once at the transport level — an entry can be read again after a crash; dedupe absorbs it.
+- **Modes.**
+  | | `xread` (default) | `group` (Felix's design) |
+  |---|---|---|
+  | Redis commands | `XREAD`, `XRANGE`, `XLEN`, `XINFO` (all `@read`) | plus `XREADGROUP`, `XACK`, `XAUTOCLAIM` (`@write`, they change the group's pending list, never stream data) |
+  | Acknowledgement | cursor in MongoDB (`SolarIngestCursor`) | `XACK` |
+  | Restart | resumes after the cursor | re-reads its own pending entries (stable `INGEST_CONSUMER`), claims a crashed consumer's after `INGEST_CLAIM_IDLE_MS` |
+  | Progress visible in Redis | no | yes (`XINFO GROUPS`: pending, lag) |
+  The bridge never runs `XGROUP CREATE/DESTROY`, `XDEL`, `XTRIM`, `DEL` or config commands; the group is created by the Redis admin.
+- **Trimming.** Entries trimmed before they were read can't be recovered. `xread`: detected when the cursor's entry is gone and the oldest entry is newer (audit row `ingest:readings/gap/<from>..<to>`). `group`: pending entries returned without fields or reported by `XAUTOCLAIM` as deleted are recorded and released.
+- **Format.** A delivery `{ site, readings: [{ ts, metrics }] }` (validated against the guide's schema) becomes one SolarBMS message per reading (`normalize/ingest-readings.adapter.ts`): metrics kept as sent (unknown names kept, counters stay counters), `wr<N>_…` / `inv<N>_…` → inverter `wr<N>`, `ts` kept, stream entry id and non-secret entry fields kept in `source`. The proposed names `pv_w`, `load_w`, `grid_w`, `battery_w` map to canonical metrics in the normalizer's alias table; signs are interpreted only by the dashboard semantics.
+- **Tenant safety.** `site` must match exactly one installation's systemId; a shared systemId is refused (not routed to either).
+- **Unprocessable entries** (invalid, unknown/ambiguous site, deactivated installation, 5 failed attempts, trim gaps) become admin-only `SolarDeadLetter` rows (secret-looking fields removed) and the stream keeps flowing. `POST /admin/solar/ingest-bridge/dead-letters/:id/replay` runs one again (e.g. after registering the installation).
+- **Monitoring.** `GET /admin/solar/health` → `ingestBridge`: mode, connected, position, entries/readings since start, dead letters, gaps, last error, stream length, `upToDate` (and in group mode `groupPending`, `groupLag`). It verifies the bridge's own Redis connection and position; it does not check the ingest API, Keycloak or the Raspberry.
+- **Latency.** The bridge sees an entry within milliseconds (blocking read); end-to-end delay is dominated by the Raspberry's send interval (the guide's sender runs every minute).
+
 ### Reliability (verified by `test/outage.e2e-spec.ts`)
 
 | Situation | Behaviour |

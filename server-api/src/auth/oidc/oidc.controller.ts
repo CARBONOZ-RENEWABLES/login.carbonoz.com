@@ -121,6 +121,7 @@ export class OidcController {
         this.oidc.provider,
         result.claims,
         this.oidc.cfg.linkByEmail,
+        this.oidc.cfg.linkPrivilegedByEmail,
       );
       const sessionId = await this.sessions.create({
         userId: user.id,

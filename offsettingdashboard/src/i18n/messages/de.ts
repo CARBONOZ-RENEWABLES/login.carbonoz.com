@@ -300,6 +300,7 @@ export const de: Catalogue = {
     grid_frequency_hz: 'Netzfrequenz',
   },
   flow: {
+    signsAssumed: 'Netz- und Batterierichtung sind angenommen (Vorzeichenkonvention noch nicht bestätigt).',
     title: 'Energiefluss',
     about: 'Über den Energiefluss',
     solar: 'Solar',

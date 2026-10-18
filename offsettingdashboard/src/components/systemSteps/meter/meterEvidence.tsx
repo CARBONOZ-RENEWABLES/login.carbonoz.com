@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Col, Form, Row } from 'antd'
 import { FC, ReactElement, useEffect, useState } from 'react'
-import requiredField from '../../../helpers/requiredField'
 
 import { FieldGuide } from '../../../design'
 import CustomInput from '../../common/input/customInput'
@@ -12,7 +11,6 @@ import {
 } from '../../../lib/api/user/userEndPoints'
 import { ESystemSteps } from '../../../config/constant'
 import handleAPIRequests from '../../../helpers/handleApiRequest'
-import uploadFile from '../../../helpers/uplaodFile'
 import CustomImage from '../../common/image/customImage'
 
 interface props {
@@ -35,11 +33,8 @@ const MeterInfo: FC<props> = ({ setLoadingAction, makeStep }): ReactElement => {
 
   const onAddSucess = () => {}
 
-  const [meteringEvidencePhotoUpload, setMeteringEvidencePhotoUpload] =
+  const [, setMeteringEvidencePhotoUpload] =
     useState<File[]>([])
-  const [, setUploadSuccess] = useState<boolean>(false)
-  const [, setUploadFailure] = useState<boolean>(false)
-  const [, setUploadedUrls] = useState<string[]>([])
 
   function onChangeMeteringEvidencePhotoUpload(e: any) {
     setMeteringEvidencePhotoUpload(e)

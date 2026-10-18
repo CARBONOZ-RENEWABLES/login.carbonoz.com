@@ -68,7 +68,7 @@ const SystemUserSteps: FC = (): ReactElement | boolean => {
     ) {
       navigate('/ds')
     }
-  }, [stepsData])
+  }, [stepsData, navigate])
 
   const steps = useMemo(
     () => [

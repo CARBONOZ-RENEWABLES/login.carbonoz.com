@@ -34,6 +34,9 @@ const VerifyEmail = () => {
         onSuccess: onSuccess,
       })
     }
+    // Once per token: `verify`/`onSuccess` change identity every render and
+    // would send the verification request again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
   if (isLoading)

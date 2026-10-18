@@ -39,6 +39,9 @@ model SolarIngest {
   payload         Json
   // The message exactly as received, only when `payload` had to be rewritten.
   rawText         String?
+  // Derive lease (SolarStoreService.derive): one processing run at a time.
+  leaseUntil      DateTime?
+  leaseOwner      String?
 
   @@unique([installationId, messageId])
   @@index([siteId, receivedAt])
@@ -172,4 +175,26 @@ model SolarEnergyDay {
 
   @@unique([siteId, timezone, day])
   @@index([siteId, start])
+}
+
+// How far the ingest bridge has read an external stream (Felix's
+// `ingest:readings` on the ingest Redis). The bridge only reads there (XREAD,
+// no consumer group, no XACK): this cursor is its acknowledgement. It moves
+// only after a delivery is safely in the Carbonoz pipeline, so a crash or an
+// outage replays at most the last delivery, which dedupe then ignores.
+model SolarIngestCursor {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  stream    String   @unique
+  lastId    String
+  entries   Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+// Only one ingest bridge reads at a time (SolarIngestBridge.holdLock).
+model SolarBridgeLock {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @unique
+  owner     String
+  until     DateTime
+  updatedAt DateTime @updatedAt
 }

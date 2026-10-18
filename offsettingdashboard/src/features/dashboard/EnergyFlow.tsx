@@ -313,6 +313,11 @@ export function EnergyFlowCard({ flow, status, to, linkState, className, footer,
         {(status.state === 'waiting' || (flow.summary.kind === 'unavailable' && flow.summary.reason === 'noData')) && (
           <p className='mt-2 rounded-lg border border-gridp/25 bg-gridp/5 px-3 py-2 text-center text-[12px] text-fg-2'>{noDataHint ?? t('flow.waiting')}</p>
         )}
+        {!flow.signsConfirmed && (
+          <p className='mt-2 text-center text-[11px] text-muted' data-testid='energy-flow-signs-assumed'>
+            {t('flow.signsAssumed')}
+          </p>
+        )}
         <p id={descId} className='sr-only'>
           {summaryText(flow).join(' ')} {live.label}. {live.detail}.
         </p>

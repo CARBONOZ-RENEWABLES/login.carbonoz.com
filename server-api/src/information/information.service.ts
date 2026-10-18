@@ -29,13 +29,15 @@ export class InformationService {
     }
   }
 
-  async getAdditionalInformation(user: User): Promise<UserInformation & { id: string }> {
+  async getAdditionalInformation(
+    user: User,
+  ): Promise<UserInformation & { id: string }> {
     const userInfo = await this.prismaService.userInformation.findFirst({
       where: {
         userId: user.id,
       },
     });
-    
+
     // Return user info with the actual user ID from the User model
     return {
       ...userInfo,
