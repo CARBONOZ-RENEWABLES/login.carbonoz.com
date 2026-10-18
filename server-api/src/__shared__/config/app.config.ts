@@ -87,6 +87,22 @@ export function appConfig(): IAppConfig {
       reclaimIdleMs: +(process.env.SOLAR_RECLAIM_IDLE_MS || 60_000),
       maxDeliveries: +(process.env.SOLAR_MAX_DELIVERIES || 5),
     },
+    ingestBridge: {
+      enabled: process.env.INGEST_BRIDGE_ENABLED === 'true',
+      // Read-only account on the ingest Redis (Felix: user `consumer`). Never the admin account.
+      redisUrl: process.env.INGEST_REDIS_URL || '',
+      streamKey: process.env.INGEST_STREAM_KEY || 'ingest:readings',
+      // Stream field holding the delivery JSON; empty = detect it.
+      payloadField: process.env.INGEST_PAYLOAD_FIELD || '',
+      // Where to start when no cursor is stored yet: 0-0 = everything still in the stream.
+      startId: process.env.INGEST_BRIDGE_START || '0-0',
+      batchSize: +(process.env.INGEST_BRIDGE_BATCH || 50),
+      blockMs: +(process.env.INGEST_BRIDGE_BLOCK_MS || 5000),
+      mode: process.env.INGEST_BRIDGE_MODE === 'group' ? 'group' : 'xread',
+      group: process.env.INGEST_GROUP || 'carbonoz-bridge',
+      consumer: process.env.INGEST_CONSUMER || '',
+      claimIdleMs: +(process.env.INGEST_CLAIM_IDLE_MS || 60_000),
+    },
   };
 }
 

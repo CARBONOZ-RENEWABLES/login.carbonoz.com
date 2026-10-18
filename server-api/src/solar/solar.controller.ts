@@ -39,6 +39,7 @@ import {
 import { SolarAdminService } from './admin/solar-admin.service';
 import { SolarEnergyHistoryService } from './read/solar-energy-history.service';
 import { SolarLiveService } from './read/solar-live.service';
+import { SolarIngestBridge } from './bridge/solar-ingest-bridge.service';
 import { GenericResponse } from 'src/__shared__/dto';
 import { AllowRoles, GetUser } from 'src/auth/decorators';
 import { JwtGuard } from 'src/auth/guard/jwt.guard';
@@ -248,6 +249,7 @@ export class AdminSolarController {
     private readonly redis: RedisService,
     private readonly admin: SolarAdminService,
     config: ConfigService<IAppConfig>,
+    private readonly bridge: SolarIngestBridge,
   ) {
     this.solarStreamKey = config.get('solar').streamKey;
   }
@@ -258,7 +260,11 @@ export class AdminSolarController {
   })
   @Get('health')
   async health() {
-    return new GenericResponse('solar-health', await this.admin.health());
+    const [health, ingestBridge] = await Promise.all([
+      this.admin.health(),
+      this.bridge.status(),
+    ]);
+    return new GenericResponse('solar-health', { ...health, ingestBridge });
   }
 
   @ApiOperation({
@@ -417,6 +423,17 @@ export class AdminSolarController {
     });
     await this.prisma.solarDeadLetter.delete({ where: { id } });
     return new GenericResponse('requeued', { streamId });
+  }
+
+  @ApiOperation({
+    summary:
+      'Run an ingest-bridge dead letter again (e.g. after registering the missing installation)',
+  })
+  @HttpCode(200)
+  @Post('ingest-bridge/dead-letters/:id/replay')
+  async replayBridge(@Param('id') id: string) {
+    if (!isObjectId(id)) throw new NotFoundException('Dead letter not found');
+    return new GenericResponse('replay', await this.bridge.replay(id));
   }
 
   @ApiOkResponse({ description: 'Recent raw payloads for a site' })

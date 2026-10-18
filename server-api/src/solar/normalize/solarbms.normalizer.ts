@@ -119,6 +119,11 @@ const ALIASES: Record<string, string> = {
   battery_temperature: 'battery_temperature_c',
   pv_power: 'pv_power_w',
   pv: 'pv_power_w',
+  // Names proposed for the Raspberry → api.carbonoz.com batches (ingest guide, Sep 2026).
+  pv_w: 'pv_power_w',
+  load_w: 'load_power_w',
+  grid_w: 'grid_power_w',
+  battery_w: 'battery_power_w',
   solar_power: 'pv_power_w',
   load: 'load_power_w',
   load_power: 'load_power_w',
