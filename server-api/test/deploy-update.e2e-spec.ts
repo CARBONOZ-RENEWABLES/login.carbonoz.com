@@ -35,7 +35,7 @@ const SHIMS: Record<string, string> = {
   npm: `echo "npm $(basename "$PWD") $*" >> "$CALLS"
 if [ "$1 $2" = "run build" ]; then
   [ "\${SIM_BUILD_FAIL:-0}" = "1" ] && exit 1
-  if [ "$(basename "$PWD")" = server-api ]; then mkdir -p dist/src && touch dist/src/main.js; else mkdir -p dist && touch dist/index.html; fi
+  if [ "$(basename "$PWD")" = server-api ]; then mkdir -p dist/src/mails/templates && touch dist/src/main.js dist/src/mails/templates/conformation.template.hbs; else mkdir -p dist && touch dist/index.html; fi
 fi
 exit 0`,
   npx: `echo "npx $(basename "$PWD") $*" >> "$CALLS"`,

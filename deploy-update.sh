@@ -75,6 +75,8 @@ fi
 echo "🏗️  Building backend..."
 npm run build
 test -f dist/src/main.js
+# Email templates must sit next to the compiled mail module (read from there at runtime).
+test -f dist/src/mails/templates/conformation.template.hbs
 cd ..
 fi
 
