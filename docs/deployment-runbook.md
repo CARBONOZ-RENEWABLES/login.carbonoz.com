@@ -8,7 +8,11 @@ For the server that runs the app: `localadmin@carbonoz-api` (192.168.160.190), c
 
 ## 0. Preconditions — deployment is BLOCKED until every box is ticked
 
-- [ ] **Credential rotation:** the `localadmin` SSH/sudo password of 192.168.160.190 was in tracked files and is still in git history. The server owner has changed it (and any other place it was reused). Confirmed by: ________
+- [ ] **Credential rotation** — removing a secret from a file does not revoke it. Each owner confirms the old value no longer works:
+  - `localadmin` SSH/sudo password of 192.168.160.190 (in git history of both repositories). Server owner. Confirmed by: ________
+  - InfluxDB token of `carbonoz-unified-service` (tracked `.env` files, `ecosystem.config.js`, code fallback; in history). Influx owner — revoking it stops the unified service's Influx writes (retired feature, section R). Confirmed by: ________
+  - The app-server credential and the Redis (192.168.160.155) password that were pasted into a chat on 18 Oct 2026: treat both as exposed. Server owner / Redis admin (Felix). Confirmed by: ________
+  - The production `ADMIN_PASSWORD`, if it was ever the value committed in the old `server-api/.env.production` (in history). Server owner. Confirmed by: ________
 - [ ] **Legacy retirement checks** (section R) done, results recorded, retirement impact accepted by the product owner.
 - [ ] **Preflight** (section 1) passed on the server.
 - [ ] **Backup taken and verified by a scratch restore** (section 2): `verify` printed `ok`.
@@ -26,6 +30,10 @@ SolarBMS replaces the old platform. These are **intentionally retired** with the
 | MQTT / Home Assistant / box clients | `/auth/hosts`, `/auth/authenticate`, `/box/…`, `/topic/…`, `/energy/…`, `/reports/…`, `/carbon-intensity/…`, `/socket.io` | HA add-on, Docker and desktop clients that log in or post through these stop working |
 | Grafana / InfluxDB views | Analytics, Charts, Carbon Intensity, Diagnostics, Devices pages | Replaced by the Solar dashboard |
 | `carbonoz-unified-service` (pm2 `carbonoz-unified`, port 8000) | not part of the new architecture | Per its repo config it writes `TotalEnergy` in database `carbonoz` on this server's MongoDB (192.168.160.190:27017), Redis keys on 192.168.160.185 (`redis-data`, `carbon-settings`, `ai-charging:*`) and InfluxDB on :8086. The new app reads `TotalEnergy` only as historical data (Redex months without SolarBMS data). |
+
+Old bookmarks to the retired pages redirect to the Solar dashboard (`/admin/plans` → admin overview) instead of "not found".
+
+**`carbonoz-unified-service` repository:** its credentials were removed and its `.env` files are no longer tracked (branch `remove-committed-secrets`). If that service is still deployed from git, **copy its `.env` aside before any `git pull` there** (git deletes a file that stops being tracked) and export `INFLUXDB_TOKEN` before `pm2 restart ecosystem.config.js`. Stopping or removing the service is a separate approval.
 
 **Read-only checks before deploying** (on the server; record the numbers in the deployment ticket):
 
@@ -138,6 +146,10 @@ bash deploy-update.sh
 
 If it stops after a build started, the running processes keep working (code is in memory), but `dist/` may be empty — **do not restart pm2 by hand; roll back (section 5) or fix and re-run.** Re-running keeps the original rollback point (it is not overwritten while `logs/deploy-in-progress` exists). The marker is written before `git pull`, so a failed pull (network, non-fast-forward, dirty tree) leaves the running commit checked out and recorded; a marker that does not name a commit stops the script before it does anything.
 
+**Users sign in again once:** legacy login tokens now expire (`JWT_EXPIRES_IN`, default 12h) and tokens issued before this version (no expiry) are refused. The frontend sends users to the login page on the first 401.
+
+New settings (defaults apply when unset; see `server-api/.env.example`): `JWT_EXPIRES_IN`, `AUTH_RATE_LIMIT_*` (brute-force limit on the password endpoints), `CLIENT_IP_HEADER=cf-connecting-ip` (set it: behind Cloudflare the proxy address is shared by many users), `TRUST_PROXY`, `KEYCLOAK_LINK_PRIVILEGED_BY_EMAIL` (keep `false`).
+
 If it stopped at the duplicate check (exit 3): nothing was written to the database and nothing was built or restarted; only `server-api/node_modules` was reinstalled (the running API has its modules loaded). Resolve the duplicates in Admin → Installations, then re-run.
 
 ## 4. Verify
@@ -148,6 +160,7 @@ pm2 logs carbonoz-api --lines 80 --nostream | grep -Ei 'error|started|Server run
 curl -s -o /dev/null -w 'auth/config %{http_code}\n' https://login.carbonoz.com/api/v1/auth/config            # 200 (was 404)
 curl -s -o /dev/null -w 'admin health %{http_code}\n' https://login.carbonoz.com/api/v1/admin/solar/health      # 401 without login (was 404)
 curl -s -o /dev/null -w 'frontend %{http_code}\n' https://login.carbonoz.com/                                    # 200
+curl -sI https://login.carbonoz.com/api/v1/auth/config | grep -iE 'x-content-type-options|x-frame-options|content-security-policy|x-powered-by'   # three headers, no x-powered-by
 ```
 
 In the browser: sign in as the admin (`ADMIN_EMAIL`), open Admin → Overview (MongoDB/Redis green), Admin → Customers/Sites; sign in as a customer and open the Solar dashboard.
@@ -158,6 +171,34 @@ Then the database-level guard for systemIds:
 cd ~/login.carbonoz.com/server-api
 node scripts/installation-system-id-index.js check     # exit 0 = no duplicates
 node scripts/installation-system-id-index.js apply     # refuses while duplicates exist
+```
+
+### Error-log records written before redaction (needs the data owner's approval)
+
+Until this version, a failed request stored its body in the `logs` collection — a failed login stored the submitted password. Count first (read-only, prints counts only):
+
+```bash
+cd ~/login.carbonoz.com/server-api
+node scripts/logs-credential-audit.js check
+```
+
+If the count is not 0: with the data owner's approval and after a verified backup (section 2), redact them in place (dry run first; only `metadata` and `requestUrl` of the matching records change, nothing is deleted):
+
+```bash
+node scripts/logs-credential-audit.js redact            # dry run
+node scripts/logs-credential-audit.js redact --apply
+node scripts/logs-credential-audit.js check             # expect 0
+```
+
+Passwords that may have been logged belong to users who mistyped them at login; consider asking affected users to change their password.
+
+### Before turning Keycloak on (separate approval)
+
+ADMIN/SUB_ADMIN accounts are never linked to Keycloak by email. With the Keycloak administrator, take each admin's Keycloak user ID and link it deliberately (dry run first):
+
+```bash
+node scripts/link-identity.js --email <admin email> --subject <keycloak user id>
+node scripts/link-identity.js --email <admin email> --subject <keycloak user id> --apply
 ```
 
 ## 5. Rollback
