@@ -300,6 +300,7 @@ export const fr: Catalogue = {
     grid_frequency_hz: 'Fréquence du réseau',
   },
   flow: {
+    signsAssumed: "Les sens réseau et batterie sont supposés (convention de signe pas encore confirmée).",
     title: "Flux d'énergie",
     about: "À propos du flux d'énergie",
     solar: 'Solaire',

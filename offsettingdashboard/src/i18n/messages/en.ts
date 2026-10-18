@@ -314,6 +314,7 @@ export const en = {
     grid_frequency_hz: 'Grid frequency',
   },
   flow: {
+    signsAssumed: 'Grid and battery directions are assumed (sign convention not yet confirmed).',
     title: 'Energy Flow',
     about: 'About energy flow',
     solar: 'Solar',

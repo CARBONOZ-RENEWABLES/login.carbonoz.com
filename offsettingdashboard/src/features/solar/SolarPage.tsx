@@ -12,6 +12,7 @@ import { DataTable, EventTable } from './components/tables'
 import { allMetricRows, batteryHint, buildSite, deviceKey, formatMetric, MetricRow, freshness, gridHint, headline, metricCardProps, metricMeta, seriesKey, SiteModel } from './model'
 import { energyFlowState } from './flowState'
 import { useLiveDevices, useLiveStatus, withLive } from './live'
+import { liveText } from './flowText'
 import { EnergyFlowCard } from '../dashboard/EnergyFlow'
 import { formatDate, translate as t } from '../../i18n'
 import { EnergyHistory } from './components/EnergyHistory'
@@ -129,20 +130,27 @@ function SiteView({ summary, tab, onTab, basePath }: { summary: SiteSummary; tab
     case 'events':
       return <EventsTab siteId={siteId} />
     case 'system':
-      return <SystemTab o={o} site={site} />
+      return <SystemTab siteId={siteId} o={o} site={site} />
     default:
       return <OverviewTab siteId={siteId} o={o} site={site} onTab={onTab} onRefresh={refetch} basePath={basePath} />
   }
 }
 
-function Freshness({ o }: { o: SolarOverview }) {
-  const f = freshness(o)
+/**
+ * Same live / delayed / offline rule as the Energy Flow card (flowState:
+ * observed send interval, live connection), so the page never says "Live"
+ * while the flow says "Delayed". Without any reading: "No data yet".
+ */
+function Freshness({ siteId, o }: { siteId: string; o: SolarOverview }) {
+  const status = useLiveStatus(siteId, o.updatedAt ? Date.parse(o.updatedAt) : null)
+  const none = freshness(o)
+  const f = !o.updatedAt || o.source === 'none' ? { tone: none.tone, label: none.label, pulse: false } : liveText(status)
   return (
-    <div className='flex flex-wrap items-center gap-2 text-[12.5px] text-muted'>
-      <StatusBadge tone={f.tone} dot pulse={f.tone === 'good'}>
+    <div className='flex flex-wrap items-center gap-2 text-[12.5px] text-muted' data-testid='solar-freshness'>
+      <StatusBadge tone={f.tone} dot pulse={f.pulse}>
         {f.label}
       </StatusBadge>
-      {o.updatedAt && <span>{t(o.stale ? 'solar.lastReading' : 'time.updated', { when: relativeTime(Date.parse(o.updatedAt)) })}</span>}
+      {o.updatedAt && <span>{t(status.state === 'live' ? 'time.updated' : 'solar.lastReading', { when: relativeTime(Date.parse(o.updatedAt)) })}</span>}
       {o.activeAlarms > 0 && <StatusBadge tone='critical'>{t('solar.activeAlarmCount', { count: o.activeAlarms })}</StatusBadge>}
     </div>
   )
@@ -164,7 +172,7 @@ function OverviewTab({ siteId, o, site, onTab, basePath }: { siteId: string; o: 
 
   return (
     <div className='flex flex-col gap-4'>
-      <Freshness o={o} />
+      <Freshness siteId={siteId} o={o} />
       {h.excludedInstallations > 0 && (
         <p className='-mt-2 text-[12.5px] text-muted'>
           <StatusBadge tone='warning'>{t('solar.delayedInstallations', { count: h.excludedInstallations })}</StatusBadge>{' '}
@@ -249,7 +257,7 @@ function EnergyTab({ siteId, o, site }: { siteId: string; o: SolarOverview; site
   if (energy.isLoading) return <PageSkeleton />
   return (
     <div className='flex flex-col gap-4'>
-      <Freshness o={o} />
+      <Freshness siteId={siteId} o={o} />
       {hasLive ? <LiveEnergy siteId={siteId} o={o} site={site} /> : <EmptyState title={t('solar.empty.noEnergy')} description={t('solar.empty.noEnergyHint')} />}
       <EnergyHistory siteId={siteId} siteName={o.site.name} />
     </div>
@@ -405,10 +413,10 @@ function EventsTab({ siteId }: { siteId: string }) {
   )
 }
 
-function SystemTab({ o, site }: { o: SolarOverview; site: SiteModel }) {
+function SystemTab({ siteId, o, site }: { siteId: string; o: SolarOverview; site: SiteModel }) {
   return (
     <div className='flex flex-col gap-4'>
-      <Freshness o={o} />
+      <Freshness siteId={siteId} o={o} />
       {site.systems
         .filter((d) => d.latest)
         .map((d) => (
