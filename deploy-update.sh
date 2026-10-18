@@ -10,11 +10,16 @@
 #
 #   ./deploy-update.sh            # deploy origin/main
 #   SKIP_DB_PUSH=1 ./deploy-update.sh  # skip `prisma db push` (schema unchanged)
+#   DEPLOY_ROLE=api ./deploy-update.sh       # backend host: API only (pm2 carbonoz-api)
+#   DEPLOY_ROLE=frontend ./deploy-update.sh  # web host: frontend only (pm2 carbonoz-frontend)
+#   (default DEPLOY_ROLE=all: both on this host)
 set -euo pipefail
 cd "$(dirname "$0")"
 mkdir -p logs
 
-echo "🚀 Starting Carbonoz deployment..."
+ROLE="${DEPLOY_ROLE:-all}"
+case "$ROLE" in all|api|frontend) ;; *) echo "❌ DEPLOY_ROLE must be all, api or frontend"; exit 2 ;; esac
+echo "🚀 Starting Carbonoz deployment (role: $ROLE)..."
 
 # 0. Rollback point: the commit that was running before THIS deployment.
 #    logs/deploy-in-progress exists from the start until success, so re-running
@@ -42,6 +47,7 @@ echo "📥 Pulling latest changes from GitHub..."
 git pull --ff-only origin main
 echo "📌 Deploying commit: $(git rev-parse HEAD)"
 
+if [ "$ROLE" != "frontend" ]; then
 # 2. Install Backend Dependencies (as CI does: Nest 9/10 peer ranges need --legacy-peer-deps)
 echo "📦 Installing backend dependencies..."
 cd server-api
@@ -69,21 +75,29 @@ fi
 echo "🏗️  Building backend..."
 npm run build
 test -f dist/src/main.js
+cd ..
+fi
 
+if [ "$ROLE" != "api" ]; then
 # 7. Install Frontend Dependencies
 echo "📦 Installing frontend dependencies..."
-cd ../offsettingdashboard
+cd offsettingdashboard
 npm ci
 
 # 8. Build Frontend
 echo "🏗️  Building frontend..."
 npm run build
 test -f dist/index.html
-
-# 9. Restart PM2 Services
-echo "🔄 Restarting PM2 services..."
 cd ..
-pm2 restart ecosystem.config.js
+fi
+
+# 9. Restart PM2 Services (only this host's part)
+echo "🔄 Restarting PM2 services..."
+case "$ROLE" in
+  api) pm2 startOrRestart ecosystem.config.js --only carbonoz-api ;;
+  frontend) pm2 startOrRestart ecosystem.config.js --only carbonoz-frontend ;;
+  *) pm2 restart ecosystem.config.js ;;
+esac
 
 # 10. Save PM2 configuration
 echo "💾 Saving PM2 configuration..."

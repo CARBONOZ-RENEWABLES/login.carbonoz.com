@@ -8,7 +8,8 @@ module.exports = {
       exec_mode: 'cluster',
       env: {
         NODE_ENV: 'production',
-        PORT: 3000
+        // Backend host 192.168.160.95: set API_PORT if 3000 is taken there (and match Nginx on .190).
+        PORT: process.env.API_PORT || 3000
       },
       error_file: './logs/api-error.log',
       out_file: './logs/api-out.log',

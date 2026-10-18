@@ -152,6 +152,40 @@ New settings (defaults apply when unset; see `server-api/.env.example`): `JWT_EX
 
 If it stopped at the duplicate check (exit 3): nothing was written to the database and nothing was built or restarted; only `server-api/node_modules` was reinstalled (the running API has its modules loaded). Resolve the duplicates in Admin → Installations, then re-run.
 
+## 3b. Two hosts: backend on 192.168.160.95, frontend and Nginx on 192.168.160.190
+
+The backend (`carbonoz-api`) runs on **192.168.160.95**; the frontend (`carbonoz-frontend`) and Nginx stay on **192.168.160.190**, where Nginx sends `/api` to `192.168.160.95:3000` (`nginx-https.conf`, `nginx-solar.conf`). Browsers still see one site, so session cookies and CORS are unchanged.
+
+**Additional preconditions** (on top of section 0):
+
+- [ ] **Database reachable from .95, with authentication.** Today the API reaches MongoDB as `localhost` on .190. From .95 it needs a network path: either .190's MongoDB opened to .95 only (bind address + firewall) **with authentication enabled first**, or the move to .150 (section 7, still blocked). Database owner decides. Confirmed: ________
+- [ ] Main Redis (`REDIS_URL`) and Keycloak (if used later) reachable from .95.
+- [ ] Felix agrees to the API running on .95 next to the ingestion API, and port 3000 is free there (else `API_PORT` + the Nginx `proxy_pass` port).
+- [ ] Firewall on .95: port 3000 open to 192.168.160.190 only (server owner).
+- [ ] Node 20 and pm2 on .95; the repository cloned at `~/login.carbonoz.com` with read-only GitHub access (deploy key).
+
+**One-time setup on .95** (`server-api/.env` typed from the password manager, never pasted into chat):
+
+```bash
+cd ~/login.carbonoz.com/server-api
+nano .env      # DATABASE_URL, REDIS_URL, JWT_SECRET, FRONTED_URL=https://login.carbonoz.com, ...
+               # TRUST_PROXY=loopback,192.168.160.190   (Nginx on .190 is the proxy)
+               # CLIENT_IP_HEADER=cf-connecting-ip
+               # INGEST_BRIDGE_ENABLED=false  KEYCLOAK_ENABLED=false
+```
+Then section 1 (preflight) and section 2 (backup + verify) **from .95**, since the API's database connection is now made from there.
+
+**Rollout order** (maintenance window):
+
+1. **.95:** `cd ~/login.carbonoz.com && DEPLOY_ROLE=api bash deploy-update.sh` (schema change happens here). Check from .190: `curl -s -o /dev/null -w '%{http_code}\n' http://192.168.160.95:3000/api/v1/auth/config` → `200`.
+2. **.190:** `cd ~/login.carbonoz.com && DEPLOY_ROLE=frontend bash deploy-update.sh` (no database step; restarts only the frontend). The old API on .190 keeps running untouched.
+3. **.190:** install the updated Nginx site files (`/api` → .95), then `sudo nginx -t && sudo systemctl reload nginx`.
+4. Section 4 checks against `https://login.carbonoz.com`.
+
+**Rollback:** on .190 set `proxy_pass http://127.0.0.1:3000;` again and reload Nginx (the old API is still there), then roll back the frontend (section 5 on .190). The schema added from .95 stays; the old code ignores it (section 5).
+
+**Afterwards (separate approval):** stop the old API on .190 (`pm2 stop carbonoz-api && pm2 save`) once the new one has run cleanly for an agreed period.
+
 ## 4. Verify
 
 ```bash

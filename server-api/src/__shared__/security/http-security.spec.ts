@@ -19,7 +19,10 @@ describe('AttemptCounter', () => {
 describe('clientIp', () => {
   const req = (peer: string, headers: Record<string, string> = {}, ip = peer) =>
     ({ socket: { remoteAddress: peer }, headers, ip } as never);
-  afterEach(() => delete process.env.CLIENT_IP_HEADER);
+  afterEach(() => {
+    delete process.env.CLIENT_IP_HEADER;
+    delete process.env.TRUST_PROXY;
+  });
 
   it('uses req.ip unless a client-IP header is configured', () => {
     expect(
@@ -35,5 +38,18 @@ describe('clientIp', () => {
     expect(clientIp(req('10.0.0.7', { 'cf-connecting-ip': '1.2.3.4' }))).toBe(
       '10.0.0.7',
     );
+  });
+
+  it('trusts the header from a proxy on another host only when listed in TRUST_PROXY', () => {
+    process.env.CLIENT_IP_HEADER = 'cf-connecting-ip';
+    const viaNginx = req('::ffff:192.168.160.190', {
+      'cf-connecting-ip': '1.2.3.4',
+    });
+    expect(clientIp(viaNginx)).toBe('::ffff:192.168.160.190');
+    process.env.TRUST_PROXY = 'loopback, 192.168.160.190';
+    expect(clientIp(viaNginx)).toBe('1.2.3.4');
+    expect(
+      clientIp(req('192.168.160.77', { 'cf-connecting-ip': '1.2.3.4' })),
+    ).toBe('192.168.160.77');
   });
 });

@@ -87,16 +87,30 @@ export class AttemptCounter {
 const LOOPBACK = /^(127\.|::1$|::ffff:127\.)/;
 
 /**
+ * Whether a connection comes from our reverse proxy: loopback (Nginx on this
+ * host), or one of the plain IP addresses listed in TRUST_PROXY (Nginx on
+ * another host, e.g. TRUST_PROXY=loopback,192.168.160.190).
+ */
+export function fromTrustedProxy(peer: string): boolean {
+  const ip = peer.replace(/^::ffff:/, '');
+  if (LOOPBACK.test(peer) || LOOPBACK.test(ip)) return true;
+  return (process.env.TRUST_PROXY ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .includes(ip);
+}
+
+/**
  * The client address for rate limiting. Behind Cloudflare → Nginx, req.ip is
  * a Cloudflare edge shared by many users; CLIENT_IP_HEADER (e.g.
  * `cf-connecting-ip`) names the header carrying the real client, trusted only
- * when the request came through the local proxy.
+ * when the request came through our proxy.
  */
 export function clientIp(req: Request): string {
   const header = process.env.CLIENT_IP_HEADER?.toLowerCase();
   const peer = req.socket?.remoteAddress ?? '';
   const value = header ? req.headers[header] : undefined;
-  if (typeof value === 'string' && value && LOOPBACK.test(peer))
+  if (typeof value === 'string' && value && fromTrustedProxy(peer))
     return value.trim();
   return req.ip ?? peer;
 }
