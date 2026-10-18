@@ -13,6 +13,7 @@ import {
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LegacyAuthGuard } from './guard/legacy-auth.guard';
+import { AuthRateLimitGuard } from 'src/__shared__/security/http-security';
 import {
   CreateUserDto,
   forgotPasswordDto,
@@ -22,7 +23,8 @@ import {
 
 @Controller('auth')
 @ApiTags('auth')
-@UseGuards(LegacyAuthGuard)
+// Order matters: legacy cut-over (410) first, then the brute-force limit.
+@UseGuards(LegacyAuthGuard, AuthRateLimitGuard)
 @ApiInternalServerErrorResponse({ description: 'Internal server error' })
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

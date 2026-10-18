@@ -19,6 +19,7 @@ export class IdentityService {
     provider: string,
     claims: OidcClaims,
     linkByEmail: boolean,
+    linkPrivileged = false,
   ): Promise<User> {
     const linked = await this.prisma.userIdentity.findUnique({
       where: { provider_subject: { provider, subject: claims.sub } },
@@ -50,6 +51,12 @@ export class IdentityService {
         throw new ForbiddenException('email_ambiguous');
       }
       user = matches[0] ?? null;
+      if (user && user.role !== ERole.USER && !linkPrivileged) {
+        this.logger.warn(
+          `SSO login for ${provider} subject ${claims.sub}: email matches privileged account ${user.id}; automatic linking refused`,
+        );
+        throw new ForbiddenException('privileged_link_refused');
+      }
     }
     if (!user) {
       user = await this.prisma.user.create({

@@ -8,6 +8,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { LogsService } from 'src/logsM/logs.service';
+import { redactText, redactUrl } from 'src/__shared__/utils/redact';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -19,15 +20,23 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const isHttp = exception instanceof HttpException;
     // body-parser errors (payload too large, malformed JSON) carry their own 4xx status.
     const clientError =
-      !isHttp && exception?.expose && exception?.status >= 400 && exception?.status < 500;
+      !isHttp &&
+      exception?.expose &&
+      exception?.status >= 400 &&
+      exception?.status < 500;
     const status = isHttp
       ? exception.getStatus()
       : clientError
       ? exception.status
       : HttpStatus.INTERNAL_SERVER_ERROR;
+    // Unexpected errors (database, driver, bugs) never reach the client in
+    // detail: their messages can name hosts, collections or query values.
+    // The full, redacted error goes to the server log and the logs collection.
     const exceptionResponse = isHttp
       ? exception.getResponse()
-      : exception.message;
+      : clientError
+      ? exception.message
+      : 'Internal server error';
     const error =
       typeof response === 'string'
         ? { message: exceptionResponse }
@@ -37,8 +46,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     await this.logService.logRequest(request, response, undefined, exception);
     Logger.error(
-      `${request.url} ${request.method}`,
-      exception.stack,
+      `${redactUrl(request.url ?? '')} ${request.method}`,
+      redactText(exception?.stack ?? String(exception), 4000),
       GlobalExceptionFilter.name,
     );
 

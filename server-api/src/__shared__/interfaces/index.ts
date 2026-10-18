@@ -33,6 +33,7 @@ export interface KeycloakConfig {
   postLogoutRedirectUri?: string;
   scopes: string;
   linkByEmail: boolean;
+  linkPrivilegedByEmail: boolean;
   /** Origins (besides FRONTED_URL) the login callback may return to. */
   returnOrigins: string[];
 }
@@ -84,6 +85,7 @@ export interface SolarConfig {
 
 interface JwtConfig {
   secret: string;
+  expiresIn: string;
 }
 
 interface IRedexConfig {

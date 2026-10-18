@@ -3,7 +3,9 @@
  * bearer JWT reaches the API; Keycloak sessions and machine credentials keep
  * working.
  */
+import { spawnSync } from 'child_process';
 import { JwtService } from '@nestjs/jwt';
+import { join } from 'path';
 import { startApi, TestApi } from './support/app';
 import {
   call,
@@ -78,9 +80,28 @@ it('keeps Keycloak sessions and machine ingestion working', async () => {
   const admin = await prisma.user.findFirst({
     where: { email: 'admin@carbonoz.test' },
   });
+  // Admins are never linked by email: the operator links the verified
+  // Keycloak subject with scripts/link-identity.js first.
+  const adminSub = `kc-admin-${tag()}`;
+  const link = spawnSync(
+    process.execPath,
+    [
+      join(__dirname, '..', 'scripts', 'link-identity.js'),
+      '--email',
+      'admin@carbonoz.test',
+      '--subject',
+      adminSub,
+      '--apply',
+    ],
+    { encoding: 'utf8', env: process.env },
+  );
+  expect([link.status, link.stdout]).toEqual([
+    0,
+    expect.stringMatching(/linked/),
+  ]);
   const kcAdmin = await sso(t.api, {
     email: 'admin@carbonoz.test',
-    sub: `kc-admin-${tag()}`,
+    sub: adminSub,
   });
   const who = await call(t.api, 'GET', '/auth/session', {
     cookie: kcAdmin.session,

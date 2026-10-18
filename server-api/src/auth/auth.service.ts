@@ -1,4 +1,5 @@
 import {
+  Logger,
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -13,6 +14,7 @@ import axios from 'axios';
 import { IAppConfig } from 'src/__shared__/interfaces';
 import { EventService } from 'src/event/event.service';
 import { MailsService } from 'src/mails/mails.service';
+import { redactText } from 'src/__shared__/utils/redact';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   CreateUserDto,
@@ -29,6 +31,7 @@ import {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     private readonly prismaService: PrismaService,
     private readonly Jwt: JwtService,
@@ -45,7 +48,10 @@ export class AuthService {
 
     const token = this.Jwt.sign(
       { id, role, email },
-      { secret: this.config.get('jwt').secret },
+      {
+        secret: this.config.get('jwt').secret,
+        expiresIn: this.config.get('jwt').expiresIn,
+      },
     );
     delete user.password;
     this.eventBus.publish({ type: 'userLoggedIn', payload: user });
@@ -199,16 +205,25 @@ export class AuthService {
     }
   }
 
+  /**
+   * Same answer whether or not the account exists, and no account data in
+   * it: the endpoint is public, so it must not reveal which emails are
+   * registered.
+   */
   async EmailForgotPassword(dto: forgotPasswordDto) {
     const user = await findUserByEmail(this.prismaService, dto.email);
-
-    if (!user) throw new NotFoundException('User not found');
-    const token = this.generateToken(user, true);
-    const message = this.sendEmail(user, token, true);
+    if (user?.password) {
+      const token = this.generateToken(user, true);
+      this.sendEmail(user, token, true).catch((e) =>
+        this.logger.error(
+          `Password reset email failed: ${redactText(e?.message ?? e, 300)}`,
+        ),
+      );
+    }
     return {
       data: {
-        message,
-        user,
+        message:
+          'If an account with this email exists, a reset link has been sent.',
       },
     };
   }
