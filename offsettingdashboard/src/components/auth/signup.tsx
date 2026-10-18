@@ -1,7 +1,7 @@
 import { Form } from 'antd'
 import { FC, ReactElement } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Mail, Lock, User } from 'lucide-react'
+import { Mail, Lock } from 'lucide-react'
 import { ERoles } from '../../config/constant'
 import handleAPIRequests from '../../helpers/handleApiRequest'
 import { setToLocal } from '../../helpers/handleStorage'

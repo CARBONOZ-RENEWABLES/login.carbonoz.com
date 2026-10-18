@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Form } from 'antd'
 import { FC, ReactElement } from 'react'
 import { Link, useNavigate } from 'react-router-dom'

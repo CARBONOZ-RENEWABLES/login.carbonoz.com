@@ -3,8 +3,6 @@ import { Col, Form, Row } from 'antd'
 import { FC, ReactElement, useState } from 'react'
 import { ESystemSteps } from '../../../config/constant'
 import handleAPIRequests from '../../../helpers/handleApiRequest'
-import requiredField from '../../../helpers/requiredField'
-import uploadFile from '../../../helpers/uplaodFile'
 import {
   AgreementDTO,
   useAddCertificateMutation,
@@ -25,28 +23,16 @@ const AgreementInfo: FC<props> = ({
 
   const [addCertificate] = useAddCertificateMutation()
 
-  const [powerPurchaseAgreement, setPowerPurchaseAgreement] = useState<File[]>(
+  const [, setPowerPurchaseAgreement] = useState<File[]>(
     []
   )
-  const [interconnectionAgreement, setInterconnectionAgreement] = useState<
+  const [, setInterconnectionAgreement] = useState<
     File[]
   >([])
-  const [
-    commissioningCertificationToGrid,
-    setCommissioningCertificationToGrid,
-  ] = useState<File[]>([])
-  const [
-    commissioningCertificationOrInspection,
-    setCommissioningCertificationOrInspection,
-  ] = useState<File[]>([])
-  const [powerQualityTest, setPowerQualityTest] = useState<File[]>([])
-  const [
-    IDPhotoUploadorCompanyCertificate,
-    setIDPhotoUploadorCompanyCertificate,
-  ] = useState<File[]>([])
-  const [, setUploadSuccess] = useState<boolean>(false)
-  const [, setUploadFailure] = useState<boolean>(false)
-  const [, setUploadedUrls] = useState<string[]>([])
+  const [, setCommissioningCertificationToGrid] = useState<File[]>([])
+  const [, setCommissioningCertificationOrInspection] = useState<File[]>([])
+  const [, setPowerQualityTest] = useState<File[]>([])
+  const [, setIDPhotoUploadorCompanyCertificate] = useState<File[]>([])
 
   function onChangePowerPurchaseAgreement(e: any) {
     setPowerPurchaseAgreement(e)

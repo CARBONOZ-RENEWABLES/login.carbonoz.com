@@ -12,6 +12,9 @@ export const useTheme = () => {
     if (savedDarkMode !== isDark) {
       dispatch(setDarkMode(savedDarkMode))
     }
+    // Mount only: restore the saved choice once; re-running on every toggle
+    // would undo the user's change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {

@@ -4,6 +4,6 @@ import { SystemstepsService } from './systemsteps.service';
 
 @Module({
   controllers: [SystemstepsController],
-  providers: [SystemstepsService]
+  providers: [SystemstepsService],
 })
 export class SystemstepsModule {}

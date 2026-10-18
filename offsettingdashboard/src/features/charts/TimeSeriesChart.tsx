@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- the chart and its axis helpers belong together (affects dev hot reload only) */
 import { formatFixed, formatNumber, getLocale } from '../../i18n'
 import { memo, useId, useMemo } from 'react'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
