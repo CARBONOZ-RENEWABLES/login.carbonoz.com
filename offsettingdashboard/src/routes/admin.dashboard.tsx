@@ -1,5 +1,5 @@
 import { FC, ReactElement } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import Logs from '../components/admin/dashboard/logsM/logs'
 import AdminRedexInformation from '../components/admin/dashboard/redex/redex'
 import Users from '../components/admin/dashboard/users/users'
@@ -36,6 +36,8 @@ export const AdminDashboardRoutes: FC = (): ReactElement => {
           {/* The customer Solar dashboard, for any site (ADMIN may read every site). */}
           <Route path='/dashboard/:siteId/energy-flow' element={<EnergyFlowPage basePath='/admin/dashboard' />} />
           <Route path='/dashboard/:siteId?/:tab?' element={<SolarPage basePath='/admin/dashboard' />} />
+          {/* Plan management (billing) is retired. */}
+          <Route path='/plans' element={<Navigate to='/admin/overview' replace />} />
           <Route path='/logs' element={<Logs />} />
           <Route path='/users' element={<Users />} />
           <Route path='*' element={<NotFound />} />

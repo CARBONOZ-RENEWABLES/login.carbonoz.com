@@ -113,6 +113,11 @@ export const DashboardRoutes: FC = (): ReactElement => {
     <AppShell nav={USER_NAV} bottomNav={USER_BOTTOM_NAV} firstName={data?.data?.firstName} lastName={data?.data?.lastName}>
       <Routes>
         <Route path='/' element={<Navigate to='/ds/solar' replace />} />
+        {/* Pages of the retired platform (Grafana/Influx views, billing, AI
+            charging, diagnostics): old bookmarks land on the Solar dashboard. */}
+        {RETIRED_USER_PATHS.map((p) => (
+          <Route key={p} path={p} element={<Navigate to='/ds/solar' replace />} />
+        ))}
         <Route path='/solar/:siteId/energy-flow' element={<EnergyFlowPage />} />
         <Route path='/solar/:siteId?/:tab?' element={<SolarPage />} />
         <Route path='/profile' element={<Profile additionalData={data?.data} />} />
@@ -122,6 +127,17 @@ export const DashboardRoutes: FC = (): ReactElement => {
     </AppShell>
   )
 }
+
+const RETIRED_USER_PATHS = [
+  '/analytics',
+  '/devices',
+  '/charts',
+  '/carbon',
+  '/grafana',
+  '/subscribe',
+  '/ai-charging',
+  '/diagnostics',
+]
 
 const DashboardWithShell: FC = () => (
   <ShellProvider>
