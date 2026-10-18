@@ -234,3 +234,49 @@ describe('deploy-update.sh (simulated: shims for npm, npx, node, pm2)', () => {
     expect(head(s)).toBe(s.commitA);
   });
 });
+
+describe('deploy-update.sh roles (backend and frontend on different hosts)', () => {
+  const sims: Sim[] = [];
+  const sim = () => {
+    const s = makeSim();
+    sims.push(s);
+    return s;
+  };
+  afterAll(() => {
+    for (const s of sims) rmSync(s.root, { recursive: true, force: true });
+  });
+
+  it('DEPLOY_ROLE=api: backend steps only, restarts only carbonoz-api', () => {
+    const s = sim();
+    const r = deploy(s, { DEPLOY_ROLE: 'api' });
+    expect(r.status).toBe(0);
+    const all = r.calls.join('\n');
+    expect(all).toMatch(/installation-system-id-index\.js check/);
+    expect(all).toMatch(/prisma db push/);
+    expect(all).not.toMatch(/offsettingdashboard/);
+    expect(r.calls.filter((c) => c.startsWith('pm2 '))[0]).toMatch(
+      /startOrRestart ecosystem\.config\.js --only carbonoz-api$/,
+    );
+    expect(marker(s)).toBeNull();
+  });
+
+  it('DEPLOY_ROLE=frontend: no database step at all, restarts only carbonoz-frontend', () => {
+    const s = sim();
+    const r = deploy(s, { DEPLOY_ROLE: 'frontend' });
+    expect(r.status).toBe(0);
+    const all = r.calls.join('\n');
+    expect(all).not.toMatch(/server-api|prisma|installation-system-id/);
+    expect(all).toMatch(/npm offsettingdashboard run build/);
+    expect(r.calls.filter((c) => c.startsWith('pm2 '))[0]).toMatch(
+      /startOrRestart ecosystem\.config\.js --only carbonoz-frontend$/,
+    );
+  });
+
+  it('refuses an unknown role before doing anything', () => {
+    const s = sim();
+    const r = deploy(s, { DEPLOY_ROLE: 'backend' });
+    expect(r.status).toBe(2);
+    expect(r.calls).toEqual([]);
+    expect(head(s)).toBe(s.commitA);
+  });
+});
