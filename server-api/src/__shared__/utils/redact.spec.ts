@@ -39,14 +39,14 @@ describe('redact', () => {
 
   it('masks credential-shaped text inside strings', () => {
     const s = redactText(
-      'connect mongodb://app:hunter2@db:27017/x failed; Authorization: Bearer abc.def.ghi; key czk.abc123.SECRETPART; password=hunter3 token: "t0k"',
+      'connect mongodb://app:hunter2@db:27017/x failed; Authorization: Bearer abc.def.ghi; key czk.abc123.SECRETPART; password=hunter3 token: "t0k"', // secret-scan:allow (fake value for a redaction test)
     );
     expect(s).not.toMatch(/hunter2|hunter3|abc\.def\.ghi|SECRETPART|t0k/);
     expect(s).toContain('mongodb://***@db:27017/x');
   });
 
   it('masks JWTs', () => {
-    const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJpZCI6IjEyMyJ9.c2lnbmF0dXJl';
+    const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJpZCI6IjEyMyJ9.c2lnbmF0dXJl'; // secret-scan:allow (fake value for a redaction test)
     expect(redactText(`token ${jwt}`)).not.toContain(jwt);
   });
 

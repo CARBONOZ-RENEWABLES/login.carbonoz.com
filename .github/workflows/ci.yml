@@ -7,6 +7,17 @@ on:
     branches: [main]
 
 jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # Tracked files only; prints file:line and kind, never the value.
+      - name: Secret scan
+        run: node scripts/secret-scan.js
+
   backend:
     runs-on: ubuntu-latest
     defaults:
@@ -33,8 +44,8 @@ jobs:
       - run: npx prisma generate
       - name: Type check
         run: npx tsc --noEmit -p tsconfig.json
-      - name: Lint (platform, Solar, auth and tests)
-        run: npx eslint src/solar src/tenancy src/machine-auth src/auth/oidc src/auth/session src/auth/guard src/__shared__/utils test
+      - name: Lint (whole backend, no autofix)
+        run: npx eslint "{src,apps,libs,test}/**/*.ts"
       - name: Unit tests
         run: npm test -- --ci
       - name: Build
@@ -57,8 +68,8 @@ jobs:
       - run: npm ci
       - name: Type check
         run: npm run typecheck
-      - name: Lint (Solar dashboard, admin panel, auth, layout)
-        run: npx eslint src/features/solar src/features/admin src/i18n src/components/dashboard src/lib/auth src/layout src/routes src/services
+      - name: Lint (whole frontend, no warnings)
+        run: npm run lint
       - name: Unit tests
         run: npm test
       - name: Build

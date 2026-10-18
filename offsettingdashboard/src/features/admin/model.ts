@@ -22,7 +22,7 @@ export const INGEST_BADGE: Record<IngestStatus, { label: string; tone: Tone }> =
   FAILED: { label: 'Failed', tone: 'critical' },
 }
 
-export const CREDENTIAL_TYPE_LABEL = { API_KEY: 'Carbonoz API key', KEYCLOAK_CLIENT: 'Keycloak client' } as const
+export const CREDENTIAL_TYPE_LABEL = { API_KEY: 'Carbonoz API key', KEYCLOAK_CLIENT: 'Keycloak client' } as const // secret-scan:allow (labels, not secrets)
 
 /** Same rule as the server: a credential works only while active and not revoked. */
 export const credentialStatus = (c: Pick<Credential, 'active' | 'revokedAt'>): CredentialStatus => (c.active && !c.revokedAt ? 'active' : 'revoked')

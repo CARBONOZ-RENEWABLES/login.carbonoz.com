@@ -30,7 +30,7 @@ function run(exception: unknown) {
 describe('GlobalExceptionFilter', () => {
   it('never returns the internal message of an unexpected error', async () => {
     const { sent, logged } = await run(
-      new Error('connect mongodb://app:hunter2@10.0.0.5:27017 ECONNREFUSED'),
+      new Error('connect mongodb://app:hunter2@10.0.0.5:27017 ECONNREFUSED'), // secret-scan:allow (fake value for a redaction test)
     );
     expect(sent.status).toBe(500);
     expect(JSON.stringify(sent.body)).not.toMatch(

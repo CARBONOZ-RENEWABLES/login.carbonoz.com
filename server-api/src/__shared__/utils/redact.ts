@@ -14,7 +14,7 @@ const SENSITIVE_KEY =
 export const isSensitiveKey = (key: string) => SENSITIVE_KEY.test(key);
 
 const TEXT_PATTERNS: [RegExp, string][] = [
-  // scheme://user:password@host → scheme://***@host
+  // scheme://user:password@host → scheme://***@host // secret-scan:allow (pattern description)
   [/\b([a-z][a-z0-9+.-]*:\/\/)[^\s/@:]*:[^\s/@]*@/gi, '$1***@'],
   [/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer ***'],
   [/\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*/g, '***jwt***'],

@@ -215,7 +215,7 @@ describe('safeFields (dead letters, source info) — SYNTHETIC', () => {
     payload: JSON.stringify(body),
     authorization: 'Bearer top-level',
     client_id: 'raspberry-1',
-    url: 'redis://user:pw-1@host:6379',
+    url: 'redis://user:pw-1@host:6379', // secret-scan:allow (fake value for a redaction test)
   };
 
   it('drops secret fields and redacts nested secrets in objects and arrays', () => {
