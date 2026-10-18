@@ -105,4 +105,8 @@ interface SmtpConfig {
   port?: number;
   user?: string;
   pass?: string;
+  /** TLS from the first byte (465) vs STARTTLS (587/25). Default: port 465. */
+  secure?: boolean;
+  /** Sender shown to recipients; must be allowed for the SMTP account. */
+  from?: string;
 }

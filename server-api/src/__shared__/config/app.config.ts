@@ -33,6 +33,10 @@ export function appConfig(): IAppConfig {
       port: process.env.SMTP_PORT ? +process.env.SMTP_PORT : undefined,
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
+      secure: process.env.SMTP_SECURE
+        ? process.env.SMTP_SECURE === 'true'
+        : undefined,
+      from: process.env.SMTP_FROM || undefined,
     },
     googleClientId: process.env.GOOGLE_CLIENT_ID,
     googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
