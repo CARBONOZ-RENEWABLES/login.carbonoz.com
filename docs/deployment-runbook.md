@@ -202,22 +202,34 @@ nano ~/login.carbonoz.com/server-api/.env
 #   INGEST_BRIDGE_ENABLED=true
 #   INGEST_REDIS_URL=redis://consumer:<password>@192.168.160.155:6379
 #   INGEST_BRIDGE_MODE=xread            # or group (see Redis permissions)
-#   INGEST_BRIDGE_START=$               # $ = only new deliveries; 0-0 = everything still in the stream
+#   INGEST_BRIDGE_START=<id>            # decide explicitly (below); anything other than 0-0, <ms>-<seq> or $ is refused
 pm2 restart carbonoz-api
 pm2 logs carbonoz-api --lines 50 --nostream | grep -E 'ingest bridge|ingest entry='
 ```
 
-Verify: Admin → Overview / `GET /api/v1/admin/solar/health` → `ingestBridge.connected: true`, `upToDate: true`, `lastError: null`; no dead letters for the Pi's site; the customer dashboard shows the site as Live with the newest reading at most about one send interval old.
+**Start position** (only for the first start; afterwards the stored cursor wins):
+
+- `0-0` — process everything still in the stream (history the stream retains).
+- `<ms>-<seq>` — continue after that entry (e.g. the last entry checked by hand with Felix).
+- `$` — after the newest entry present at the first start. Resolved once with `XREVRANGE` and stored before reading, so a restart never skips anything; entries already in the stream at that moment are **not** processed (logged as a warning).
+
+Verify: Admin → Overview / `GET /api/v1/admin/solar/health` → `ingestBridge.connected: true`, `standby: false`, `configError: null`, `backlog` falling to 0, `upToDate: true`, `lastError: null`; no dead letters for the Pi's site; the customer dashboard shows the site as Live with the newest reading at most about one send interval old. Then compare a few stored readings with the Pi's own values before widening the rollout.
+
+Monitoring (same health endpoint): `backlog` (entries not yet processed, xread mode, counted to 1000), `gaps` (stream trimmed past the bridge position — data lost upstream), `deadLettered`, `lastError`/`lastErrorAt`, `standby` (another instance holds the lock), and in group mode `groupPending`/`groupLag`.
 
 Disable: set `INGEST_BRIDGE_ENABLED=false`, `pm2 restart carbonoz-api`. Nothing is lost: the stream keeps the deliveries and the bridge keeps its position (cursor in MongoDB, or the consumer group).
 
-Keep the API at **one** pm2 instance while the bridge runs in `xread` mode.
+**One active bridge per stream:** a lock in MongoDB (`SolarBridgeLock`, renewed every read and entry, 30 s) keeps a second process (pm2 reload/scale, a second server) on standby; it takes over when the holder stops or its lock expires. Each reading is also processed under a per-reading lease, so overlapping processes, retries, replays or an admin reprocess never store a reading twice.
+
+**Failures:** MongoDB or main-Redis outages are retried with backoff (1 s … 30 s) without acknowledging, so nothing is lost while the stream retains the entries; the bridge stalls on that entry until the database is back (head-of-line, by design). A permanent error for one reading marks that ingest FAILED with its raw payload kept (Admin → Ingestion → reprocess). An entry that fails 5 times in a row for a non-transient reason is dead-lettered and the stream moves on.
+
+**Dead letters** (`SolarDeadLetter`, admin-only): reason plus the stream entry with secret-looking fields dropped and credential fields inside the JSON redacted at any depth; readings are kept so the entry can be replayed (`POST /api/v1/admin/solar/ingest-bridge/dead-letters/:id/replay`, logged with the admin's id). Retention: until replayed or reviewed; review and clear them weekly (product/data owner to confirm a fixed retention).
 
 ### Redis permissions for the bridge account
 
 | Mode | Commands on `~ingest:readings` | Notes |
 |---|---|---|
-| `xread` | `+xread +xrange +xlen +xinfo\|stream` | all `@read`; position stored in MongoDB |
+| `xread` | `+xread +xrange +xrevrange +xlen +xinfo\|stream` | all `@read`; position stored in MongoDB (`xrevrange` only for `INGEST_BRIDGE_START=$`) |
 | `group` | the above `+xreadgroup +xack +xautoclaim +xpending +xinfo\|groups` | `xreadgroup`/`xack`/`xautoclaim` are `@write` (they change the group's pending list, not stream data); the Redis admin creates the group: `XGROUP CREATE ingest:readings carbonoz-bridge $` |
 
 The bridge never uses `XGROUP CREATE/DESTROY`, `XDEL`, `XTRIM`, `DEL` or configuration commands.

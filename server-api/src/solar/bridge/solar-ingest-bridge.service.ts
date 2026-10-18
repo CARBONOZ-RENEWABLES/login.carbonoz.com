@@ -6,6 +6,7 @@ import {
   OnModuleDestroy,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
 import { hostname } from 'os';
 import { createClient } from 'redis';
 import { IAppConfig, IngestBridgeConfig } from 'src/__shared__/interfaces';
@@ -32,11 +33,26 @@ const GAP_CHECK_MS = 60_000;
 const BACKOFF_MS = [1000, 2000, 5000, 10_000, 30_000];
 /** An entry failing this often for a non-transient reason is dead-lettered instead of blocking the stream. */
 const MAX_ATTEMPTS = 5;
+/** Single active bridge per stream: lock lifetime, renewed on every read and entry. */
+export const LOCK_MS = 30_000;
 
 /** Retry later; never counts towards MAX_ATTEMPTS (MongoDB/Redis unavailable). */
 class Transient extends Error {}
 
 const idMs = (id: string) => Number(id.split('-')[0]);
+/**
+ * INGEST_BRIDGE_START: where the FIRST start (no stored cursor) begins.
+ * `0-0` = everything still in the stream; `<ms>-<seq>` = after that entry;
+ * `$` = after the newest entry present at the first start (resolved once
+ * and stored, so later restarts never skip). Anything else is refused.
+ */
+export function parseStartId(v: string | undefined): string | null {
+  const s = (v ?? '').trim();
+  if (s === '$') return '$';
+  if (s === '0' || s === '') return '0-0';
+  return /^\d{1,15}-\d{1,15}$/.test(s) ? s : null;
+}
+
 /** Stream ids compare as (ms, seq). */
 export function cmpId(a: string, b: string) {
   const [am, as] = a.split('-').map(Number);
@@ -89,6 +105,9 @@ export class SolarIngestBridge
   private failing: { id: string; attempts: number } | null = null;
   private lastGapCheck = 0;
   private lastClaim = 0;
+  private readonly instance = `${hostname()}:${
+    process.pid
+  }:${randomUUID().slice(0, 8)}`;
   /** Waits between retries (ms); shortened in tests. */
   protected backoffMs = BACKOFF_MS;
   readonly stats = {
@@ -102,6 +121,9 @@ export class SolarIngestBridge
     lastEntryAt: null as string | null,
     lastError: null as string | null,
     lastErrorAt: null as string | null,
+    /** Another instance holds the bridge lock: this one waits. */
+    standby: false,
+    configError: null as string | null,
   };
 
   constructor(
@@ -116,6 +138,10 @@ export class SolarIngestBridge
     return this.cfg?.mode === 'group' ? 'group' : 'xread';
   }
 
+  private get lockName() {
+    return `solar-ingest-bridge:${this.cfg.streamKey}`;
+  }
+
   private get consumer() {
     return this.cfg.consumer || `carbonoz-${hostname()}`;
   }
@@ -126,6 +152,13 @@ export class SolarIngestBridge
       this.logger.warn(
         'INGEST_BRIDGE_ENABLED but INGEST_REDIS_URL is empty: bridge not started',
       );
+      return;
+    }
+    if (this.mode === 'xread' && parseStartId(this.cfg.startId) === null) {
+      this.stats.configError = `INGEST_BRIDGE_START "${String(
+        this.cfg.startId,
+      ).slice(0, 40)}" is not 0-0, <ms>-<seq> or $: bridge not started`;
+      this.logger.error(this.stats.configError);
       return;
     }
     this.logger.log(
@@ -140,9 +173,46 @@ export class SolarIngestBridge
 
   async onModuleDestroy() {
     this.stopped = true;
-    // Unblock a pending blocking read.
-    await this.client?.disconnect().catch(() => undefined);
+    // Unblock a pending blocking read (disconnect throws if never connected).
+    try {
+      if (this.client?.isOpen) await this.client.disconnect();
+    } catch {
+      /* already closed */
+    }
     await this.loop?.catch(() => undefined);
+    // Let a successor (pm2 reload/restart) take over without waiting LOCK_MS.
+    await this.prisma.solarBridgeLock
+      ?.updateMany({
+        where: { name: this.lockName, owner: this.instance },
+        data: { until: new Date(0) },
+      })
+      .catch(() => undefined);
+  }
+
+  /**
+   * Only one bridge reads at a time (pm2 reload/scale, a second server): a
+   * lock row in MongoDB, renewed while working, taken over when expired.
+   */
+  private async holdLock(): Promise<boolean> {
+    const now = new Date();
+    const until = new Date(now.getTime() + LOCK_MS);
+    try {
+      const r = await this.prisma.solarBridgeLock.updateMany({
+        where: {
+          name: this.lockName,
+          OR: [{ owner: this.instance }, { until: { lt: now } }],
+        },
+        data: { owner: this.instance, until },
+      });
+      if (r.count) return (this.stats.standby = false), true;
+      await this.prisma.solarBridgeLock.create({
+        data: { name: this.lockName, owner: this.instance, until },
+      });
+      return (this.stats.standby = false), true;
+    } catch (e) {
+      if (e?.code === 'P2002') return (this.stats.standby = true), false;
+      throw new Transient(`bridge lock: ${e.message}`);
+    }
   }
 
   private error(e: Error, where: string) {
@@ -171,6 +241,10 @@ export class SolarIngestBridge
     this.stats.running = true;
     while (!this.stopped) {
       try {
+        if (!(await this.holdLock())) {
+          await new Promise((r) => setTimeout(r, Math.min(LOCK_MS / 3, 5000)));
+          continue;
+        }
         if (!this.client.isOpen) await this.client.connect();
         if (this.mode === 'group')
           ownPending = await this.groupStep(ownPending);
@@ -241,8 +315,25 @@ export class SolarIngestBridge
     const row = await this.prisma.solarIngestCursor.findUnique({
       where: { stream: this.cfg.streamKey },
     });
-    this.stats.cursor = row?.lastId ?? this.cfg.startId;
-    return this.stats.cursor;
+    if (row) return (this.stats.cursor = row.lastId);
+    let start = parseStartId(this.cfg.startId) ?? '0-0';
+    if (start === '$') {
+      // Resolve once to a concrete id and store it before reading: a restart
+      // continues from there instead of re-resolving `$` and skipping.
+      const last = (await this.client.xRevRange(this.cfg.streamKey, '+', '-', {
+        COUNT: 1,
+      })) as unknown as StreamEntry[];
+      start = last[0]?.id ?? '0-0';
+      await this.prisma.solarIngestCursor.upsert({
+        where: { stream: this.cfg.streamKey },
+        create: { stream: this.cfg.streamKey, lastId: start, entries: 0 },
+        update: {},
+      });
+      this.logger.warn(
+        `ingest bridge first start with INGEST_BRIDGE_START=$: starting after ${start}; earlier entries are not processed`,
+      );
+    }
+    return (this.stats.cursor = start);
   }
 
   private async saveCursor(id: string) {
@@ -335,6 +426,8 @@ export class SolarIngestBridge
 
   /** handle() then acknowledge; a poison entry is dead-lettered after MAX_ATTEMPTS. */
   private async process(entry: StreamEntry, acknowledge: () => Promise<void>) {
+    // Lost the lock (paused longer than LOCK_MS): stop; the holder continues.
+    if (!(await this.holdLock())) throw new Transient('bridge lock lost');
     try {
       await this.handle(entry.id, entry.message);
     } catch (e) {
@@ -369,7 +462,10 @@ export class SolarIngestBridge
   }
 
   /** One stream entry → stored readings. Throws Transient when it should be retried. */
-  async handle(entryId: string, fields: Fields) {
+  async handle(
+    entryId: string,
+    fields: Fields,
+  ): Promise<'stored' | 'dead-lettered'> {
     const d = parseDelivery(fields, this.cfg.payloadField);
     if ('error' in d) return this.deadLetter(entryId, fields, d.error);
     let inst: Resolved;
@@ -423,6 +519,7 @@ export class SolarIngestBridge
     this.logger.log(
       `ingest entry=${entryId} site=${d.site} readings=${messages.length} stored`,
     );
+    return 'stored';
   }
 
   private async deadLetter(
@@ -430,8 +527,9 @@ export class SolarIngestBridge
     fields: Fields,
     reason: string,
     inst?: { id: string; siteId: string },
-  ) {
+  ): Promise<'dead-lettered'> {
     await this.audit(`${this.cfg.streamKey}/${entryId}`, reason, fields, inst);
+    return 'dead-lettered';
   }
 
   /** Auditable record, admin-only (SolarDeadLetter), never with secret-looking fields. */
@@ -481,9 +579,11 @@ export class SolarIngestBridge
     const entryId = dl.streamId.slice(prefix.length);
     // The installation was probably just registered: don't trust the lookup cache.
     this.installations.clear();
-    const before = this.stats.deadLettered;
-    await this.handle(entryId, JSON.parse(dl.rawText) as Fields);
-    if (this.stats.deadLettered > before)
+    const outcome = await this.handle(
+      entryId,
+      JSON.parse(dl.rawText) as Fields,
+    );
+    if (outcome === 'dead-lettered')
       return {
         replayed: false,
         reason: 'still not processable (see the updated error)',
@@ -509,7 +609,8 @@ export class SolarIngestBridge
     const client = this.client;
     if (!client?.isReady) return { ...base, connected: false };
     const read = async <T>(fn: () => Promise<T>) => fn().catch(() => null);
-    const [length, info, groups] = await Promise.all([
+    const cursor = this.stats.cursor;
+    const [length, info, groups, after] = await Promise.all([
       read(() => client.xLen(this.cfg.streamKey)),
       read(
         async () =>
@@ -529,7 +630,18 @@ export class SolarIngestBridge
               ])) as unknown[][],
           )
         : null,
+      // Entries not yet processed (xread mode), counted up to 1000.
+      this.mode === 'xread' && cursor
+        ? read(
+            async () =>
+              (await client.xRange(this.cfg.streamKey, cursor, '+', {
+                COUNT: 1001,
+              })) as unknown as StreamEntry[],
+          )
+        : null,
     ]);
+    const backlog =
+      after === null ? null : after.filter((e) => e.id !== cursor).length;
     const field = (list: unknown[] | null | undefined, name: string) =>
       Array.isArray(list) && list.includes(name)
         ? list[list.indexOf(name) + 1] ?? null
@@ -548,6 +660,10 @@ export class SolarIngestBridge
       streamLength: length,
       streamLastId: lastId,
       upToDate,
+      instance: this.instance,
+      ...(this.mode === 'xread' && {
+        backlog: backlog === null ? null : backlog >= 1000 ? '1000+' : backlog,
+      }),
       ...(this.mode === 'group' && {
         groupPending: g ? Number(field(g, 'pending')) : null,
         groupLag: g ? field(g, 'lag') : null,

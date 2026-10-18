@@ -203,3 +203,78 @@ describe('ingest:readings delivery → SolarBMS messages', () => {
     });
   });
 });
+
+describe('safeFields (dead letters, source info) — SYNTHETIC', () => {
+  const body = {
+    site: 'pi-1',
+    auth: { bearer: 'tok-1', nested: [{ client_secret: 's-1' }] },
+    readings: [{ ts: '2026-09-29T08:00:00Z', metrics: { pv_w: 1, load_w: 2 } }],
+    meta: { api_key: 'k-1', note: 'Bearer abc.def.ghi' },
+  };
+  const fields = {
+    payload: JSON.stringify(body),
+    authorization: 'Bearer top-level',
+    client_id: 'raspberry-1',
+    url: 'redis://user:pw-1@host:6379',
+  };
+
+  it('drops secret fields and redacts nested secrets in objects and arrays', () => {
+    const out = safeFields(fields);
+    const text = JSON.stringify(out);
+    for (const secret of [
+      'tok-1',
+      's-1',
+      'k-1',
+      'top-level',
+      'pw-1',
+      'abc.def.ghi',
+    ])
+      expect(text).not.toContain(secret);
+    expect(out.authorization).toBeUndefined();
+    expect(out.client_id).toBe('raspberry-1');
+  });
+
+  it('keeps the readings intact so the dead letter can be replayed', () => {
+    const many = {
+      site: 'pi-1',
+      readings: Array.from({ length: 300 }, (_, i) => ({
+        ts: new Date(Date.UTC(2026, 8, 29, 0, i))
+          .toISOString()
+          .replace('.000', ''),
+        metrics: { pv_w: i },
+      })),
+    };
+    const out = safeFields({ payload: JSON.stringify(many) });
+    const d = parseDelivery(out);
+    expect('error' in d).toBe(false);
+    expect((d as { readings: unknown[] }).readings).toHaveLength(300);
+  });
+});
+
+describe('parseDelivery robustness — SYNTHETIC', () => {
+  const inner = {
+    site: 'pi-1',
+    readings: [{ ts: '2026-09-29T08:00:00Z', metrics: { pv_w: 5 } }],
+  };
+
+  it('accepts JSON with leading whitespace', () => {
+    const d = parseDelivery({ payload: `\n  ${JSON.stringify(inner)}` });
+    expect('error' in d).toBe(false);
+  });
+
+  it('unwraps one wrapper object holding the delivery', () => {
+    const d = parseDelivery({
+      payload: JSON.stringify({ body: inner, received: 'x' }),
+    });
+    expect(d).toMatchObject({ site: 'pi-1' });
+  });
+
+  it('reports a safe reason (no payload content) for malformed entries', () => {
+    const d = parseDelivery({
+      payload:
+        '{"site": "pi-1", "readings": [{"ts": "bad", "metrics": {"x": "secret-value"}}]}',
+    });
+    expect(d).toEqual({ error: expect.any(String) });
+    expect(JSON.stringify(d)).not.toContain('secret-value');
+  });
+});

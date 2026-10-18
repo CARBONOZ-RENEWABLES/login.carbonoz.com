@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { ESolarDeviceKind, Prisma } from '@prisma/client';
 import { IAppConfig, SolarConfig } from 'src/__shared__/interfaces';
@@ -32,6 +33,12 @@ export interface LiveDevice {
 }
 
 const json = (v: unknown) => v as Prisma.InputJsonValue;
+/**
+ * One derive per ingest at a time (bridge retry, worker reclaim, pm2 reload,
+ * admin reprocess or replay running concurrently would otherwise both write
+ * samples). Expires so a crashed process never blocks the ingest for long.
+ */
+export const DERIVE_LEASE_MS = 120_000;
 
 /**
  * MongoDB unreachable/slow (retry forever — the stream is the buffer) versus a
@@ -145,20 +152,72 @@ export class SolarStoreService {
       ? { stored: true }
       : {
           stored: false,
-          error: 'derive outcome not recorded',
+          error:
+            'derive outcome not recorded (database unavailable, or processing elsewhere)',
           transient: true,
         };
   }
 
-  /** (Re)builds everything derived from one stored raw payload. */
-  /** True once the outcome is stored: PROCESSED, or FAILED with the raw payload kept. */
+  /**
+   * (Re)builds everything derived from one stored raw payload, under a lease.
+   * True once the outcome is stored: PROCESSED, or FAILED (permanent error,
+   * raw payload kept). False = retry later: MongoDB unavailable (transient
+   * errors are never recorded as FAILED), or another process holds the lease.
+   */
   async derive(ingestId: string, clearPrevious = true): Promise<boolean> {
+    const owner = randomUUID();
+    const now = new Date();
+    const claimed = await this.prisma.solarIngest
+      .updateMany({
+        where: {
+          id: ingestId,
+          OR: [
+            { leaseUntil: { isSet: false } },
+            { leaseUntil: null },
+            { leaseUntil: { lt: now } },
+          ],
+        },
+        data: {
+          leaseUntil: new Date(now.getTime() + DERIVE_LEASE_MS),
+          leaseOwner: owner,
+        },
+      })
+      .catch(() => undefined);
+    if (claimed === undefined) return false;
     const ingest = await this.prisma.solarIngest
       .findUnique({ where: { id: ingestId } })
       .catch(() => undefined);
     if (ingest === undefined) return false;
     if (!ingest) return true;
-    const { siteId, installationId } = ingest;
+    if (!claimed.count || ingest.leaseOwner !== owner) {
+      this.logger.warn(
+        `Ingest ${ingestId} is being processed by another worker; retrying later`,
+      );
+      return false;
+    }
+    try {
+      return await this.deriveLeased(ingest, clearPrevious);
+    } finally {
+      await this.prisma.solarIngest
+        .updateMany({
+          where: { id: ingestId, leaseOwner: owner },
+          data: { leaseUntil: null, leaseOwner: null },
+        })
+        .catch(() => undefined); // expires on its own
+    }
+  }
+
+  private async deriveLeased(
+    ingest: {
+      id: string;
+      siteId: string;
+      installationId: string;
+      payload: Prisma.JsonValue;
+      receivedAt: Date;
+    },
+    clearPrevious: boolean,
+  ): Promise<boolean> {
+    const { id: ingestId, siteId, installationId } = ingest;
     try {
       if (clearPrevious) {
         await Promise.all([
@@ -210,7 +269,13 @@ export class SolarStoreService {
           },
         });
       }
-      await this.updateLive(siteId, installationId, n.samples);
+      // Live state (main Redis) is a view: a Redis hiccup must not fail or
+      // block the durable store; the next reading refreshes it.
+      await this.updateLive(siteId, installationId, n.samples).catch((e) =>
+        this.logger.warn(
+          `Live state not updated for ${ingestId}: ${e.message}`,
+        ),
+      );
       await this.prisma.installation.update({
         where: { id: installationId },
         data: { lastSeenAt: new Date() },
@@ -227,6 +292,15 @@ export class SolarStoreService {
       });
       return true;
     } catch (e) {
+      // MongoDB briefly unavailable: not this payload's fault. Leave it
+      // QUEUED and let the caller retry (the stream is the buffer); the
+      // next attempt clears partial rows (clearPrevious).
+      if (isTransient(e)) {
+        this.logger.warn(
+          `Normalizing ingest ${ingestId} interrupted (will retry): ${e.message}`,
+        );
+        return false;
+      }
       // Raw payload stays; an admin can reprocess once the cause is fixed.
       this.logger.error(`Normalizing ingest ${ingestId} failed: ${e.message}`);
       return this.prisma.solarIngest

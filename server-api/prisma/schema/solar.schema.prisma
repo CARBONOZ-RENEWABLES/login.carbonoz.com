@@ -39,6 +39,9 @@ model SolarIngest {
   payload         Json
   // The message exactly as received, only when `payload` had to be rewritten.
   rawText         String?
+  // Derive lease (SolarStoreService.derive): one processing run at a time.
+  leaseUntil      DateTime?
+  leaseOwner      String?
 
   @@unique([installationId, messageId])
   @@index([siteId, receivedAt])
@@ -184,5 +187,14 @@ model SolarIngestCursor {
   stream    String   @unique
   lastId    String
   entries   Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+// Only one ingest bridge reads at a time (SolarIngestBridge.holdLock).
+model SolarBridgeLock {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @unique
+  owner     String
+  until     DateTime
   updatedAt DateTime @updatedAt
 }

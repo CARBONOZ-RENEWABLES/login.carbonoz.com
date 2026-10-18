@@ -1,9 +1,11 @@
 import {
   Body,
+  ConflictException,
   Controller,
   Get,
   Header,
   HttpCode,
+  Logger,
   MessageEvent,
   NotFoundException,
   Param,
@@ -243,6 +245,7 @@ export class SolarIngestController {
 @AllowRoles(ERole.ADMIN)
 @ApiBearerAuth()
 export class AdminSolarController {
+  private readonly audit = new Logger('AdminSolarAudit');
   constructor(
     private readonly prisma: PrismaService,
     private readonly store: SolarStoreService,
@@ -431,9 +434,16 @@ export class AdminSolarController {
   })
   @HttpCode(200)
   @Post('ingest-bridge/dead-letters/:id/replay')
-  async replayBridge(@Param('id') id: string) {
+  async replayBridge(@Param('id') id: string, @GetUser() user: User) {
     if (!isObjectId(id)) throw new NotFoundException('Dead letter not found');
-    return new GenericResponse('replay', await this.bridge.replay(id));
+    const result = await this.bridge.replay(id);
+    // Audit trail: who replayed which dead letter, with what outcome.
+    this.audit.log(
+      `admin ${user?.id} replayed ingest-bridge dead letter ${id}: ${
+        result.replayed ? 'stored' : 'still not processable'
+      }`,
+    );
+    return new GenericResponse('replay', result);
   }
 
   @ApiOkResponse({ description: 'Recent raw payloads for a site' })
@@ -453,12 +463,16 @@ export class AdminSolarController {
   @Post('ingests/:ingestId/reprocess')
   async reprocess(@Param('ingestId') ingestId: string) {
     if (!isObjectId(ingestId)) throw new NotFoundException('Ingest not found');
-    await this.store.derive(ingestId);
+    const done = await this.store.derive(ingestId);
     const row = await this.prisma.solarIngest.findUnique({
       where: { id: ingestId },
       select: { id: true, status: true, error: true, processedAt: true },
     });
     if (!row) throw new NotFoundException('Ingest not found');
+    if (!done)
+      throw new ConflictException(
+        'Ingest is being processed right now, or the database is unavailable: try again shortly',
+      );
     return new GenericResponse('reprocessed', row);
   }
 }

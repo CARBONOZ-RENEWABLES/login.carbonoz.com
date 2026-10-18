@@ -14,6 +14,11 @@
  * entry (`site` + `readings` as fields) works too.
  */
 import { createHash } from 'crypto';
+import {
+  isSensitiveKey,
+  redact,
+  redactText,
+} from 'src/__shared__/utils/redact';
 
 export interface IngestReading {
   ts: string;
@@ -37,7 +42,8 @@ const SECRET_FIELD = /token|secret|auth|password|bearer|cookie/i;
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
-function parseJson(s: string | undefined): unknown {
+function parseJson(raw: string | undefined): unknown {
+  const s = raw?.trimStart();
   if (!s || (s[0] !== '{' && s[0] !== '[')) return undefined;
   try {
     return JSON.parse(s);
@@ -46,11 +52,27 @@ function parseJson(s: string | undefined): unknown {
   }
 }
 
-/** Entry fields with anything secret-looking removed (for dead letters and logs). */
+// Redaction without size limits: a dead letter must stay replayable in full.
+const KEEP_ALL = { maxDepth: 64, maxArray: 1_000_000, maxString: 10_000_000 };
+
+/**
+ * Entry fields safe to store (dead letters, source info): secret-looking
+ * fields dropped, and inside JSON values credential fields are redacted at
+ * any depth (objects and arrays); credential-shaped text (bearer tokens,
+ * JWTs, URLs with a password) is masked in plain values. Readings and
+ * metrics are kept unchanged so the entry can be replayed.
+ */
 export function safeFields(fields: Record<string, string>) {
-  return Object.fromEntries(
-    Object.entries(fields).filter(([k]) => !SECRET_FIELD.test(k)),
-  );
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(fields)) {
+    if (SECRET_FIELD.test(k) || isSensitiveKey(k)) continue;
+    const j = parseJson(v);
+    out[k] =
+      j === undefined
+        ? redactText(v, KEEP_ALL.maxString)
+        : JSON.stringify(redact(j, KEEP_ALL));
+  }
+  return out;
 }
 
 /** A stream entry → a validated delivery, or the reason it can't be used (never the payload). */
@@ -84,6 +106,13 @@ export function parseDelivery(
         break;
       }
     }
+  }
+  // One wrapper level, e.g. {"body": {"site": …, "readings": […]}}.
+  if (isObj(body) && !Array.isArray(body.readings)) {
+    const inner = Object.values(body).filter(
+      (v) => isObj(v) && Array.isArray(v.readings),
+    );
+    if (inner.length === 1) body = inner[0];
   }
   if (!isObj(body)) return { error: 'no delivery JSON in the stream entry' };
 

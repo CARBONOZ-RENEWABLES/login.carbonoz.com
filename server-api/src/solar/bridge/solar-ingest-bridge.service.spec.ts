@@ -4,7 +4,11 @@
  * SYNTHETIC TEST DATA ONLY. The real Redis + MongoDB path is covered by
  * test/ingest-bridge.e2e-spec.ts.
  */
-import { cmpId, SolarIngestBridge } from './solar-ingest-bridge.service';
+import {
+  cmpId,
+  parseStartId,
+  SolarIngestBridge,
+} from './solar-ingest-bridge.service';
 
 type Entry = { id: string; message: Record<string, string> };
 const delivery = (site: string, ts: string, pv = 1000) => ({
@@ -46,7 +50,10 @@ class FakeStream {
       xRange: async (_k: string, a: string, b: string) =>
         a === '-'
           ? this.entries.slice(0, 1)
+          : b === '+'
+          ? this.entries.filter((e) => cmpId(e.id, a) >= 0)
           : this.entries.filter((e) => e.id === a && a === b),
+      xRevRange: async () => this.entries.slice(-1),
       xReadGroup: async (
         _g: string,
         consumer: string,
@@ -114,10 +121,12 @@ function setup(
     handleThrows?: number;
     stream?: FakeStream;
     db?: Db;
+    startId?: string;
   } = {},
 ) {
   const stream = opts.stream ?? new FakeStream();
   const db: Db = opts.db ?? {
+    lock: null,
     cursor: null,
     deadLetters: [],
     cursorWrites: 0,
@@ -134,13 +143,52 @@ function setup(
   const prisma = {
     solarIngestCursor: {
       findUnique: async () => (db.cursor ? { lastId: db.cursor } : null),
-      upsert: async ({ update }: { update: { lastId: string } }) => {
+      upsert: async ({
+        create,
+        update,
+      }: {
+        create: { lastId: string };
+        update: { lastId?: string };
+      }) => {
         if (cursorFails > 0) {
           cursorFails--;
           throw new Error('mongo down');
         }
         db.cursorWrites++;
-        db.cursor = update.lastId;
+        db.cursor =
+          db.cursor === null ? create.lastId : update.lastId ?? db.cursor;
+      },
+    },
+    // Shared lock row (two bridges may share one Db).
+    solarBridgeLock: {
+      updateMany: async ({
+        where,
+        data,
+      }: {
+        where: {
+          owner?: string;
+          OR?: [{ owner: string }, { until: { lt: Date } }];
+        };
+        data: { owner?: string; until: Date };
+      }) => {
+        const l = db.lock;
+        if (!where.OR) {
+          // release on shutdown
+          if (l && l.owner === where.owner) l.until = data.until;
+          return { count: l ? 1 : 0 };
+        }
+        if (
+          l &&
+          (l.owner === where.OR[0].owner || l.until < where.OR[1].until.lt)
+        ) {
+          db.lock = { owner: data.owner as string, until: data.until };
+          return { count: 1 };
+        }
+        return { count: 0 };
+      },
+      create: async ({ data }: { data: { owner: string; until: Date } }) => {
+        if (db.lock) throw Object.assign(new Error('dup'), { code: 'P2002' });
+        db.lock = { owner: data.owner, until: data.until };
       },
     },
     installation: {
@@ -188,7 +236,7 @@ function setup(
       redisUrl: 'redis://fake',
       streamKey: 'ingest:readings',
       payloadField: '',
-      startId: '0-0',
+      startId: opts.startId ?? '0-0',
       batchSize: 10,
       blockMs: 10,
       mode: opts.mode ?? 'xread',
@@ -226,6 +274,7 @@ function setup(
 }
 type DL = { id?: string; streamId: string; error: string; rawText: string };
 type Db = {
+  lock: { owner: string; until: Date } | null;
   cursor: string | null;
   deadLetters: DL[];
   cursorWrites: number;
@@ -501,5 +550,90 @@ describe("ingest bridge — group mode (Felix's consumer group)", () => {
       /consumer group "carbonoz-bridge" does not exist/,
     );
     await s.stop();
+  });
+});
+
+describe('ingest bridge — start position (INGEST_BRIDGE_START)', () => {
+  jest.setTimeout(20000);
+
+  it('accepts only 0-0, <ms>-<seq> and $', () => {
+    expect(parseStartId('0-0')).toBe('0-0');
+    expect(parseStartId('0')).toBe('0-0');
+    expect(parseStartId(undefined)).toBe('0-0');
+    expect(parseStartId('1727000000000-3')).toBe('1727000000000-3');
+    expect(parseStartId('$')).toBe('$');
+    for (const bad of ['>', '+', '-', 'latest', '12-', '1-2-3', '$x', 'abc'])
+      expect(parseStartId(bad)).toBeNull();
+  });
+
+  it('refuses to start on an invalid value (nothing read, reason in status)', async () => {
+    const s = setup({ startId: 'latest' });
+    s.stream.add({
+      id: '1-0',
+      message: delivery('known', '2026-09-29T08:00:00Z'),
+    });
+    s.start();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(s.db.stored.size).toBe(0);
+    expect(s.bridge.stats.running).toBe(false);
+    expect(s.bridge.stats.configError).toMatch(/INGEST_BRIDGE_START/);
+    await s.stop();
+  });
+
+  it('$ resolves once to the newest entry, stores it, and never skips later entries', async () => {
+    const s = setup({ startId: '$' });
+    s.stream.add(
+      { id: '1-0', message: delivery('known', '2026-09-29T08:00:00Z') },
+      { id: '2-0', message: delivery('known', '2026-09-29T08:01:00Z') },
+    );
+    s.start();
+    await until(() => s.db.cursor === '2-0');
+    await new Promise((r) => setTimeout(r, 30));
+    expect(s.db.stored.size).toBe(0); // existing entries deliberately not processed
+    await s.stop();
+
+    // Entries arriving while stopped are processed after a restart ($ is not re-resolved).
+    s.stream.add(
+      { id: '3-0', message: delivery('known', '2026-09-29T08:02:00Z') },
+      { id: '4-0', message: delivery('known', '2026-09-29T08:03:00Z') },
+    );
+    const again = setup({ startId: '$', stream: s.stream, db: s.db });
+    again.start();
+    await until(() => again.db.cursor === '4-0');
+    expect(again.db.stored.size).toBe(2);
+    await again.stop();
+  });
+});
+
+describe('ingest bridge — single active instance', () => {
+  jest.setTimeout(20000);
+
+  it('a second bridge on the same database stands by; it takes over when the first stops', async () => {
+    const a = setup();
+    const b = setup({ stream: a.stream, db: a.db, consumer: 'c2' });
+    for (let i = 1; i <= 20; i++)
+      a.stream.add({
+        id: `${i}-0`,
+        message: delivery(
+          'known',
+          `2026-09-29T08:${String(i).padStart(2, '0')}:00Z`,
+        ),
+      });
+    a.start();
+    await until(() => a.db.cursor === '20-0');
+    b.start();
+    await until(() => b.bridge.stats.standby === true);
+    expect(storedOnce(a.db)).toBe(true);
+
+    await a.stop(); // releases the lock
+    a.stream.add({
+      id: '21-0',
+      message: delivery('known', '2026-09-29T09:00:00Z'),
+    });
+    await until(() => b.db.cursor === '21-0', 15000);
+    expect(b.bridge.stats.standby).toBe(false);
+    expect(a.db.stored.size).toBe(21);
+    expect(storedOnce(a.db)).toBe(true);
+    await b.stop();
   });
 });
