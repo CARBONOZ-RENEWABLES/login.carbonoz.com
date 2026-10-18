@@ -32,7 +32,7 @@ describe('smtpTransport', () => {
 describe('MailsService', () => {
   it('logs a failed send with the SMTP reason, without credentials, and does not throw', async () => {
     const err = Object.assign(
-      new Error('Invalid login: 535 auth failed for smtp://u:secretpw@host'),
+      new Error('Invalid login: 535 auth failed for smtp://u:secretpw@host'), // secret-scan:allow (fake value)
       {
         code: 'EAUTH',
         responseCode: 535,
