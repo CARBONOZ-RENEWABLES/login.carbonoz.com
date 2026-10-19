@@ -117,11 +117,11 @@ afterEach(() => {
 })
 
 describe('compact Energy Flow', () => {
-  it('says the grid/battery directions are assumed while the sign convention is unconfirmed', async () => {
+  it('shows no "directions assumed" note once the sign convention is confirmed', async () => {
     stubFetch({ pv_power_w: 5000, load_power_w: 1800, grid_power_w: 0, battery_power_w: 3200, soc_pct: 60 })
     mount(`/ds/solar/${SITE}`)
     await screen.findByRole('link', { name: 'Open live energy flow details' })
-    expect(screen.getByTestId('energy-flow-signs-assumed').textContent).toMatch(/assumed/)
+    expect(screen.queryByTestId('energy-flow-signs-assumed')).toBeNull()
   })
 
   it('19. is one accessible link (native Enter), Space opens it too; labelled and described', async () => {
@@ -171,7 +171,7 @@ describe('Energy Flow page', () => {
     expect(screen.getByTestId('flow-grid-direction').textContent).toContain('Importing from the grid')
     expect(screen.getByTestId('flow-value-grid').textContent).toContain('+2.40 kW')
     expect(screen.getByTestId('energy-flow-summary').textContent).toContain('The grid is supplying the home.')
-    expect(screen.getByTestId('energy-flow-assumptions').textContent).toContain('not yet confirmed')
+    expect(screen.queryByTestId('energy-flow-assumptions')).toBeNull() // signs confirmed
     fireEvent.click(screen.getByTestId('energy-flow-back'))
     await waitFor(() => expect(screen.getByTestId('where').textContent).toBe(`/ds/solar/${SITE}`))
   })
