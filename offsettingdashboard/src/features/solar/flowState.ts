@@ -182,8 +182,13 @@ export type LiveState = 'live' | 'delayed' | 'offline' | 'connecting' | 'waiting
  * sends (same 5-minute rule as the API's LIVE_STALE_MS); beyond it "offline".
  */
 export const DELAYED_AFTER_MS = 5 * 60_000
-/** Live window = 3 × the observed send interval, within these bounds; 30 s until an interval is known. */
-export const LIVE_WINDOW = { factor: 3, minMs: 5_000, maxMs: 120_000, defaultMs: 30_000 }
+/**
+ * Live window = 3 × the observed send interval, within these bounds; 30 s until
+ * an interval is known. The 240 s ceiling fits a once-a-minute sender whose
+ * readings arrive about 70 s after their timestamp (Raspberry, 19 Oct 2026):
+ * the newest reading is then up to ~130 s old, which must still read "Live".
+ */
+export const LIVE_WINDOW = { factor: 3, minMs: 5_000, maxMs: 240_000, defaultMs: 30_000 }
 /** No stream message for this long = connection lost. The server sends one every second. */
 export const CONNECTION_TIMEOUT_MS = 5_000
 

@@ -38,7 +38,7 @@ describe('grid semantics', () => {
     expect(s.grid.direction).toBe('import')
     expect(energyFlowState({ pv: 0, load: 500, grid: 0, battery: 500 }).battery.state).toBe('discharging')
     expect(SOLAR_SIGN).toEqual({ gridImportPositive: true, batteryChargingPositive: true }) // energy history: read at load, unchanged
-    expect(s.signsConfirmed).toBe(false)
+    expect(s.signsConfirmed).toBe(true) // confirmed from the real data (semantics.ts)
   })
 
   it('9. no grid reading: direction unknown, no flows, nothing invented', () => {
@@ -171,6 +171,9 @@ describe('freshness and connection', () => {
     expect(liveStatus({ readingAt: now - 2000, now, connection: 'open', intervalMs: 1000 })).toMatchObject({ state: 'live', ageMs: 2000, liveWithinMs: 5000 })
     expect(liveStatus({ readingAt: now - 25_000, now, connection: 'open', intervalMs: 10_000 }).state).toBe('live')
     expect(liveStatus({ readingAt: now - 25_000, now, connection: 'open', intervalMs: null }).state).toBe('live') // 30 s default
+    // Once-a-minute sender, readings arriving ~70 s late: up to ~130 s old is still live; a missed reading is not.
+    expect(liveStatus({ readingAt: now - 130_000, now, connection: 'open', intervalMs: 60_000 })).toMatchObject({ state: 'live', liveWithinMs: 180_000 })
+    expect(liveStatus({ readingAt: now - 200_000, now, connection: 'open', intervalMs: 60_000 }).state).toBe('delayed')
   })
 
   it('10. stale readings: delayed, then offline after 5 minutes', () => {
