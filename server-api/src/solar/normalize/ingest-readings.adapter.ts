@@ -4,7 +4,8 @@
  *
  * Delivery schema (ingest guide, 29 Sep 2026): `{ site, readings: [{ ts,
  * metrics: { name: number } }] }`, 1–1000 readings, ts ISO 8601 UTC with Z,
- * 1–200 numeric metrics per reading. This adapter only reshapes; what a
+ * up to MAX_METRICS numeric metrics per reading (+ optional text `metadata`,
+ * e.g. serial numbers). This adapter only reshapes; what a
  * metric MEANS (aliases, units, signs) stays in solarbms.normalizer.ts and
  * the dashboard's semantics.ts.
  *
@@ -23,7 +24,16 @@ import {
 export interface IngestReading {
   ts: string;
   metrics: Record<string, number>;
+  /** Optional non-numeric values (serial numbers, firmware), routed like metrics. */
+  metadata?: Record<string, string | number | boolean>;
 }
+
+/**
+ * Upper bound per reading. Felix's API currently accepts 200; this side
+ * allows more so raising his limit never makes our bridge quarantine data.
+ */
+export const MAX_METRICS = 1000;
+const MAX_METADATA = 200;
 
 export interface IngestDelivery {
   site: string;
@@ -134,8 +144,8 @@ export function parseDelivery(
       return { error: `reading ${i}: ts must be ISO 8601 UTC with Z` };
     if (!isObj(r.metrics)) return { error: `reading ${i}: metrics missing` };
     const entries = Object.entries(r.metrics);
-    if (entries.length < 1 || entries.length > 200)
-      return { error: `reading ${i}: 1 to 200 metrics` };
+    if (entries.length < 1 || entries.length > MAX_METRICS)
+      return { error: `reading ${i}: 1 to ${MAX_METRICS} metrics` };
     for (const [k, v] of entries)
       if (!METRIC.test(k) || typeof v !== 'number' || !Number.isFinite(v))
         return {
@@ -144,7 +154,37 @@ export function parseDelivery(
             64,
           )}" is not a valid numeric metric`,
         };
-    out.push({ ts: r.ts, metrics: r.metrics as Record<string, number> });
+    let metadata: IngestReading['metadata'];
+    if (r.metadata !== undefined) {
+      if (!isObj(r.metadata))
+        return { error: `reading ${i}: metadata must be an object` };
+      const md = Object.entries(r.metadata);
+      if (md.length > MAX_METADATA)
+        return {
+          error: `reading ${i}: at most ${MAX_METADATA} metadata values`,
+        };
+      for (const [k, v] of md)
+        if (
+          !METRIC.test(k) ||
+          !(
+            (typeof v === 'string' && v.length <= 128) ||
+            typeof v === 'boolean' ||
+            (typeof v === 'number' && Number.isFinite(v))
+          )
+        )
+          return {
+            error: `reading ${i}: metadata "${k.slice(
+              0,
+              64,
+            )}" must be a short text, number or boolean`,
+          };
+      metadata = r.metadata as IngestReading['metadata'];
+    }
+    out.push({
+      ts: r.ts,
+      metrics: r.metrics as Record<string, number>,
+      ...(metadata && { metadata }),
+    });
   }
 
   const meta = Object.fromEntries(
@@ -160,11 +200,120 @@ export function parseDelivery(
 }
 
 /**
- * Per-inverter metrics by prefix, as proposed in the ingest guide
- * (`wr1_pv_w`, `wr2_pv_w`; WR = Wechselrichter). `inv1_` / `inverter1_` too.
- * Everything else stays a system metric — unknown names are kept, not dropped.
+ * Flat metric names → devices. Both naming styles are understood:
+ *   inverters      `wr1_pv_w`, `inverter1_pv_w`, `inverter.1.pv_power_w`, `inv_2.load_power_w`
+ *   battery cells  `battery.pack.1.cell.10.voltage_v`, `bms.2.cell.3.voltage_mv`, `pack1_cell4_v`
+ *   battery packs  `battery.pack.1.soc_pct`, `bms.2.temperature_c`, `battery.3.voltage_v`
+ *   plant totals   `plant.pv_power_w`, `total.load_power_w`, `system.grid_power_w` (prefix dropped)
+ * Everything else stays a system metric (unknown names are kept, not dropped).
  */
-const INVERTER_PREFIX = /^(wr|inv|inverter)(\d{1,3})[_.-](.+)$/i;
+const SEP = '[._-]';
+const INVERTER_KEY = new RegExp(
+  `^(?:inverter|inv|wr)${SEP}?(\\d{1,3})${SEP}(.+)$`,
+  'i',
+);
+const CELL_KEY = new RegExp(
+  `^(?:battery${SEP}?)?(?:pack|bms|battery|bat)${SEP}?(\\d{1,3})${SEP}cells?${SEP}?(\\d{1,4})(?:${SEP}(.+))?$`,
+  'i',
+);
+const PACK_KEY = new RegExp(
+  `^(?:battery${SEP}?)?(?:pack|bms|battery|bat)${SEP}?(\\d{1,3})${SEP}(.+)$`,
+  'i',
+);
+const TOTAL_PREFIX = new RegExp(
+  `^(?:plant|total|system|site|overall)${SEP}(.+)$`,
+  'i',
+);
+
+type Value = number | string | boolean;
+export interface GroupedMetrics {
+  system: Record<string, Value>;
+  inverters: Map<number, Record<string, Value>>;
+  packs: Map<number, Record<string, Value>>;
+  cells: Map<number, Map<number, { voltage?: number; temperature?: number }>>;
+  /** Whole-battery values (`battery.soc_pct`, `battery.capacity_kwh`…), prefix dropped. */
+  bank: Record<string, Value>;
+}
+
+export function groupMetrics(values: Record<string, Value>): GroupedMetrics {
+  const g: GroupedMetrics = {
+    system: {},
+    inverters: new Map(),
+    packs: new Map(),
+    cells: new Map(),
+    bank: {},
+  };
+  for (const [key, v] of Object.entries(values)) {
+    let m = INVERTER_KEY.exec(key);
+    if (m) {
+      const n = Number(m[1]);
+      g.inverters.set(n, { ...g.inverters.get(n), [m[2]]: v });
+      continue;
+    }
+    m = CELL_KEY.exec(key);
+    if (m && typeof v === 'number') {
+      const pack = Number(m[1]),
+        cell = Number(m[2]);
+      const field = (m[3] ?? 'voltage').toLowerCase();
+      const cells = g.cells.get(pack) ?? new Map();
+      const c = cells.get(cell) ?? {};
+      if (/temp/.test(field)) c.temperature = v;
+      else c.voltage = /(^|[._-])mv$/.test(field) ? v / 1000 : v;
+      cells.set(cell, c);
+      g.cells.set(pack, cells);
+      continue;
+    }
+    m = PACK_KEY.exec(key);
+    if (m) {
+      const n = Number(m[1]);
+      g.packs.set(n, { ...g.packs.get(n), [m[2]]: v });
+      continue;
+    }
+    m = TOTAL_PREFIX.exec(key);
+    g.system[m ? m[1] : key] = v;
+    // Whole-battery values also describe the battery bank as a device.
+    const b = new RegExp(`^battery${SEP}(?!\\d)(.+)$`, 'i').exec(
+      m ? m[1] : key,
+    );
+    if (b) g.bank[b[1]] = v;
+  }
+  // Plant totals missing but every inverter reports them: their sum (one
+  // phase of a parallel system each), so Overview and Energy Flow work.
+  const canon = (k: string) => k.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  const has = (names: string[]) =>
+    Object.keys(g.system).some((k) => names.includes(canon(k)));
+  const sum = (names: string[]) => {
+    let total = 0,
+      n = 0;
+    for (const inv of g.inverters.values())
+      for (const [k, v] of Object.entries(inv))
+        if (names.includes(canon(k)) && typeof v === 'number')
+          (total += v), n++;
+    return n === g.inverters.size && n > 0 ? total : undefined;
+  };
+  for (const [target, names] of [
+    [
+      'pv_power_w',
+      [
+        'pv_power_w',
+        'pv_w',
+        'pv_power',
+        'pv_total_power_w',
+        'pv_total_w',
+        'total_pv_power_w',
+      ],
+    ],
+    [
+      'load_power_w',
+      ['load_power_w', 'load_w', 'load_power', 'total_load_power_w'],
+    ],
+  ] as const) {
+    if (has([...names])) continue;
+    const s = sum([...names]);
+    if (s !== undefined) g.system[target] = s;
+  }
+  return g;
+}
 
 /** `<site>@<ts>#<hash of the metrics>`: identifies a reading independent of the stream entry. */
 export function readingId(site: string, r: IngestReading) {
@@ -186,15 +335,32 @@ export function toSolarBmsMessages(
   d: IngestDelivery,
 ): Record<string, unknown>[] {
   return d.readings.map((r, i) => {
-    const system: Record<string, number> = {};
-    const inverters = new Map<string, Record<string, number>>();
-    for (const [k, v] of Object.entries(r.metrics)) {
-      const m = INVERTER_PREFIX.exec(k);
-      if (m) {
-        const id = `${m[1].toLowerCase()}${Number(m[2])}`;
-        inverters.set(id, { ...inverters.get(id), [m[3]]: v });
-      } else system[k] = v;
-    }
+    const g = groupMetrics({ ...r.metadata, ...r.metrics });
+    const cellsOf = (n: number) =>
+      [...(g.cells.get(n) ?? new Map())]
+        .sort(([x], [y]) => x - y)
+        .map(([id, c]) => ({ id, ...c }));
+    const bank = Object.keys(g.bank).length
+      ? [{ id: 'battery-bank', name: 'Battery bank', ...g.bank }]
+      : [];
+    // Packs with their own values are batteries (cells under their BMS);
+    // packs that only report cells are just a BMS with cells.
+    const packs = [...g.packs.keys()]
+      .sort((x, y) => x - y)
+      .map((n) => ({
+        id: `pack-${n}`,
+        name: `Battery pack ${n}`,
+        ...g.packs.get(n),
+        ...(g.cells.has(n) && { cells: cellsOf(n) }),
+      }));
+    const bmsOnly = [...g.cells.keys()]
+      .filter((n) => !g.packs.has(n))
+      .sort((x, y) => x - y)
+      .map((n) => ({
+        id: `pack-${n}-bms`,
+        name: `BMS pack ${n}`,
+        cells: cellsOf(n),
+      }));
     return {
       schemaVersion: 'ingest-readings/1',
       // Same reading content → same id: retries, replays and re-sent batches
@@ -202,10 +368,18 @@ export function toSolarBmsMessages(
       messageId: readingId(d.site, r),
       systemId: d.site,
       timestamp: r.ts,
-      measurements: system,
-      ...(inverters.size && {
-        inverters: [...inverters].map(([id, m]) => ({ id, ...m })),
+      measurements: g.system,
+      ...(g.inverters.size && {
+        inverters: [...g.inverters]
+          .sort(([x], [y]) => x - y)
+          .map(([n, m]) => ({
+            id: `inverter-${n}`,
+            name: `Inverter ${n}`,
+            ...m,
+          })),
       }),
+      ...((bank.length || packs.length) && { batteries: [...bank, ...packs] }),
+      ...(bmsOnly.length && { bms: bmsOnly }),
       // Where it came from; kept in the stored raw message, not turned into metrics.
       source: { stream, entryId, index: i, ...d.meta },
     };
