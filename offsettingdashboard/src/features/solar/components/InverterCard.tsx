@@ -1,10 +1,11 @@
-import { AlertTriangle, ArrowRight, CalendarDays, Cpu, Gauge, Moon, Percent, Sigma, Sun, Thermometer, Waves, Zap } from 'lucide-react'
+import { AlertTriangle, ArrowRight, BatteryCharging, CalendarDays, Cpu, Gauge, Home, Moon, Percent, Sigma, Sun, Thermometer, Waves, Zap } from 'lucide-react'
 import { ReactNode, useId } from 'react'
 import { Card, cn, StatusBadge, Tone } from '../../../design'
 import { formatFixed, translate as t } from '../../../i18n'
 import { powerText } from '../../dashboard/format'
 import { DeviceKind, SolarDevice } from '../api'
 import { inverterFigures, InverterState } from '../inverter'
+import { SOLAR_SIGN } from '../model'
 import { DeviceHeader, MetricList } from './cards'
 
 const STATE: Record<InverterState, { tone: Tone; icon: ReactNode }> = {
@@ -96,12 +97,23 @@ function Tile({ icon, label, value, unit, tone }: { icon: ReactNode; label: stri
   )
 }
 
+/** This inverter's battery power, with its direction when it is not idle. */
+function batteryTile(w: number | undefined) {
+  if (w == null) return false
+  const active = Math.abs(w) > 20
+  const charging = (w > 0) === SOLAR_SIGN.batteryChargingPositive
+  const label = active ? `${t('solar.inverterCard.battery')} · ${t(charging ? 'solar.batteryCard.charging' : 'solar.batteryCard.discharging')}` : t('solar.inverterCard.battery')
+  return <Tile key='bt' icon={<BatteryCharging size={15} />} label={label} value={powerText(Math.abs(w))} tone={active && charging ? 'good' : undefined} />
+}
+
 /** Premium inverter card: output ring, live state, DC → AC flow, key figures, string inputs, every other value. */
 export function InverterCard({ d, unitOf, title }: { d: SolarDevice; unitOf: (kind: DeviceKind, key: string) => string | undefined; title?: string }) {
   const f = inverterFigures(d)
   const stale = !!d.latest?.stale
   const others = Object.fromEntries(Object.entries(d.latest?.metrics ?? {}).filter(([k]) => !f.used.has(k)))
   const tiles = [
+    f.homeLoad != null && <Tile key='ld' icon={<Home size={15} />} label={t('solar.inverterCard.load')} value={powerText(Math.abs(f.homeLoad))} />,
+    batteryTile(f.battery),
     f.yieldToday != null && <Tile key='yt' icon={<CalendarDays size={15} />} label={t('solar.inverterCard.yieldToday')} value={formatFixed(f.yieldToday, 1)} unit='kWh' />,
     f.yieldTotal != null && <Tile key='yT' icon={<Sigma size={15} />} label={t('solar.inverterCard.yieldTotal')} value={formatFixed(f.yieldTotal, f.yieldTotal >= 1000 ? 0 : 1)} unit='kWh' />,
     f.efficiency != null && <Tile key='ef' icon={<Percent size={15} />} label={t('solar.inverterCard.efficiency')} value={formatFixed(f.efficiency, 1)} unit='%' tone={f.efficiency >= 90 ? 'good' : undefined} />,
@@ -135,6 +147,7 @@ export function InverterCard({ d, unitOf, title }: { d: SolarDevice; unitOf: (ki
                     {t('solar.inverterCard.ofRated', { pct: formatFixed(f.load * 100, 0), rated: powerText(f.rated) })}
                   </span>
                 )}
+                {f.rated == null && f.loadPct != null && <span className='text-[12.5px] text-fg-2'>{t('solar.inverterCard.loadPct', { pct: formatFixed(f.loadPct, 0) })}</span>}
               </div>
               <FlowStrip pvInput={f.pvInput} output={f.output} acVoltage={f.acVoltage} frequency={f.frequency} active={f.state === 'producing' && !stale} />
             </div>

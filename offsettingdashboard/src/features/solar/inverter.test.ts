@@ -13,6 +13,17 @@ const inv = (metrics: Record<string, number>, status?: string): SolarDevice => (
 })
 
 describe('inverter figures', () => {
+  it("reads the site's real names: ac_output_*, pv_mppt_N_*, load percentage, battery", () => {
+    const f = inverterFigures(inv({ ac_output_power_w: 555, ac_output_voltage_v: 229.7, ac_output_frequency_hz: 50.03, pv_power_w: 0, pv_mppt_1_power_w: 0, pv_mppt_1_voltage_v: 81.8, pv_mppt_2_power_w: 0, load_power_w: 555, load_percentage: 11.3, battery_power_w: -583 }))
+    expect(f).toMatchObject({ output: 555, acVoltage: 229.7, frequency: 50.03, pvInput: 0, homeLoad: 555, loadPct: 11.3, battery: -583, rated: undefined, state: 'producing' })
+    expect(f.load).toBeCloseTo(0.113, 5)
+    expect(f.strings).toEqual([
+      { id: '1', power: 0, voltage: 81.8 },
+      { id: '2', power: 0 },
+    ])
+    expect(['ac_output_power_w', 'pv_mppt_1_voltage_v', 'load_percentage', 'battery_power_w'].every((k) => f.used.has(k))).toBe(true)
+  })
+
   it('reads output, input, efficiency, load and strings from common keys', () => {
     const f = inverterFigures(inv({ power_w: 4600, pv_power_w: 4800, rated_power_w: 6000, ac_frequency_hz: 50.01, temperature_c: 41, daily_yield_kwh: 12.4, pv1_voltage_v: 380, pv1_current_a: 6.2, pv2_power_w: 2100 }))
     expect(f).toMatchObject({ output: 4600, pvInput: 4800, frequency: 50.01, temperature: 41, yieldToday: 12.4, state: 'producing' })

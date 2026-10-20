@@ -9,7 +9,7 @@ import { num } from '../model'
 import { DeviceHeader, MetricList } from './cards'
 
 /** Keys shown in the hero/tiles; everything else goes to "All battery values". */
-const SHOWN = ['soc_pct', 'voltage_v', 'battery_voltage_v', 'current_a', 'battery_current_a', 'power_w', 'battery_power_w', 'temperature_c', 'battery_temperature_c', 'soh_pct', 'cycle_count', 'remaining_capacity_ah', 'full_capacity_ah']
+const SHOWN = ['soc_pct', 'voltage_v', 'battery_voltage_v', 'current_a', 'battery_current_a', 'power_w', 'battery_power_w', 'temperature_c', 'battery_temperature_c', 'soh_pct', 'cycle_count', 'remaining_capacity_ah', 'full_capacity_ah', 'capacity_kwh', 'full_capacity_kwh', 'charge_capacity_kwh', 'remaining_capacity_kwh', 'remaining_energy_kwh', 'temperature_min_c', 'temperature_max_c', 'battery_temperature_min_c', 'battery_temperature_max_c']
 
 /** Charge colour: red when nearly empty, amber when low, green otherwise. */
 const levelColor = (soc: number) => (soc < 15 ? 'rgb(var(--c-danger))' : soc < 35 ? 'rgb(var(--c-gridp))' : 'rgb(var(--c-batt))')
@@ -67,7 +67,7 @@ function StateChip({ state, power }: { state: BatteryState; power: number | unde
   )
 }
 
-function Tile({ icon, label, value, unit, tone }: { icon: ReactNode; label: string; value: string; unit?: string; tone?: 'warning' | 'critical' | 'good' }) {
+function Tile({ icon, label, value, unit, sub, tone }: { icon: ReactNode; label: string; value: string; unit?: string; sub?: string; tone?: 'warning' | 'critical' | 'good' }) {
   return (
     <div className='flex min-w-0 items-center gap-3 bg-panel px-4 py-3'>
       <span
@@ -84,6 +84,7 @@ function Tile({ icon, label, value, unit, tone }: { icon: ReactNode; label: stri
           {value}
           {unit && <span className='ml-1 text-[12px] font-normal text-fg-2'>{unit}</span>}
         </span>
+        {sub && <span className='tabular block truncate text-[11px] text-muted'>{sub}</span>}
       </span>
     </div>
   )
@@ -135,11 +136,13 @@ export function BatteryCard({ d, bms, unitOf, title }: { d: SolarDevice; bms: So
     f.voltage != null && <Tile key='v' icon={<Gauge size={15} />} label={t('solar.batteryCard.voltage')} value={formatFixed(f.voltage, 2)} unit='V' />,
     f.current != null && <Tile key='a' icon={<Activity size={15} />} label={t('solar.batteryCard.current')} value={formatFixed(f.current, 1)} unit='A' />,
     f.power != null && <Tile key='p' icon={<Zap size={15} />} label={t('solar.batteryCard.power')} value={powerText(Math.abs(f.power))} />,
-    f.temperature != null && <Tile key='t' icon={<Thermometer size={15} />} label={t('solar.batteryCard.temperature')} value={formatFixed(f.temperature, 1)} unit='°C' tone={f.temperature >= 45 || f.temperature <= 0 ? 'warning' : undefined} />,
+    f.temperature != null && <Tile key='t' icon={<Thermometer size={15} />} label={t('solar.batteryCard.temperature')} value={formatFixed(f.temperature, 1)} unit='°C' sub={f.temperatureMin != null && f.temperatureMax != null ? t('solar.batteryCard.range', { min: formatFixed(f.temperatureMin, 1), max: formatFixed(f.temperatureMax, 1) }) : undefined} tone={f.temperature >= 45 || f.temperature <= 0 ? 'warning' : undefined} />,
     f.soh != null && <Tile key='h' icon={<HeartPulse size={15} />} label={t('solar.batteryCard.health')} value={formatFixed(f.soh, 0)} unit='%' tone={f.soh >= 80 ? 'good' : f.soh >= 60 ? 'warning' : 'critical'} />,
     f.cycles != null && <Tile key='c' icon={<RefreshCcw size={15} />} label={t('solar.batteryCard.cycles')} value={formatFixed(f.cycles, 0)} />,
   ].filter(Boolean)
-  const capPct = f.remainingAh != null && f.fullAh ? Math.max(0, Math.min(100, (f.remainingAh / f.fullAh) * 100)) : undefined
+  // Stored energy in kWh when reported, otherwise charge in Ah.
+  const cap = f.remainingKwh != null && f.fullKwh ? { remaining: f.remainingKwh, full: f.fullKwh, key: 'capacityOfKwh' as const } : f.remainingAh != null && f.fullAh ? { remaining: f.remainingAh, full: f.fullAh, key: 'capacityOf' as const } : undefined
+  const capPct = cap ? Math.max(0, Math.min(100, (cap.remaining / cap.full) * 100)) : undefined
 
   return (
     <Card className='overflow-hidden p-0'>
@@ -173,12 +176,12 @@ export function BatteryCard({ d, bms, unitOf, title }: { d: SolarDevice; bms: So
 
           {tiles.length > 0 && <div className={cn('grid grid-cols-2 gap-px border-t border-line bg-line', tiles.length >= 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2', tiles.length % 2 === 1 && '[&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1')}>{tiles}</div>}
 
-          {capPct != null && (
+          {cap && capPct != null && (
             <div className='border-t border-line px-4 py-3'>
               <div className='flex items-baseline justify-between text-[12px]'>
                 <span className='text-muted'>{t('solar.batteryCard.capacity')}</span>
                 <span className='tabular text-fg'>
-                  {t('solar.batteryCard.capacityOf', { remaining: formatFixed(f.remainingAh!, 1), full: formatFixed(f.fullAh!, 1) })}
+                  {t(`solar.batteryCard.${cap.key}`, { remaining: formatFixed(cap.remaining, 1), full: formatFixed(cap.full, 1) })}
                 </span>
               </div>
               <div className='mt-1.5 h-1.5 overflow-hidden rounded-full bg-panel-3'>
