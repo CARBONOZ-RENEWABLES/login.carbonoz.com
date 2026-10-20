@@ -119,7 +119,7 @@ describe('ingest bridge', () => {
       .filter((d: { kind: string }) => d.kind === 'INVERTER')
       .map((d: { externalId: string }) => d.externalId)
       .sort();
-    expect(invs).toEqual(['wr1', 'wr2']);
+    expect(invs).toEqual(['inverter-1', 'inverter-2']);
 
     const e = await call(
       t.api,
