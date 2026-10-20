@@ -205,6 +205,7 @@ export function parseDelivery(
  *   battery cells  `battery.pack.1.cell.10.voltage_v`, `bms.2.cell.3.voltage_mv`, `pack1_cell4_v`
  *   battery packs  `battery.pack.1.soc_pct`, `bms.2.temperature_c`, `battery.3.voltage_v`
  *   plant totals   `plant.pv_power_w`, `total.load_power_w`, `system.grid_power_w` (prefix dropped)
+ *   inverter sums  `inverter_total_pv_power_w`, `inverter.total.battery_power_w` (plant values, see below)
  * Everything else stays a system metric (unknown names are kept, not dropped).
  */
 const SEP = '[._-]';
@@ -218,6 +219,10 @@ const CELL_KEY = new RegExp(
 );
 const PACK_KEY = new RegExp(
   `^(?:battery${SEP}?)?(?:pack|bms|battery|bat)${SEP}?(\\d{1,3})${SEP}(.+)$`,
+  'i',
+);
+const INVERTER_TOTAL_KEY = new RegExp(
+  `^(?:inverters?|inv|wr)${SEP}(?:total|sum|all)${SEP}(.+)$`,
   'i',
 );
 const TOTAL_PREFIX = new RegExp(
@@ -243,8 +248,15 @@ export function groupMetrics(values: Record<string, Value>): GroupedMetrics {
     cells: new Map(),
     bank: {},
   };
+  const canon = (k: string) => k.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  const totals: Record<string, Value> = {};
   for (const [key, v] of Object.entries(values)) {
-    let m = INVERTER_KEY.exec(key);
+    let m = INVERTER_TOTAL_KEY.exec(key);
+    if (m) {
+      totals[canon(m[1])] = v;
+      continue;
+    }
+    m = INVERTER_KEY.exec(key);
     if (m) {
       const n = Number(m[1]);
       g.inverters.set(n, { ...g.inverters.get(n), [m[2]]: v });
@@ -277,11 +289,36 @@ export function groupMetrics(values: Record<string, Value>): GroupedMetrics {
     );
     if (b) g.bank[b[1]] = v;
   }
-  // Plant totals missing but every inverter reports them: their sum (one
-  // phase of a parallel system each), so Overview and Energy Flow work.
-  const canon = (k: string) => k.toLowerCase().replace(/[^a-z0-9]+/g, '_');
   const has = (names: string[]) =>
     Object.keys(g.system).some((k) => names.includes(canon(k)));
+  const take = (rec: Record<string, Value>, name: string) => {
+    const k = Object.keys(rec).find((x) => canon(x) === name);
+    if (k === undefined) return undefined;
+    const v = rec[k];
+    delete rec[k];
+    return v;
+  };
+  // Inverter sums are the plant values. Their battery power is signed
+  // (+ = charging) and wins: a BMS power/current reported next to it is kept
+  // as `bms_…`, because BMS sign conventions vary (one reported +2 kW while
+  // the battery discharged). Other clashes keep both (`inverter_…`).
+  for (const [k, v] of Object.entries(totals)) {
+    if (k === 'battery_power_w') {
+      for (const [rec, pre] of [
+        [g.system, 'battery_'],
+        [g.bank, ''],
+      ] as const) {
+        const p = take(rec, `${pre}power_w`);
+        const c = take(rec, `${pre}current_a`);
+        if (p !== undefined) rec[`${pre}bms_power_w`] = p;
+        if (c !== undefined) rec[`${pre}bms_current_a`] = c;
+      }
+      g.system.battery_power_w = v;
+      if (Object.keys(g.bank).length) g.bank.power_w = v;
+    } else g.system[has([k]) ? `inverter_${k}` : k] = v;
+  }
+  // Plant totals missing but every inverter reports them: their sum (one
+  // phase of a parallel system each), so Overview and Energy Flow work.
   const sum = (names: string[]) => {
     let total = 0,
       n = 0;

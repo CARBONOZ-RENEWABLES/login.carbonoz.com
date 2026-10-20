@@ -12,6 +12,12 @@ const battery = (metrics: Record<string, number>): SolarDevice => ({
 })
 
 describe('battery figures', () => {
+  it('uses kWh capacity and temperature range when reported (the site: 13.6 of 90 kWh, discharging 1.68 kW)', () => {
+    const f = batteryFigures(battery({ soc_pct: 15, power_w: -1680, voltage_v: 49, capacity_kwh: 90, charge_capacity_kwh: 13.6, temperature_c: 16.9, temperature_min_c: 11.6, temperature_max_c: 16.9 }))
+    expect(f).toMatchObject({ state: 'discharging', fullKwh: 90, remainingKwh: 13.6, temperatureMin: 11.6, temperatureMax: 16.9 })
+    expect(f.etaHours).toBeCloseTo(13.6 / 1.68, 5)
+  })
+
   it('reads state and estimates time to full while charging', () => {
     // 51.2 V × (100 − 60) Ah = 2.048 kWh to go at 1.024 kW → 2 h.
     const f = batteryFigures(battery({ soc_pct: 60, voltage_v: 51.2, power_w: 1024, remaining_capacity_ah: 60, full_capacity_ah: 100 }))

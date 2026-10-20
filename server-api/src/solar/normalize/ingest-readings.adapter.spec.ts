@@ -418,4 +418,90 @@ describe('hierarchical metric names (Raspberry sender, Oct 2026) — SYNTHETIC',
     });
     expect(bad).toEqual({ error: expect.stringMatching(/metadata "x"/) });
   });
+
+  it("the site's real names (Oct 20): inverter sums are the plant, signed battery power wins over the BMS", () => {
+    // Night, battery discharging: the BMS reports +2.01 kW / +41 A, the inverters −1.68 kW.
+    const metrics: Record<string, number> = {
+      battery_capacity_kwh: 90,
+      battery_charge_capacity_kwh: 13.6,
+      battery_state_of_charge_pct: 15,
+      battery_power_w: 2010,
+      battery_current_a: 41,
+      battery_voltage_v: 49,
+      battery_temperature_c: 16.9,
+      battery_temperature_min_c: 11.6,
+      battery_temperature_max_c: 16.9,
+      inverter_total_pv_power_w: 1,
+      inverter_total_load_power_w: 1560,
+      inverter_total_battery_power_w: -1680,
+      inverter_total_battery_voltage_v: 48.8,
+      inverter_total_ac_output_power_w: 1560,
+      inverter_total_load_percentage: 5.25,
+    };
+    for (let i = 1; i <= 6; i++)
+      Object.assign(metrics, {
+        [`inverter_${i}_ac_output_power_w`]: 260,
+        [`inverter_${i}_battery_power_w`]: -280,
+        [`inverter_${i}_pv_mppt_1_power_w`]: 0,
+        [`inverter_${i}_load_percentage`]: 5.2,
+      });
+    for (let p = 1; p <= 5; p++)
+      for (let c = 1; c <= 16; c++)
+        metrics[`battery_pack_${p}_cell_${c}_voltage_v`] = 3 + c / 100;
+    const n = run(metrics);
+
+    const sys = of(n, 'SYSTEM')[0].metrics;
+    expect(sys).toMatchObject({
+      pv_power_w: 1,
+      load_power_w: 1560,
+      battery_power_w: -1680,
+      battery_bms_power_w: 2010,
+      battery_bms_current_a: 41,
+      soc_pct: 15,
+      battery_voltage_v: 49,
+      inverter_battery_voltage_v: 48.8,
+      ac_output_power_w: 1560,
+      load_percentage: 5.25,
+    });
+    expect(sys).not.toHaveProperty('battery_current_a');
+    expect(Object.keys(sys).some((k) => /^inverter_\d|cell/.test(k))).toBe(
+      false,
+    );
+
+    const bank = of(n, 'BATTERY', 'battery-bank')[0].metrics;
+    expect(bank).toMatchObject({
+      soc_pct: 15,
+      power_w: -1680,
+      bms_power_w: 2010,
+      bms_current_a: 41,
+      capacity_kwh: 90,
+      charge_capacity_kwh: 13.6,
+      temperature_min_c: 11.6,
+    });
+    expect(bank).not.toHaveProperty('current_a');
+
+    expect(of(n, 'INVERTER')).toHaveLength(6);
+    expect(of(n, 'INVERTER', 'inverter-6')[0].metrics).toMatchObject({
+      ac_output_power_w: 260,
+      battery_power_w: -280,
+      pv_mppt_1_power_w: 0,
+    });
+    const bms = of(n, 'BMS');
+    expect(bms.map((b) => b.externalId)).toEqual(
+      [1, 2, 3, 4, 5].map((p) => `pack-${p}-bms`),
+    );
+    expect(bms.every((b) => b.cells?.length === 16)).toBe(true);
+  });
+
+  it('without a BMS next to them, inverter sums alone fill the plant values', () => {
+    const sys = of(
+      run({
+        'inverter.total.pv_power_w': 3000,
+        'inverter.total.battery_power_w': 500,
+      }),
+      'SYSTEM',
+    )[0].metrics;
+    expect(sys).toMatchObject({ pv_power_w: 3000, battery_power_w: 500 });
+    expect(Object.keys(sys).some((k) => k.includes('bms'))).toBe(false);
+  });
 });

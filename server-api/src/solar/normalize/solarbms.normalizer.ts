@@ -105,6 +105,8 @@ const ALIASES: Record<string, string> = {
   state_of_charge: 'soc_pct',
   battery_soc: 'soc_pct',
   battery_soc_pct: 'soc_pct',
+  state_of_charge_pct: 'soc_pct',
+  battery_state_of_charge_pct: 'soc_pct',
   total_pv_power_w: 'pv_power_w',
   total_load_power_w: 'load_power_w',
   total_grid_power_w: 'grid_power_w',

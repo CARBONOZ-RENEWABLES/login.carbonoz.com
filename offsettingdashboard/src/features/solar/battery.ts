@@ -14,11 +14,16 @@ export function batteryFigures(d: SolarDevice) {
   const state: BatteryState = power == null || Math.abs(power) <= IDLE_W ? 'idle' : (power > 0) === SOLAR_SIGN.batteryChargingPositive ? 'charging' : 'discharging'
   const remainingAh = num(m.remaining_capacity_ah)
   const fullAh = num(m.full_capacity_ah)
+  // Energy in kWh, as some senders report it (`capacity_kwh` 90, `charge_capacity_kwh` 13.6 at 15 %).
+  const fullKwh = num(m.capacity_kwh) ?? num(m.full_capacity_kwh)
+  const remainingKwh = num(m.charge_capacity_kwh) ?? num(m.remaining_capacity_kwh) ?? num(m.remaining_energy_kwh)
   // Estimate from reported capacity and the present power; shown only when every input exists.
+  let kwhLeft: number | undefined
+  if (remainingKwh != null && fullKwh != null && fullKwh > 0) kwhLeft = state === 'charging' ? fullKwh - remainingKwh : remainingKwh
+  else if (voltage != null && remainingAh != null && fullAh != null && fullAh > 0) kwhLeft = ((state === 'charging' ? fullAh - remainingAh : remainingAh) * voltage) / 1000
   let etaHours: number | undefined
-  if (power != null && state !== 'idle' && voltage != null && remainingAh != null && fullAh != null && fullAh > 0) {
-    const kwh = ((state === 'charging' ? fullAh - remainingAh : remainingAh) * voltage) / 1000
-    const h = kwh / (Math.abs(power) / 1000)
+  if (power != null && state !== 'idle' && kwhLeft != null) {
+    const h = kwhLeft / (Math.abs(power) / 1000)
     if (h > 0 && h < 100) etaHours = h
   }
   return {
@@ -28,10 +33,14 @@ export function batteryFigures(d: SolarDevice) {
     power,
     state,
     temperature: num(m.temperature_c) ?? num(m.battery_temperature_c),
+    temperatureMin: num(m.temperature_min_c) ?? num(m.battery_temperature_min_c),
+    temperatureMax: num(m.temperature_max_c) ?? num(m.battery_temperature_max_c),
     soh: num(m.soh_pct),
     cycles: num(m.cycle_count),
     remainingAh,
     fullAh,
+    remainingKwh,
+    fullKwh,
     etaHours,
   }
 }
