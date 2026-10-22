@@ -30,6 +30,28 @@ export class CellsQueryDto {
   bmsId?: string;
 }
 
+export class CellDriftQueryDto {
+  @ApiPropertyOptional({
+    description: 'One BMS; default: every BMS of the site',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  bmsId?: string;
+
+  @ApiPropertyOptional({ description: 'Default: 7 days before `to`' })
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  from?: Date;
+
+  @ApiPropertyOptional({ description: 'Default: now' })
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  to?: Date;
+}
+
 export class HistoryQueryDto {
   @ApiPropertyOptional({ example: 'pv_power_w' })
   @Matches(/^[a-z0-9_]{1,100}$/)

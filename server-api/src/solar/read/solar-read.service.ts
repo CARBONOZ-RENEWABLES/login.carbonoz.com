@@ -4,6 +4,15 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
 import { LIVE_STALE_MS, SolarKeys } from '../solar.keys';
 import { LiveDevice } from '../store/solar-store.service';
+import {
+  assembleCellDrift,
+  cellDriftPipeline,
+  driftBucketSeconds,
+  driftStride,
+  DriftRow,
+  EXTREME_MIN_SPREAD_V,
+  OUTLIER_DEV_V,
+} from './cell-drift';
 
 /** Data older than this is flagged stale in the overview. */
 const STALE_MS = LIVE_STALE_MS;
@@ -230,6 +239,44 @@ export class SolarReadService {
       select: { generatedAt: true, source: true, points: true },
     });
     return f ?? null;
+  }
+
+  /**
+   * Per BMS: each cell's distance from the pack average over time, and how
+   * often it is the highest/lowest cell — to find cells that run away.
+   */
+  async cellDrift(site: Site, q: { bmsId?: string; from?: Date; to?: Date }) {
+    const to = q.to ?? new Date();
+    const from = q.from ?? new Date(to.getTime() - 7 * 86400_000);
+    if (from >= to) throw new BadRequestException('from must be before to');
+    if (to.getTime() - from.getTime() > MAX_HISTORY_DAYS * 86400_000)
+      throw new BadRequestException('Range too large');
+    const span = to.getTime() - from.getTime();
+    const bucketSeconds = driftBucketSeconds(span);
+    const stride = driftStride(span);
+    const rows = (await this.prisma.solarSample.aggregateRaw({
+      pipeline: cellDriftPipeline({
+        siteId: site.id,
+        bmsId: q.bmsId,
+        from,
+        to,
+        bucketMs: bucketSeconds * 1000,
+        stride,
+      }),
+      options: { maxTimeMS: 20_000, allowDiskUse: true },
+    })) as unknown as DriftRow[];
+    return {
+      from: from.toISOString(),
+      to: to.toISOString(),
+      bucketSeconds,
+      /** 1 = every sample analysed; N = one 10-second slot in N. */
+      sampling: stride,
+      thresholds: {
+        extremeMinSpreadMv: EXTREME_MIN_SPREAD_V * 1000,
+        outlierMv: OUTLIER_DEV_V * 1000,
+      },
+      packs: assembleCellDrift(rows),
+    };
   }
 
   /** Time-bucketed min/avg/max of one metric, one series per device. */

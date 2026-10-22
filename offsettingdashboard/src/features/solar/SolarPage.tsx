@@ -4,8 +4,10 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Card, CardHeader, EmptyState, ErrorState, inputClass, PageSkeleton, Segmented, StatusBadge, TabItem, Tabs } from '../../design'
 import { relativeTime, useShell } from '../../layout/ShellContext'
 import { RangeId } from '../../services/energyFlow'
-import { DeviceKind, MetricValue, SiteSummary, SolarDevice, SolarOverview, useGetSitesQuery, useGetSolarEnergyQuery, useGetSolarEventsQuery, useGetSolarForecastQuery, useGetSolarOverviewQuery } from './api'
-import { BMSCard, MetricCard, MetricList, StatusCard } from './components/cards'
+import { DeviceKind, MetricValue, SiteSummary, SolarDevice, SolarOverview, useGetSitesQuery, useGetSolarCellDriftQuery, useGetSolarEnergyQuery, useGetSolarEventsQuery, useGetSolarForecastQuery, useGetSolarOverviewQuery } from './api'
+import { BMSCard, BmsDriftProp, MetricCard, MetricList, StatusCard } from './components/cards'
+import { CellHealthCard } from './components/CellHealthCard'
+import { DriftRange, DRIFT_MS } from './cellDrift'
 import { ICONS } from './components/icons'
 import { ForecastChart, HistoryChart } from './components/charts'
 import { DataTable, EventTable } from './components/tables'
@@ -120,7 +122,7 @@ function SiteView({ summary, tab, onTab, basePath }: { summary: SiteSummary; tab
     case 'battery':
       return <BatteryTab site={site} />
     case 'bms':
-      return <BmsTab site={site} />
+      return <BmsTab siteId={siteId} site={site} />
     case 'inverters':
       return <InvertersTab site={site} />
     case 'history':
@@ -311,13 +313,39 @@ function BatteryTab({ site }: { site: SiteModel }) {
   )
 }
 
-function BmsTab({ site }: { site: SiteModel }) {
-  const cards = [
-    ...site.batteries.flatMap((b) => b.bms.map((m) => <BMSCard key={deviceKey(m)} d={m} unitOf={site.unitOf} battery={site.labelOf(b)} title={site.labelOf(m)} />)),
-    ...site.looseBms.map((m) => <BMSCard key={deviceKey(m)} d={m} unitOf={site.unitOf} title={site.labelOf(m)} />),
-  ]
+/** Anchor of a BMS card, so "cells to watch" can jump to it. */
+const bmsAnchor = (m: SolarDevice) => `bms-${m.installationId}-${m.externalId}`.replace(/[^A-Za-z0-9_-]/g, '_')
+
+function BmsTab({ siteId, site }: { siteId: string; site: SiteModel }) {
+  const [range, setRange] = useState<DriftRange>('7d')
+  const { refreshKey } = useShell()
+  const q = useMemo(() => {
+    const now = Date.now()
+    return { siteId, from: new Date(now - DRIFT_MS[range]).toISOString(), to: new Date(now).toISOString() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteId, range, refreshKey])
+  const drift = useGetSolarCellDriftQuery(q, { skip: !site.allBms.length })
+  const d = drift.data?.data
+  const driftFor = (m: SolarDevice): BmsDriftProp | undefined =>
+    drift.isFetching && !d ? 'loading' : d ? { data: d, pack: d.packs.find((p) => p.installationId === m.installationId && p.bmsId === m.externalId) } : undefined
+  const card = (m: SolarDevice, battery?: string) => <BMSCard key={deviceKey(m)} d={m} unitOf={site.unitOf} battery={battery} title={site.labelOf(m)} drift={driftFor(m)} anchor={bmsAnchor(m)} />
+  const cards = [...site.batteries.flatMap((b) => b.bms.map((m) => card(m, site.labelOf(b)))), ...site.looseBms.map((m) => card(m))]
   if (!cards.length) return <EmptyState icon={<Activity size={18} />} title={t('solar.empty.noBms')} description={t('solar.empty.noBmsHint')} />
-  return <div className='grid gap-3'>{cards}</div>
+  // min-w-0: wide tables inside the cards scroll instead of widening the page on phones.
+  return (
+    <div className='grid min-w-0 gap-3 [&>*]:min-w-0'>
+      <CellHealthCard
+        range={range}
+        onRange={setRange}
+        drift={d}
+        loading={drift.isFetching && !d}
+        error={drift.isError}
+        onRetry={drift.refetch}
+        bms={site.allBms.map((m) => ({ device: m, label: site.labelOf(m), anchor: bmsAnchor(m) }))}
+      />
+      {cards}
+    </div>
+  )
 }
 
 function InvertersTab({ site }: { site: SiteModel }) {

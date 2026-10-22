@@ -81,6 +81,42 @@ export interface Forecast {
   points: Array<{ ts: string } & Record<string, MetricValue>>
 }
 
+/** Per-cell drift statistics over a range (GET …/cells/drift). */
+export interface CellDriftStats {
+  id: string
+  n: number
+  /** mV from the pack average (+ = above). */
+  meanDevMv: number
+  maxDevMv: number
+  minDevMv: number
+  /** Of the moments the pack was unbalanced (spread ≥ thresholds.extremeMinSpreadMv), the share 0..1 as highest / lowest cell. */
+  highShare: number
+  lowShare: number
+  /** 0..1 of samples at least thresholds.outlierMv from the pack average. */
+  outlierShare: number
+  trendMvPerDay: number | null
+}
+
+export interface PackDrift {
+  installationId: string
+  bmsId: string
+  samples: number
+  /** Samples in which the pack spread reached thresholds.extremeMinSpreadMv. */
+  unbalancedSamples: number
+  /** Per bucket: pack spread, each cell's average mV from the pack average, and its furthest excursion (peaks). */
+  buckets: Array<{ t: number; spreadMv: number; spreadMaxMv: number; cells: Record<string, number>; peaks: Record<string, number> }>
+  cells: CellDriftStats[]
+}
+
+export interface CellDrift {
+  from: string
+  to: string
+  bucketSeconds: number
+  sampling: number
+  thresholds: { extremeMinSpreadMv: number; outlierMv: number }
+  packs: PackDrift[]
+}
+
 export type EnergyRange = '30d' | '1y' | '10y'
 
 /** One day, month or year of energy; `null` = no reading of that metric (not zero). */
@@ -133,6 +169,9 @@ export const solarApi = baseAPI.injectEndpoints({
     getSolarEvents: b.query<Envelope<SolarEvent[]>, { siteId: string; active?: boolean; limit?: number }>({
       query: ({ siteId, ...q }) => ({ url: `/solar/sites/${siteId}/events`, params: Object.fromEntries(Object.entries(q).filter(([, v]) => v != null)) }),
     }),
+    getSolarCellDrift: b.query<Envelope<CellDrift>, { siteId: string; from: string; to: string }>({
+      query: ({ siteId, ...q }) => ({ url: `/solar/sites/${siteId}/cells/drift`, params: q }),
+    }),
     getSolarForecast: b.query<Envelope<Forecast | null>, string>({ query: (siteId) => `/solar/sites/${siteId}/forecast` }),
     getSolarEnergy: b.query<Envelope<EnergyHistory>, { siteId: string; range: EnergyRange; anchor?: string }>({
       query: ({ siteId, range, anchor }) => ({ url: `/solar/sites/${siteId}/energy`, params: anchor ? { range, anchor } : { range } }),
@@ -141,4 +180,4 @@ export const solarApi = baseAPI.injectEndpoints({
   }),
 })
 
-export const { useGetSitesQuery, useGetSolarOverviewQuery, useGetSolarHistoryQuery, useGetSolarEventsQuery, useGetSolarForecastQuery, useGetSolarEnergyQuery } = solarApi
+export const { useGetSitesQuery, useGetSolarOverviewQuery, useGetSolarHistoryQuery, useGetSolarEventsQuery, useGetSolarForecastQuery, useGetSolarEnergyQuery, useGetSolarCellDriftQuery } = solarApi
