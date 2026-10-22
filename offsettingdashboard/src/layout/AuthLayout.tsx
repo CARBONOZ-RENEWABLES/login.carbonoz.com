@@ -4,6 +4,7 @@ import { ReactNode } from 'react'
 import Photo from '../assets/3-modified.jpg'
 import { BrandMark } from './AppShell'
 import { ThemeToggle } from './HeaderControls'
+import { WebsiteLinks } from '../components/auth/WebsiteLinks'
 
 /** Sign-in / sign-up frame: form card on the left, CARBONOZ imagery on wide screens. */
 export function AuthLayout({ title, subtitle, children, footer }: { title: ReactNode; subtitle?: ReactNode; children: ReactNode; footer?: ReactNode }) {
@@ -22,6 +23,7 @@ export function AuthLayout({ title, subtitle, children, footer }: { title: React
             {footer && <div className='mt-5 text-center text-[13px] text-muted'>{footer}</div>}
           </motion.div>
         </div>
+        <WebsiteLinks className='mb-3' />
         <p className='text-center text-[11.5px] text-subtle'>CARBONOZ Renewables · Intelligent solar energy management</p>
       </div>
 
