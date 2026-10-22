@@ -118,7 +118,9 @@ export class SolarController {
         q.range ?? '30d',
         q.anchor,
         new Date(),
-        profile?.customerTimezone,
+        // tz=site: the installation's own calendar (like the inverter's display).
+        q.tz === 'site' && site.timezone ? null : profile?.customerTimezone,
+        profile?.customerTimezone ?? null,
       ),
     );
   }

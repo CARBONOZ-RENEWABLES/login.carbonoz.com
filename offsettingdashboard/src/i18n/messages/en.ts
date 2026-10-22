@@ -136,7 +136,8 @@ export const en = {
   },
   solar: {
     tabs: { overview: 'Overview', energy: 'Energy', power: 'Power curves', battery: 'Battery', bms: 'BMS & Cells', inverters: 'Inverters', history: 'History', forecast: 'Forecast', events: 'Events', system: 'System' },
-    ranges: { '1h': '1h', '6h': '6h', '24h': '24h', '7d': '7d', '30d': '30d' },
+    ranges: { '1h': '1h', '6h': '6h', '24h': '24h', '7d': '7d', '30d': '30d', '1y': '1y', today: 'Today' },
+    window: { today: 'Today', yesterday: 'Yesterday', last: 'Last {range}', previous: 'Previous', next: 'Next', zoomIn: 'Zoom in', zoomOut: 'Zoom out' },
     kinds: { SYSTEM: 'System', INVERTER: 'Inverter', BATTERY: 'Battery', BMS: 'BMS' },
     severity: { INFO: 'info', WARNING: 'warning', ALARM: 'alarm', CRITICAL: 'critical' },
     sections: 'Solar sections',
@@ -448,6 +449,7 @@ export const en = {
     /** Where the time zone of the energy calendar comes from. */
     tzSource: { profile: 'your profile', site: 'site', default: 'default, none set' },
     range: 'Energy history range',
+    tzChoice: 'Time zone', tzSite: 'Site time ({zone})', tzMine: 'My time ({zone})',
     ranges: { '30d': '30 days', '1y': '1 year', '10y': '10 years' },
     earlier: 'Earlier period',
     later: 'Later period',

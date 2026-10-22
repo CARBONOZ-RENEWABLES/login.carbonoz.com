@@ -89,6 +89,8 @@ model SolarSample {
 
   @@index([siteId, deviceKind, ts])
   @@index([siteId, deviceKind, deviceExternalId, ts])
+  // Hourly rollups read every site's samples of a time window.
+  @@index([ts])
 }
 
 model SolarEvent {
@@ -196,5 +198,33 @@ model SolarBridgeLock {
   name      String   @unique
   owner     String
   until     DateTime
+  updatedAt DateTime @updatedAt
+}
+
+// Hourly summary of SolarSample per device (min / max / sum / count per
+// numeric metric), rebuilt by SolarRollupService. Long-range charts (up to a
+// year) read these instead of millions of raw samples.
+// _id = `<siteId>:<installationId>:<kind>:<device>:<hour ms>`.
+model SolarRollupHour {
+  id               String           @id @map("_id")
+  siteId           String           @db.ObjectId
+  installationId   String           @db.ObjectId
+  deviceKind       ESolarDeviceKind
+  deviceExternalId String
+  hour             DateTime
+  // metricKey → { sum, n, min, max }
+  metrics          Json
+
+  @@index([siteId, deviceKind, hour])
+  @@index([siteId, deviceKind, deviceExternalId, hour])
+}
+
+// Progress of SolarRollupService: hours before `doneUntil` are rolled up;
+// samples inserted after `scannedAt` are checked for late (back-filled) hours.
+model SolarRollupState {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String   @unique
+  doneUntil DateTime
+  scannedAt DateTime
   updatedAt DateTime @updatedAt
 }

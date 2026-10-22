@@ -7,8 +7,8 @@ import { PanelDef } from '../../charts/panels'
 import { TimeSeriesChart } from '../../charts/TimeSeriesChart'
 import { DeviceKind, Forecast, useGetSolarHistoryQuery } from '../api'
 import { metricMeta, seriesKey, unitOf } from '../model'
+import { axisRange, TimeWindow, windowBounds } from '../timeWindow'
 
-const RANGE_MS: Record<RangeId, number> = { '1h': 3600e3, '6h': 6 * 3600e3, '24h': 86400e3, '7d': 7 * 86400e3, '30d': 30 * 86400e3 }
 const PALETTE = [SERIES.pv, SERIES.load, SERIES.grid, SERIES.soc, SERIES.battPower, SERIES.voltage, SERIES.current, SERIES.export]
 /** Same colour per quantity as the existing Charts page. */
 const METRIC_COLOR: Record<string, string> = {
@@ -50,12 +50,13 @@ function ChartFrame({ title, subtitle, children }: { title: string; subtitle?: s
   )
 }
 
-export function HistoryChart({ siteId, metric, kind, deviceId, range, refreshKey = 0, labels }: { siteId: string; metric: string; kind: DeviceKind; deviceId?: string; range: RangeId; refreshKey?: number; labels?: Record<string, string> }) {
+export function HistoryChart({ siteId, metric, kind, deviceId, window: w, refreshKey = 0, labels }: { siteId: string; metric: string; kind: DeviceKind; deviceId?: string; window: TimeWindow; refreshKey?: number; labels?: Record<string, string> }) {
   const { from, to } = useMemo(() => {
-    const now = Date.now()
-    return { from: new Date(now - RANGE_MS[range]).toISOString(), to: new Date(now).toISOString() }
+    const b = windowBounds(w)
+    return { from: new Date(b.from).toISOString(), to: new Date(b.to).toISOString() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range, refreshKey])
+  }, [w.preset, w.offset, refreshKey])
+  const range = axisRange(w.preset)
   const { data, isFetching, isError, refetch } = useGetSolarHistoryQuery({ siteId, metric, kind, deviceId, from, to })
   const h = data?.data
   const title = metricMeta(metric).label

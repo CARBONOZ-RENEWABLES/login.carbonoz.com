@@ -3,7 +3,7 @@ import { ReactNode, useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Button, Card, CardHeader, EmptyState, ErrorState, Segmented, useChartTheme } from '../../../design'
 import { formatNumber, useT } from '../../../i18n'
-import { EnergyRange, useGetSolarEnergyQuery } from '../api'
+import { EnergyRange, EnergyTz, useGetSolarEnergyQuery } from '../api'
 import { bucketLabel, EnergyRow, formatKwh, formatPct, periodLabel, Resolution, toRow, totals } from '../energy'
 import { GrafanaChart } from './GrafanaChart'
 import { COLORS, Series, SERIES_LABEL } from './energyStyle'
@@ -17,8 +17,25 @@ export function EnergyHistory({ siteId, siteName }: { siteId: string; siteName?:
   const t = useT()
   const [range, setRange] = useState<EnergyRange>('30d')
   const [anchors, setAnchors] = useState<Partial<Record<EnergyRange, string>>>({})
-  const q = useGetSolarEnergyQuery({ siteId, range, anchor: anchors[range] })
+  // Site time by default (days as the installation sees them); remembered per browser.
+  const [tz, setTzState] = useState<EnergyTz>(() => {
+    try {
+      return localStorage.getItem('energyTz') === 'profile' ? 'profile' : 'site'
+    } catch {
+      return 'site'
+    }
+  })
+  const setTz = (v: EnergyTz) => {
+    setTzState(v)
+    try {
+      localStorage.setItem('energyTz', v)
+    } catch {
+      /* private mode */
+    }
+  }
+  const q = useGetSolarEnergyQuery({ siteId, range, anchor: anchors[range], tz })
   const data = q.data?.data
+  const zones = data?.siteTimezone && data.profileTimezone && data.siteTimezone !== data.profileTimezone ? { site: data.siteTimezone, profile: data.profileTimezone } : null
   // "Africa/Kigali (your profile)": the calendar and where it comes from.
   const tzLabel = data ? `${data.timezone} (${t(`energy.tzSource.${data.timezoneSource ?? 'site'}`)})` : ''
   const rows = useMemo(() => (data ? data.buckets.map((b) => toRow(b)) : []), [data])
@@ -42,6 +59,17 @@ export function EnergyHistory({ siteId, siteName }: { siteId: string; siteName?:
           <Button size='icon-sm' variant='outline' aria-label={t('energy.later')} title={t('energy.later')} disabled={!data?.nextAnchor} onClick={() => go(data?.nextAnchor)}>
             <ChevronRight size={15} />
           </Button>
+          {zones && (
+            <Segmented<EnergyTz>
+              label={t('energy.tzChoice')}
+              value={tz}
+              onChange={setTz}
+              options={[
+                { id: 'site', label: t('energy.tzSite', { zone: zones.site }) },
+                { id: 'profile', label: t('energy.tzMine', { zone: zones.profile }) },
+              ]}
+            />
+          )}
           <Segmented<EnergyRange>
             label={t('energy.range')}
             value={range}

@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Card, CardHeader, EmptyState, ErrorState, inputClass, PageSkeleton, Segmented, StatusBadge, TabItem, Tabs } from '../../design'
 import { relativeTime, useShell } from '../../layout/ShellContext'
-import { RangeId } from '../../services/energyFlow'
 import { DeviceKind, MetricValue, SiteSummary, SolarDevice, SolarOverview, useGetSitesQuery, useGetSolarCellDriftQuery, useGetSolarHistoryQuery, useGetSolarEnergyQuery, useGetSolarEventsQuery, useGetSolarForecastQuery, useGetSolarOverviewQuery } from './api'
 import { BMSCard, BmsDriftProp, MetricCard, MetricList, StatusCard } from './components/cards'
 import { CellHealthCard } from './components/CellHealthCard'
@@ -11,6 +10,8 @@ import { isHostMetric, settingsOf, socRatePerHour } from './fields'
 import { DriftRange, DRIFT_MS } from './cellDrift'
 import { ICONS } from './components/icons'
 import { ForecastChart, HistoryChart, LazyChart } from './components/charts'
+import { WindowPicker } from './components/WindowPicker'
+import { TimeWindow } from './timeWindow'
 import { DataTable, EventTable } from './components/tables'
 import { allMetricRows, batteryHint, buildSite, deviceKey, formatMetric, MetricRow, freshness, gridHint, headline, metricCardProps, metricMeta, orderedMetrics, seriesKey, SiteModel } from './model'
 import { energyFlowState } from './flowState'
@@ -26,8 +27,6 @@ import { InverterCard } from './components/InverterCard'
 type TabId = 'overview' | 'energy' | 'power' | 'battery' | 'bms' | 'inverters' | 'history' | 'forecast' | 'events' | 'system'
 const TAB_IDS: TabId[] = ['overview', 'energy', 'power', 'battery', 'bms', 'inverters', 'history', 'forecast', 'events', 'system']
 const tabs = (): TabItem<TabId>[] => TAB_IDS.map((id) => ({ id, label: t(`solar.tabs.${id}`) }))
-const RANGE_IDS: RangeId[] = ['6h', '24h', '7d', '30d']
-const ranges = () => RANGE_IDS.map((id) => ({ id, label: t(`solar.ranges.${id}`) }))
 const POLL_MS = 15_000
 
 /**
@@ -288,10 +287,6 @@ function ActiveAlarms({ siteId, onMore }: { siteId: string; onMore: () => void }
   )
 }
 
-function RangePicker({ value, onChange }: { value: RangeId; onChange: (r: RangeId) => void }) {
-  return <Segmented options={ranges()} value={value} onChange={onChange} label={t('solar.timeRange')} />
-}
-
 /** Energy: what flows right now, then daily / monthly / yearly energy history. */
 function EnergyTab({ siteId, o, site }: { siteId: string; o: SolarOverview; site: SiteModel }) {
   const h = headline(site)
@@ -310,7 +305,7 @@ function EnergyTab({ siteId, o, site }: { siteId: string; o: SolarOverview; site
 
 /** Power curves: SYSTEM power over time, a separate page from energy history. */
 function PowerTab({ siteId, o, site }: { siteId: string; o: SolarOverview; site: SiteModel }) {
-  const [range, setRange] = useState<RangeId>('24h')
+  const [range, setRange] = useState<TimeWindow>({ preset: '24h', offset: 0 })
   const { refreshKey } = useShell()
   const known = ['pv_power_w', 'load_power_w', 'grid_power_w', 'battery_power_w', 'soc_pct']
   const available = known.filter((k) => o.metrics.some((m) => m.deviceKind === 'SYSTEM' && m.key === k))
@@ -322,7 +317,7 @@ function PowerTab({ siteId, o, site }: { siteId: string; o: SolarOverview; site:
           <h2 className='text-[15px] font-semibold text-fg'>{t('solar.powerCurves')}</h2>
           <p className='text-[12px] text-muted'>{t('solar.powerCurvesHint')}</p>
         </div>
-        <RangePicker value={range} onChange={setRange} />
+        <WindowPicker value={range} onChange={setRange} />
       </div>
       <div className='grid gap-3 lg:grid-cols-2'>
         {available.map((k) => (
@@ -331,7 +326,7 @@ function PowerTab({ siteId, o, site }: { siteId: string; o: SolarOverview; site:
             siteId={siteId}
             metric={k}
             kind='SYSTEM'
-            range={range}
+            window={range}
             refreshKey={refreshKey}
             labels={Object.fromEntries(site.systems.map((d) => [seriesKey(d.installationId, d.externalId), site.systems.length > 1 ? site.labelOf(d) : metricMeta(k).label]))}
           />
@@ -408,7 +403,7 @@ const groupLabel = (k: DeviceKind) => (k === 'INVERTER' ? t('solar.status.invert
 
 /** Every numeric metric as its own chart, grouped by device type, one range for all: scroll instead of picking. */
 function HistoryTab({ siteId, o, site }: { siteId: string; o: SolarOverview; site: SiteModel }) {
-  const [range, setRange] = useState<RangeId>('24h')
+  const [range, setRange] = useState<TimeWindow>({ preset: '24h', offset: 0 })
   const { refreshKey } = useShell()
   const groups = useMemo(() => {
     // The Raspberry's own health (CPU, memory, storage) is not charted.
@@ -438,7 +433,7 @@ function HistoryTab({ siteId, o, site }: { siteId: string; o: SolarOverview; sit
             </button>
           ))}
         </nav>
-        <RangePicker value={range} onChange={setRange} />
+        <WindowPicker value={range} onChange={setRange} />
       </div>
       {groups.map((g) => (
         <section key={g.kind} id={anchor(g.kind)} className='scroll-mt-16' aria-label={groupLabel(g.kind)}>
@@ -448,7 +443,7 @@ function HistoryTab({ siteId, o, site }: { siteId: string; o: SolarOverview; sit
           <div className='grid min-w-0 gap-3 xl:grid-cols-2 [&>*]:min-w-0'>
             {g.keys.map((key) => (
               <LazyChart key={key}>
-                <HistoryChart siteId={siteId} metric={key} kind={g.kind} range={range} refreshKey={refreshKey} labels={labels} />
+                <HistoryChart siteId={siteId} metric={key} kind={g.kind} window={range} refreshKey={refreshKey} labels={labels} />
               </LazyChart>
             ))}
           </div>

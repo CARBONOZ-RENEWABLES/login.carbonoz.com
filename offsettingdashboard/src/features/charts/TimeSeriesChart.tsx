@@ -6,7 +6,7 @@ import { useChartTheme } from '../../design'
 import { HistoryPoint, RangeId } from '../../services/energyFlow'
 import { PanelDef, scaleOf } from './panels'
 
-const TICK: Record<RangeId, number> = { '1h': 10 * 60_000, '6h': 3600_000, '24h': 4 * 3600_000, '7d': 86400_000, '30d': 5 * 86400_000 }
+const TICK: Record<RangeId, number> = { '1h': 10 * 60_000, '6h': 3600_000, '24h': 4 * 3600_000, '7d': 86400_000, '30d': 5 * 86400_000, '1y': 30 * 86400_000 }
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -14,12 +14,14 @@ export function formatAxisTime(t: number, range: RangeId) {
   const d = new Date(t)
   if (range === '7d') return d.toLocaleDateString(getLocale(), { weekday: 'short' })
   if (range === '30d') return d.toLocaleDateString(getLocale(), { month: 'short', day: 'numeric' })
+  if (range === '1y') return d.toLocaleDateString(getLocale(), { month: 'short', year: '2-digit' })
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 function formatTooltipTime(t: number, range: RangeId) {
   const d = new Date(t)
   const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`
+  if (range === '1y') return d.toLocaleDateString(getLocale(), { day: 'numeric', month: 'short', year: 'numeric' })
   return range === '7d' || range === '30d' ? `${d.toLocaleDateString(getLocale(), { month: 'short', day: 'numeric' })}, ${time}` : time
 }
 

@@ -21,6 +21,21 @@ const MAX_POINTS = 400;
 /** Longest raw-history range per request (the dashboard offers up to 30 days). */
 export const MAX_HISTORY_DAYS = 31;
 
+/** Longest history range served from the hourly rollups. */
+export const MAX_ROLLUP_DAYS = 366;
+
+type HistoryRow = {
+  _id: {
+    i: string | { $oid: string };
+    d: string;
+    t: number | { $numberLong: string };
+  };
+  avg: number;
+  min: number;
+  max: number;
+  n: number;
+};
+
 export interface HistoryQuery {
   metric: string;
   kind: ESolarDeviceKind;
@@ -287,9 +302,8 @@ export class SolarReadService {
     const to = q.to ?? new Date();
     const from = q.from ?? new Date(to.getTime() - 24 * 3600_000);
     if (from >= to) throw new BadRequestException('from must be before to');
-    // History is aggregated from raw samples: at a 10 s reporting interval a
-    // month is ~260k documents per device. Longer ranges need rollups first.
-    if (to.getTime() - from.getTime() > MAX_HISTORY_DAYS * 86400_000)
+    // Raw samples (10 s apart) up to a month; hourly rollups up to a year.
+    if (to.getTime() - from.getTime() > MAX_ROLLUP_DAYS * 86400_000)
       throw new BadRequestException('Range too large');
     const spanS = (to.getTime() - from.getTime()) / 1000;
     const bucketS =
@@ -297,10 +311,30 @@ export class SolarReadService {
         ? q.bucketSeconds
         : BUCKETS_S.find((b) => spanS / b <= MAX_POINTS) ?? 86400;
     const bucketMs = bucketS * 1000;
+    // Hour-or-longer buckets come from the rollups; raw samples fill in
+    // while the rollups are still being built (first days after deploy).
+    let rows: HistoryRow[] = [];
+    if (bucketS >= 3600 && bucketS % 3600 === 0)
+      rows = await this.rollupHistory(site, q, from, to, bucketMs);
+    if (!rows.length) {
+      if (to.getTime() - from.getTime() > MAX_HISTORY_DAYS * 86400_000)
+        rows = [];
+      else rows = await this.rawHistory(site, q, from, to, bucketMs);
+    }
+    return this.historyResult(site, q, from, to, bucketS, rows);
+  }
+
+  private async rawHistory(
+    site: Site,
+    q: HistoryQuery,
+    from: Date,
+    to: Date,
+    bucketMs: number,
+  ): Promise<HistoryRow[]> {
     const field = `$metrics.${q.metric}`;
     // $toLong/$mod bucketing works on MongoDB 4.x as well as 5+ (no $dateTrunc).
     const t = { $toLong: '$ts' };
-    const rows = (await this.prisma.solarSample.aggregateRaw({
+    return (await this.prisma.solarSample.aggregateRaw({
       pipeline: [
         {
           $match: {
@@ -341,18 +375,65 @@ export class SolarReadService {
       ],
       // Hard stop for a pathological query instead of holding a connection.
       options: { maxTimeMS: 10_000 },
-    })) as unknown as Array<{
-      _id: {
-        i: string | { $oid: string };
-        d: string;
-        t: number | { $numberLong: string };
-      };
-      avg: number;
-      min: number;
-      max: number;
-      n: number;
-    }>;
+    })) as unknown as HistoryRow[];
+  }
 
+  /** Same rows as rawHistory, from SolarRollupHour (avg = Σsum / Σn). */
+  private async rollupHistory(
+    site: Site,
+    q: HistoryQuery,
+    from: Date,
+    to: Date,
+    bucketMs: number,
+  ): Promise<HistoryRow[]> {
+    const m = `$metrics.${q.metric}`;
+    const t = { $toLong: '$hour' };
+    return (await this.prisma.solarRollupHour.aggregateRaw({
+      pipeline: [
+        {
+          $match: {
+            siteId: { $oid: site.id },
+            deviceKind: q.kind,
+            ...(q.deviceId && { deviceExternalId: q.deviceId }),
+            hour: {
+              $gte: {
+                $date: new Date(
+                  Math.floor(from.getTime() / 3600_000) * 3600_000,
+                ).toISOString(),
+              },
+              $lte: { $date: to.toISOString() },
+            },
+            [`metrics.${q.metric}.n`]: { $gt: 0 },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              i: '$installationId',
+              d: '$deviceExternalId',
+              t: { $subtract: [t, { $mod: [t, bucketMs] }] },
+            },
+            sum: { $sum: `${m}.sum` },
+            n: { $sum: `${m}.n` },
+            min: { $min: `${m}.min` },
+            max: { $max: `${m}.max` },
+          },
+        },
+        { $addFields: { avg: { $divide: ['$sum', '$n'] } } },
+        { $sort: { '_id.t': 1 } },
+      ],
+      options: { maxTimeMS: 15_000 },
+    })) as unknown as HistoryRow[];
+  }
+
+  private async historyResult(
+    site: Site,
+    q: HistoryQuery,
+    from: Date,
+    to: Date,
+    bucketS: number,
+    rows: HistoryRow[],
+  ) {
     // One series per device per installation (two Pis on a site may reuse ids).
     const series = new Map<
       string,

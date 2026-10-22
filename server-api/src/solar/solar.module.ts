@@ -7,6 +7,7 @@ import { SolarEnergyHistoryService } from './read/solar-energy-history.service';
 import { SolarLiveService } from './read/solar-live.service';
 import { SolarIngestBridge } from './bridge/solar-ingest-bridge.service';
 import { SolarReadService } from './read/solar-read.service';
+import { SolarRollupService } from './read/solar-rollup.service';
 import {
   AdminSolarController,
   SolarController,
@@ -26,6 +27,7 @@ import { SolarStoreService } from './store/solar-store.service';
     SolarEnergyHistoryService,
     SolarLiveService,
     SolarIngestBridge,
+    SolarRollupService,
   ],
   exports: [SolarEnergyService],
 })

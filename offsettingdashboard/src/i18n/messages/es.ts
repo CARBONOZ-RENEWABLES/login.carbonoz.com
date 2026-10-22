@@ -125,7 +125,8 @@ export const es: Catalogue = {
   },
   solar: {
     tabs: { overview: 'Resumen', energy: 'Energía', power: 'Curvas de potencia', battery: 'Batería', bms: 'BMS y celdas', inverters: 'Inversores', history: 'Historial', forecast: 'Previsión', events: 'Eventos', system: 'Sistema' },
-    ranges: { '1h': '1 h', '6h': '6 h', '24h': '24 h', '7d': '7 d', '30d': '30 d' },
+    ranges: { '1h': '1 h', '6h': '6 h', '24h': '24 h', '7d': '7 d', '30d': '30 d', '1y': '1a', today: 'Hoy' },
+    window: { today: 'Hoy', yesterday: 'Ayer', last: 'Últimos {range}', previous: 'Anterior', next: 'Siguiente', zoomIn: 'Acercar', zoomOut: 'Alejar' },
     kinds: { SYSTEM: 'Sistema', INVERTER: 'Inversor', BATTERY: 'Batería', BMS: 'BMS' },
     severity: { INFO: 'info', WARNING: 'aviso', ALARM: 'alarma', CRITICAL: 'crítico' },
     sections: 'Secciones solares',
@@ -434,6 +435,7 @@ export const es: Catalogue = {
     /** Where the time zone of the energy calendar comes from. */
     tzSource: { profile: 'su perfil', site: 'sitio', default: 'predeterminada, ninguna definida' },
     range: 'Periodo del historial de energía',
+    tzChoice: 'Zona horaria', tzSite: 'Hora del sitio ({zone})', tzMine: 'Mi hora ({zone})',
     ranges: { '30d': '30 días', '1y': '1 año', '10y': '10 años' },
     earlier: 'Periodo anterior',
     later: 'Periodo siguiente',
