@@ -374,8 +374,8 @@ describe('isolation and limits', () => {
     ).toHaveLength(450);
   });
 
-  it('limits history to 31 days and uses the requested site only', async () => {
-    const from = new Date(Date.now() - 40 * 86400e3).toISOString();
+  it('limits history to a year (hourly rollups) and uses the requested site only', async () => {
+    const from = new Date(Date.now() - 400 * 86400e3).toISOString();
     expect((await get(`/history?metric=pv_power_w&from=${from}`)).status).toBe(
       400,
     );

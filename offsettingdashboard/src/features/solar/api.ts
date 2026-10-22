@@ -118,6 +118,8 @@ export interface CellDrift {
 }
 
 export type EnergyRange = '30d' | '1y' | '10y'
+/** Calendar of the energy buckets: the site's time zone or the viewer's own. */
+export type EnergyTz = 'site' | 'profile'
 
 /** One day, month or year of energy; `null` = no reading of that metric (not zero). */
 export interface EnergyBucket {
@@ -143,6 +145,8 @@ export interface EnergyHistory {
   timezone: string
   timezoneSource?: 'profile' | 'site' | 'default'
   siteTimezone?: string | null
+  /** The viewer's profile zone, also when the site's calendar is used. */
+  profileTimezone?: string | null
   anchor: string
   previousAnchor: string
   nextAnchor: string | null
@@ -173,8 +177,8 @@ export const solarApi = baseAPI.injectEndpoints({
       query: ({ siteId, ...q }) => ({ url: `/solar/sites/${siteId}/cells/drift`, params: q }),
     }),
     getSolarForecast: b.query<Envelope<Forecast | null>, string>({ query: (siteId) => `/solar/sites/${siteId}/forecast` }),
-    getSolarEnergy: b.query<Envelope<EnergyHistory>, { siteId: string; range: EnergyRange; anchor?: string }>({
-      query: ({ siteId, range, anchor }) => ({ url: `/solar/sites/${siteId}/energy`, params: anchor ? { range, anchor } : { range } }),
+    getSolarEnergy: b.query<Envelope<EnergyHistory>, { siteId: string; range: EnergyRange; anchor?: string; tz?: EnergyTz }>({
+      query: ({ siteId, range, anchor, tz }) => ({ url: `/solar/sites/${siteId}/energy`, params: { range, ...(anchor && { anchor }), ...(tz && { tz }) } }),
       providesTags: (_r, _e, { siteId }) => [{ type: 'Solar-Site', id: siteId }],
     }),
   }),

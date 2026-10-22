@@ -8,7 +8,7 @@
 export type LiveStatus = 'loading' | 'live' | 'no-data' | 'error'
 
 /** Chart time ranges. */
-export type RangeId = '1h' | '6h' | '24h' | '7d' | '30d'
+export type RangeId = '1h' | '6h' | '24h' | '7d' | '30d' | '1y'
 
 /** One chart row: a timestamp plus one value per series key. */
 export type HistoryPoint = { t: number } & { [series: string]: number }

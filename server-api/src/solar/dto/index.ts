@@ -126,4 +126,14 @@ export class EnergyHistoryQueryDto {
   @IsOptional()
   @Matches(/^\d{4}(-\d{2}(-\d{2})?)?$/)
   anchor?: string;
+
+  @ApiPropertyOptional({
+    enum: ['auto', 'site', 'profile'],
+    default: 'auto',
+    description:
+      "Calendar of the buckets: the site's time zone, the viewer's profile zone, or auto (profile when set, else site)",
+  })
+  @IsOptional()
+  @IsIn(['auto', 'site', 'profile'])
+  tz?: 'auto' | 'site' | 'profile';
 }

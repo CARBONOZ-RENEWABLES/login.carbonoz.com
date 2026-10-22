@@ -119,6 +119,8 @@ export class SolarEnergyHistoryService {
     anchor?: string,
     now = new Date(),
     profileTimeZone?: string | null,
+    /** The viewer's profile zone, reported back so the UI can offer it (even when not used). */
+    viewerTimeZone?: string | null,
   ) {
     if (anchor !== undefined && !validAnchor(range, anchor))
       throw new BadRequestException(
@@ -200,6 +202,7 @@ export class SolarEnergyHistoryService {
       /** Where `timezone` comes from: the viewer's profile, the site, or UTC (neither set). */
       timezoneSource: zone.source,
       siteTimezone: site.timezone ?? null,
+      profileTimezone: viewerTimeZone ?? profileTimeZone ?? null,
       anchor: plan.anchor,
       previousAnchor: plan.previousAnchor,
       nextAnchor: plan.nextAnchor,
