@@ -142,6 +142,8 @@ export const en = {
     sections: 'Solar sections',
     site: 'Site',
     metric: 'Metric',
+    historyGroups: 'Chart groups',
+    chartsCount: { one: '{count} chart', other: '{count} charts' },
     timeRange: 'Time range',
     eventFilter: 'Event filter',
     lastReading: 'Last reading {when}',

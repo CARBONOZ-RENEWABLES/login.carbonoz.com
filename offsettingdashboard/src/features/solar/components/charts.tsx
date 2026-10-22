@@ -1,5 +1,5 @@
 import { formatDate, translate as t } from '../../../i18n'
-import { useMemo } from 'react'
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { Card, CardHeader, EmptyState, ErrorState, Skeleton } from '../../../design'
 import { SERIES } from '../../../design/theme'
 import { HistoryPoint, RangeId } from '../../../services/energyFlow'
@@ -77,6 +77,22 @@ export function HistoryChart({ siteId, metric, kind, deviceId, range, refreshKey
       {body}
     </ChartFrame>
   )
+}
+
+/**
+ * Mounts its chart only once it scrolls near the viewport (and keeps it), so a
+ * page with dozens of charts doesn't fire dozens of history requests at once.
+ */
+export function LazyChart({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [seen, setSeen] = useState(() => typeof IntersectionObserver === 'undefined')
+  useEffect(() => {
+    if (seen || !ref.current) return
+    const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && setSeen(true), { rootMargin: '600px 0px' })
+    io.observe(ref.current)
+    return () => io.disconnect()
+  }, [seen])
+  return <div ref={ref}>{seen ? children : <Card className='h-[318px] p-4' aria-hidden />}</div>
 }
 
 /** Forecast points: every numeric field becomes a series; missing forecast → empty state. */

@@ -131,6 +131,8 @@ export const de: Catalogue = {
     sections: 'Solar-Bereiche',
     site: 'Standort',
     metric: 'Messwert',
+    historyGroups: 'Diagrammgruppen',
+    chartsCount: { one: '{count} Diagramm', other: '{count} Diagramme' },
     timeRange: 'Zeitraum',
     eventFilter: 'Ereignisfilter',
     lastReading: 'Letzter Messwert {when}',
