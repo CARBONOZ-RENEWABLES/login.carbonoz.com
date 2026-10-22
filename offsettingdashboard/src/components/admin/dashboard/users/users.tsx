@@ -1,4 +1,5 @@
 import { Form, Input, Select } from 'antd'
+import { isSso } from '../../../../lib/auth/session'
 import { FC, useEffect, useState } from 'react'
 import { UserPlus, Power } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -131,7 +132,7 @@ const Users: FC = () => {
       ...data,
       onSuccess: handleCancelAddUser,
       notify: true,
-      message: 'User added successfully',
+      message: isSso ? 'Account prepared: create the same e-mail in Keycloak' : 'User added successfully',
     })
   }
 
@@ -174,7 +175,7 @@ const Users: FC = () => {
       <CustomModal
         isVisible={userModalOpen}
         setIsVisible={setUserModalOpen}
-        title={`Register new user`}
+        title={isSso ? 'Prepare a user (single sign-on)' : 'Register new user'}
         width={width <= 500 ? 500 : 1000}
         handleCancel={handleCancelAddUser}
         footerContent={
@@ -189,6 +190,17 @@ const Users: FC = () => {
           </CustomButton>
         }
       >
+        {isSso && (
+          <div className='mb-4 rounded-lg border border-line bg-panel-2 px-4 py-3 text-[13px] leading-relaxed text-fg-2'>
+            <p className='font-medium text-fg'>People sign in with single sign-on. Create the person in Keycloak:</p>
+            <ol className='ml-5 mt-1 list-decimal space-y-0.5'>
+              <li>auth.carbonoz.com → realm <b>CARBONOZ</b> → Users → Add user</li>
+              <li>Enter the e-mail and switch <b>Email verified</b> on, then Create</li>
+              <li>Credentials → Set password with <b>Temporary</b> on (they choose their own at first sign-in)</li>
+            </ol>
+            <p className='mt-2'>Saving the same e-mail here prepares the Carbonoz account, so you can add them to a customer now. No password is created or e-mailed here.</p>
+          </div>
+        )}
         <AddNewUserForm form={userForm} onFinish={onUserFinish} />
       </CustomModal>
       <div className='w-[100%]'>

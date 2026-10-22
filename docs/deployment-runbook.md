@@ -235,6 +235,32 @@ node scripts/link-identity.js --email <admin email> --subject <keycloak user id>
 node scripts/link-identity.js --email <admin email> --subject <keycloak user id> --apply
 ```
 
+### Turning on single sign-on (auth.carbonoz.com)
+
+Keycloak (set up by Felix on 192.168.160.160, public at `https://auth.carbonoz.com`): realm **`customers`** (display name CARBONOZ), confidential client **`carbonoz-portal`** for login.carbonoz.com and **`carbonoz-portal-dev`** for `http://localhost:5174`.
+
+Check on the client `carbonoz-portal` (Keycloak admin console → Clients → carbonoz-portal):
+
+- Settings → Capability config: **Client authentication on**, Standard flow on, Direct access grants off; PKCE method **S256** (the API always sends a code challenge).
+- Valid redirect URI `https://login.carbonoz.com/api/v1/auth/oidc/callback`, post-logout `https://login.carbonoz.com/*`, web origin `https://login.carbonoz.com` (as set).
+- Credentials tab: the client secret goes into the API `.env` on api2 only (never into Git or chat).
+
+API `.env` on api2 (then `pm2 restart carbonoz-api --update-env`):
+
+```
+KEYCLOAK_ENABLED=true
+KEYCLOAK_ISSUER_URL=https://auth.carbonoz.com/realms/customers
+KEYCLOAK_CLIENT_ID=carbonoz-portal
+KEYCLOAK_CLIENT_SECRET=<Credentials tab>
+KEYCLOAK_REDIRECT_URI=https://login.carbonoz.com/api/v1/auth/oidc/callback
+KEYCLOAK_POST_LOGOUT_REDIRECT_URI=https://login.carbonoz.com/
+AUTH_RETURN_ORIGINS=https://login.carbonoz.com,https://solar.carbonoz.com
+```
+
+Frontend on .190: build with `VITE_AUTH_MODE=keycloak` in `offsettingdashboard/.env`, then `DEPLOY_ROLE=frontend bash deploy-update.sh`. Check: `curl -s https://login.carbonoz.com/api/v1/auth/config` answers `{"data":{"sso":true}}`; the login button opens auth.carbonoz.com.
+
+**Creating users (with SSO):** people are created in Keycloak, not in Carbonoz: realm CARBONOZ → Users → Add user, e-mail, **Email verified on**, Credentials → Set password with **Temporary on**. To give them their site before the first sign-in, add the same e-mail as a member of the customer in Carbonoz Admin (or Admin → Users → Prepare): this prepares a Carbonoz account **without a password**, and their first Keycloak sign-in links to it by the verified e-mail. Admin accounts are never linked by e-mail — use `scripts/link-identity.js` as above. Keep `LEGACY_AUTH_ENABLED=true` until every existing user has signed in once through Keycloak, then set it to `false`.
+
 ## 5. Rollback
 
 ```bash

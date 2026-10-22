@@ -202,7 +202,10 @@ it('matches member emails exactly: a+b@ never selects aab@', async () => {
     `/admin/customers/${a.customer.id}/members`,
     { token: admin, body: { email: aab.email.replace(/^aab/, 'a+b') } },
   );
-  expect(r.status).toBe(404);
+  // With SSO (as in this stack) the literal address gets its own prepared
+  // account; never the look-alike existing one.
+  expect(r.status).toBe(201);
+  expect(r.data.data.userId).not.toBe(aab.user.id);
   expect(
     (
       await call(t.api, 'GET', `/solar/sites/${a.site.id}/overview`, {

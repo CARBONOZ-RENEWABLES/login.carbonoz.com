@@ -1,4 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
+import { prepareSsoUser, ssoEnabled } from 'src/auth/oidc/sso-users';
 import { ERole, Logs, Prisma, RedexRegisterDevice, User } from '@prisma/client';
 import * as argon from 'argon2';
 import { EUserStatus } from 'src/__shared__/enums';
@@ -176,6 +177,17 @@ export class AdminService {
 
   async signUsersUp(dto: AdminSignUserDto) {
     dto.email = normalizeEmail(dto.email);
+    // SSO: the account lives in Keycloak; no local password, no password e-mail.
+    if (ssoEnabled()) {
+      const { created } = await prepareSsoUser(this.prismaService, dto.email);
+      if (!created)
+        throw new ConflictException('User with this email already exists');
+      return {
+        message:
+          'Account prepared. Create the same e-mail in Keycloak (realm CARBONOZ → Users → Add user, e-mail verified); the person signs in there.',
+        sso: true,
+      };
+    }
     const isEmailExists =
       (await findUsersByEmail(this.prismaService, dto.email)).length > 0;
     if (isEmailExists) {

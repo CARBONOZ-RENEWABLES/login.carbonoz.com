@@ -6,6 +6,7 @@ import { Button, Dialog, inputClass, LinkButton } from '../../../design'
 import { DataTable } from '../../solar/components/tables'
 import { CustomerRow, CustomerType, useAddMemberMutation, useCreateCustomerMutation, useGetAdminCustomersQuery } from '../api'
 import { ago, apiError, formatDate } from '../model'
+import { isSso } from '../../../lib/auth/session'
 import { FormField, LiveBadge, Mono, Panel, QueryError, SearchInput } from '../ui'
 import { useDebounced } from '../hooks'
 
@@ -105,7 +106,7 @@ function CreateCustomerDialog({ open, onClose, onCreated }: { open: boolean; onC
       try {
         await addMember({ customerId: id, email: ownerEmail.trim(), role: 'OWNER' }).unwrap()
       } catch (err) {
-        Notify({ type: 'warning', message: 'Customer created without owner', description: `${apiError(err)}. Add the member on the customer page once the account exists.` })
+        Notify({ type: 'warning', message: 'Customer created without owner', description: `${apiError(err)}. Add the member on the customer page${isSso ? '' : ' once the account exists'}.` })
         reset()
         onCreated(id)
         return

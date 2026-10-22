@@ -6,6 +6,7 @@ import { Button, Card, Dialog, Field, inputClass, LinkButton, PageSkeleton, Stat
 import { DataTable } from '../../solar/components/tables'
 import { CustomerDetail, CustomerType, Member, MemberRole, SiteDetail, useAddMemberMutation, useGetAdminCustomerQuery, useRemoveMemberMutation, useUpdateCustomerMutation } from '../api'
 import { ago, apiError, formatDate, personName } from '../model'
+import { isSso } from '../../../lib/auth/session'
 import { ConfirmDialog, FormField, LiveBadge, Mono, Panel, QueryError } from '../ui'
 import { CreateSiteDialog, SiteActions } from './SiteParts'
 
@@ -114,7 +115,7 @@ function MembersPanel({ customer }: { customer: CustomerDetail }) {
         account may access.
       </p>
       <form onSubmit={submit} className='mb-4 flex flex-col gap-3 sm:flex-row sm:items-end'>
-        <FormField label='Add member by email' hint='The person must already have a Carbonoz account.'>
+        <FormField label='Add member by email' hint={isSso ? 'Create the person in Keycloak (realm CARBONOZ, e-mail verified). Access is ready at their first sign-in.' : 'The person must already have a Carbonoz account.'}>
           <input className={`${inputClass} sm:w-80`} type='email' value={email} onChange={(e) => setEmail(e.target.value)} placeholder='name@example.com' required />
         </FormField>
         <FormField label='Role'>
