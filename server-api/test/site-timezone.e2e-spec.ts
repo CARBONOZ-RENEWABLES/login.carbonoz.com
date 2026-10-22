@@ -110,7 +110,7 @@ describe('changing the time zone', () => {
       const r = await patchSite(site.id, { timezone: tz });
       expect(r.status).toBe(400);
     }
-    // Only the time zone is editable: other fields are ignored, a missing time zone is 400.
+    // Only the time zone and the location are editable: other fields alone are 400.
     expect((await patchSite(site.id, { name: 'Renamed' })).status).toBe(400);
     const stored = await prisma.site.findUnique({ where: { id: site.id } });
     expect(stored).toMatchObject({ timezone: 'Europe/Berlin', name: 'Roof' });
