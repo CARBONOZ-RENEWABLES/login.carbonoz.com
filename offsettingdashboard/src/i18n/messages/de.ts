@@ -470,6 +470,7 @@ export const de: Catalogue = {
     pv: 'PV',
     consumption: 'Verbrauch',
     gridImport: 'Netzbezug',
+    gridExport: 'Netzeinspeisung',
     batteryCharged: 'Batterie geladen',
     batteryDischarged: 'Batterie entladen',
     coverage: 'PV-Deckung',
@@ -546,6 +547,8 @@ export const de: Catalogue = {
       pvVsConsumption: 'PV und Verbrauch (täglich)',
       batteryDaily: 'Batterie geladen und entladen (täglich)',
       gridImportDaily: 'Netzbezug (täglich)',
+      gridDaily: 'Netzbezug und Einspeisung (täglich)',
+      all: { day: 'Gesamte Energie (täglich)', month: 'Gesamte Energie (monatlich)', year: 'Gesamte Energie (jährlich)' },
       coverageDaily: 'PV-Deckung (täglich)',
       monthly: {
         pv: 'Monatliche PV-Erzeugung',

@@ -104,9 +104,12 @@ type Point = EnergyRow & { label: string }
 function Charts({ rows, res }: { rows: EnergyRow[]; res: Resolution }) {
   const t = useT()
   const points: Point[] = rows.map((r) => ({ ...r, label: bucketLabel(r.key, res) }))
+  // Every series side by side, like the inverter app's totals: the one chart to compare days or months.
+  const all = <EnergyBars title={t(`energy.charts.all.${res}`)} points={points} series={['pv', 'consumption', 'batteryCharged', 'batteryDischarged', 'gridImport', 'gridExport']} res={res} wide />
   if (res === 'day') {
     return (
       <div className='mb-3 grid gap-3 lg:grid-cols-2'>
+        {all}
         <BatteryFlowChart title={t('energy.charts.batteryDaily')} points={points} res={res} className='lg:col-span-2' />
         <GrafanaChart
           title={t('energy.charts.pvVsConsumption')}
@@ -118,7 +121,16 @@ function Charts({ rows, res }: { rows: EnergyRow[]; res: Resolution }) {
             { key: 'consumption', label: t('energy.consumption'), color: COLORS.consumption },
           ]}
         />
-        <GrafanaChart title={t('energy.charts.gridImportDaily')} rows={rows} unit='kWh' meanLine='gridImport' series={[{ key: 'gridImport', label: t('energy.gridImport'), color: COLORS.gridImport }]} />
+        <GrafanaChart
+          title={t('energy.charts.gridDaily')}
+          rows={rows}
+          unit='kWh'
+          meanLine='gridImport'
+          series={[
+            { key: 'gridImport', label: t('energy.gridImport'), color: COLORS.gridImport },
+            { key: 'gridExport', label: t('energy.gridExport'), color: COLORS.gridExport },
+          ]}
+        />
         <GrafanaChart
           title={t('energy.charts.coverageDaily')}
           rows={rows}
@@ -137,10 +149,11 @@ function Charts({ rows, res }: { rows: EnergyRow[]; res: Resolution }) {
   const p = res === 'month' ? 'monthly' : 'yearly'
   return (
     <div className='mb-3 grid gap-3 lg:grid-cols-2'>
+      {res === 'month' && all}
       <EnergyBars title={t(`energy.charts.${p}.pv`)} points={points} series={['pv']} res={res} labels={labels} />
       <EnergyBars title={t(`energy.charts.${p}.consumption`)} points={points} series={['consumption']} res={res} labels={labels} />
       <EnergyBars title={t(`energy.charts.${p}.battery`)} points={points} series={['batteryCharged', 'batteryDischarged']} res={res} labels={labels} />
-      <EnergyBars title={t(`energy.charts.${p}.gridImport`)} points={points} series={['gridImport']} res={res} labels={labels} />
+      <EnergyBars title={t(`energy.charts.${p}.gridImport`)} points={points} series={['gridImport', 'gridExport']} res={res} labels={labels} />
       <CoverageBars title={t(`energy.charts.${p}.coverage`)} points={points} res={res} labels={labels} className='lg:col-span-2' />
     </div>
   )
@@ -196,13 +209,13 @@ function EnergyTooltip({ active, payload, res, series }: { active?: boolean; pay
   )
 }
 
-function EnergyBars({ title, points, series, res, labels }: { title: string; points: Point[]; series: Series[]; res: Resolution; labels?: boolean }) {
+function EnergyBars({ title, points, series, res, labels, wide }: { title: string; points: Point[]; series: Series[]; res: Resolution; labels?: boolean; wide?: boolean }) {
   const t = useT()
   const { theme, grid, tick } = useAxes()
   const has = points.some((p) => series.some((s) => p[s] != null))
   const summary = series.map((s) => `${t(SERIES_LABEL[s])}: ${formatKwh(totals(points)[s], res)}`).join(', ')
   return (
-    <ChartCard title={title} unit='kWh' summary={summary}>
+    <ChartCard title={title} unit='kWh' summary={summary} className={wide ? 'lg:col-span-2' : undefined} tall={wide}>
       {!has ? (
         <EmptyState title={t('energy.noDataSeries')} className='h-full' />
       ) : (
@@ -213,7 +226,7 @@ function EnergyBars({ title, points, series, res, labels }: { title: string; poi
             <YAxis tick={tick} tickLine={false} axisLine={false} width={48} tickFormatter={axisKwh} />
             <Tooltip cursor={{ fill: theme.cursor, opacity: 0.15 }} content={<EnergyTooltip res={res} series={series} />} />
             {series.map((s) => (
-              <Bar key={s} dataKey={s} name={t(SERIES_LABEL[s])} fill={COLORS[s]} radius={[3, 3, 0, 0]} maxBarSize={res === 'day' ? 14 : 36} isAnimationActive={false}>
+              <Bar key={s} dataKey={s} name={t(SERIES_LABEL[s])} fill={COLORS[s]} radius={[3, 3, 0, 0]} maxBarSize={series.length > 2 ? (res === 'day' ? 6 : 14) : res === 'day' ? 14 : 36} isAnimationActive={false}>
                 {points.map((p) => (
                   // Incomplete buckets are drawn lighter; missing ones not at all.
                   <Cell key={p.key} fillOpacity={p.incomplete ? 0.45 : 1} />

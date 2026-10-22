@@ -470,6 +470,7 @@ export const fr: Catalogue = {
     pv: 'PV',
     consumption: 'Consommation',
     gridImport: 'Soutirage réseau',
+    gridExport: 'Injection réseau',
     batteryCharged: 'Batterie chargée',
     batteryDischarged: 'Batterie déchargée',
     coverage: 'Couverture PV',
@@ -546,6 +547,8 @@ export const fr: Catalogue = {
       pvVsConsumption: 'PV et consommation (quotidien)',
       batteryDaily: 'Batterie chargée et déchargée (quotidien)',
       gridImportDaily: 'Soutirage réseau (quotidien)',
+      gridDaily: 'Soutirage et injection réseau (par jour)',
+      all: { day: 'Toute l’énergie (par jour)', month: 'Toute l’énergie (par mois)', year: 'Toute l’énergie (par an)' },
       coverageDaily: 'Couverture PV (quotidien)',
       monthly: {
         pv: 'Production PV mensuelle',
