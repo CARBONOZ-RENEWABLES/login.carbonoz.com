@@ -42,7 +42,8 @@ interface History {
 describe('hourly rollups and long history', () => {
   // Real clock: the late-sample check compares with insertion times.
   const now = new Date();
-  const start = now.getTime() - 400 * DAY;
+  // Whole hours, so each hour holds exactly its two samples.
+  const start = Math.floor((now.getTime() - 400 * DAY) / H) * H;
   let owner: Awaited<ReturnType<typeof signup>>;
   let siteId: string;
   let installationId: string;
