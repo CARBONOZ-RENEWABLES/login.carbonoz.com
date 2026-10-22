@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString } from 'class-validator';
 
 export class MeterDto {
   @ApiPropertyOptional({
@@ -29,12 +29,8 @@ export class MeterDto {
   @IsString()
   meterType?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  @ApiProperty({
-    type: String,
-    required: true,
-    default: 'path/to/metering/evidence/photo',
-  })
-  meteringEvidencePhotoUpload: string;
+  @ApiPropertyOptional({ type: String })
+  meteringEvidencePhotoUpload?: string;
 }

@@ -43,28 +43,28 @@ model UserInformation {
 
 model Asset {
   id                       String   @id @default(auto()) @map("_id") @db.ObjectId
-  assetName                String
-  assetOwner               String
-  fuelType                 String
-  country                  String
-  latitude                 Float
-  longitude                Float
-  capacityKwp              Float
-  service                  String
-  codDate                  DateTime
-  amountOfInverters        Int
-  amountOfPanels           Int
-  panelBrand               String
-  panelPower               Int
+  assetName                String?
+  assetOwner               String?
+  fuelType                 String?
+  country                  String?
+  latitude                 Float?
+  longitude                Float?
+  capacityKwp              Float?
+  service                  String?
+  codDate                  DateTime?
+  amountOfInverters        Int?
+  amountOfPanels           Int?
+  panelBrand               String?
+  panelPower               Int?
   amountOfBatteries        Int?
   batteryBrand             String?
   batteryModel             String?
-  inverterModel            String
-  monitoringSystemName     String
-  monitoringSystemURL      String
-  buildingPhotoUpload      String
-  inverterSetupPhotoUpload String
-  solarPanelsPhotoUpload   String
+  inverterModel            String?
+  monitoringSystemName     String?
+  monitoringSystemURL      String?
+  buildingPhotoUpload      String?
+  inverterSetupPhotoUpload String?
+  solarPanelsPhotoUpload   String?
   inverterBrand            String?
   BatterySerialNumber1     String?
   BatterySerialNumber2     String?
@@ -82,7 +82,7 @@ model MeteringEvidence {
   meterId                     String?
   meterBrand                  String?
   meterType                   String?
-  meteringEvidencePhotoUpload String
+  meteringEvidencePhotoUpload String?
   userId                      String  @db.ObjectId
   user                        User    @relation(fields: [userId], references: [id])
 }
