@@ -119,8 +119,8 @@ export function presets(today: string): { id: PresetId; group: Group; period: Pe
   ]
 }
 
-export type ExportColumn = 'pv' | 'consumption' | 'gridImport' | 'batteryCharged' | 'batteryDischarged' | 'coverage'
-export const EXPORT_COLUMNS: ExportColumn[] = ['pv', 'consumption', 'gridImport', 'batteryCharged', 'batteryDischarged', 'coverage']
+export type ExportColumn = 'pv' | 'consumption' | 'gridImport' | 'gridExport' | 'batteryCharged' | 'batteryDischarged' | 'coverage'
+export const EXPORT_COLUMNS: ExportColumn[] = ['pv', 'consumption', 'gridImport', 'gridExport', 'batteryCharged', 'batteryDischarged', 'coverage']
 
 /** Machine-readable state of a row, for exports. */
 export const rowState = (r: EnergyRow): 'no_data' | 'in_progress' | 'incomplete' | 'complete' => (!r.hasData ? 'no_data' : r.inProgress ? 'in_progress' : r.incomplete ? 'incomplete' : 'complete')

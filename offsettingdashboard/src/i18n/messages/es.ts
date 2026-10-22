@@ -470,6 +470,7 @@ export const es: Catalogue = {
     pv: 'FV',
     consumption: 'Consumo',
     gridImport: 'Importación de red',
+    gridExport: 'Exportación a la red',
     batteryCharged: 'Batería cargada',
     batteryDischarged: 'Batería descargada',
     coverage: 'Cobertura FV',
@@ -546,6 +547,8 @@ export const es: Catalogue = {
       pvVsConsumption: 'FV y consumo (diario)',
       batteryDaily: 'Batería cargada y descargada (diario)',
       gridImportDaily: 'Importación de red (diario)',
+      gridDaily: 'Importación y exportación de red (diaria)',
+      all: { day: 'Toda la energía (diaria)', month: 'Toda la energía (mensual)', year: 'Toda la energía (anual)' },
       coverageDaily: 'Cobertura FV (diario)',
       monthly: {
         pv: 'Producción FV mensual',

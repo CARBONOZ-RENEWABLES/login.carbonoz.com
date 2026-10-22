@@ -67,12 +67,12 @@ describe('CSV export', () => {
   it('writes ISO keys, dot decimals and empty cells for missing values', () => {
     const now = Date.parse('2026-10-01T00:00:00Z')
     const rows = [toRow(b('2026-09-01', 41.289), now), toRow(b('2026-09-02', null), now)]
-    const csv = toCsv(rows, { period: 'Datum', columns: { pv: 'PV (kWh)', consumption: 'Verbrauch (kWh)', gridImport: 'Netzbezug (kWh)', batteryCharged: 'Batterie geladen (kWh)', batteryDischarged: 'Batterie entladen (kWh)', coverage: 'PV-Deckung (%)' }, completeness: 'Vollständigkeit (%)', state: 'Status' }, ['Site: Home "Berlin"'])
+    const csv = toCsv(rows, { period: 'Datum', columns: { pv: 'PV (kWh)', consumption: 'Verbrauch (kWh)', gridImport: 'Netzbezug (kWh)', gridExport: 'Einspeisung (kWh)', batteryCharged: 'Batterie geladen (kWh)', batteryDischarged: 'Batterie entladen (kWh)', coverage: 'PV-Deckung (%)' }, completeness: 'Vollständigkeit (%)', state: 'Status' }, ['Site: Home "Berlin"'])
     const lines = csv.replace(/^\ufeff/, '').trim().split('\r\n')
     expect(lines[0]).toBe('# Site: Home "Berlin"')
-    expect(lines[1]).toBe('Datum,PV (kWh),Verbrauch (kWh),Netzbezug (kWh),Batterie geladen (kWh),Batterie entladen (kWh),PV-Deckung (%),Vollständigkeit (%),Status')
-    expect(lines[2]).toBe('2026-09-01,41.289,2.000,0.500,,,75.0,100.0,complete')
-    expect(lines[3]).toBe('2026-09-02,,,,,,,100.0,no_data')
+    expect(lines[1]).toBe('Datum,PV (kWh),Verbrauch (kWh),Netzbezug (kWh),Einspeisung (kWh),Batterie geladen (kWh),Batterie entladen (kWh),PV-Deckung (%),Vollständigkeit (%),Status')
+    expect(lines[2]).toBe('2026-09-01,41.289,2.000,0.500,0.000,,,75.0,100.0,complete')
+    expect(lines[3]).toBe('2026-09-02,,,,0.000,,,,100.0,no_data')
     expect(csv.startsWith('\ufeff')).toBe(true)
     expect(rowState(rows[0])).toBe('complete')
   })

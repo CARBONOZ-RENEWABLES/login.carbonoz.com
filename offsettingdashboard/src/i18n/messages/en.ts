@@ -484,6 +484,7 @@ export const en = {
     pv: 'PV',
     consumption: 'Consumption',
     gridImport: 'Grid import',
+    gridExport: 'Grid export',
     batteryCharged: 'Battery charged',
     batteryDischarged: 'Battery discharged',
     coverage: 'PV coverage',
@@ -560,6 +561,8 @@ export const en = {
       pvVsConsumption: 'PV vs consumption (daily)',
       batteryDaily: 'Battery charged vs discharged (daily)',
       gridImportDaily: 'Grid import (daily)',
+      gridDaily: 'Grid import and export (daily)',
+      all: { day: 'All energy (daily)', month: 'All energy (monthly)', year: 'All energy (yearly)' },
       coverageDaily: 'PV coverage (daily)',
       monthly: {
         pv: 'Monthly PV production',

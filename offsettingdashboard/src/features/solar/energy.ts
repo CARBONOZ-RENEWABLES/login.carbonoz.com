@@ -119,7 +119,7 @@ export function formatPct(v: number | null): string {
   return v == null ? '—' : formatNumber(v / 100, { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 })
 }
 
-export type GrafanaKey = 'pv' | 'consumption' | 'gridImport' | 'coverage'
+export type GrafanaKey = 'pv' | 'consumption' | 'gridImport' | 'gridExport' | 'coverage'
 
 /** Min / max / mean / total over the values that exist (gaps are not zeros). */
 export function seriesStats(rows: EnergyRow[], key: GrafanaKey) {

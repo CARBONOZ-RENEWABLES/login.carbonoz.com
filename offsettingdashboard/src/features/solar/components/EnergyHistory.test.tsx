@@ -189,9 +189,9 @@ describe('energy history view', () => {
       r.onload = () => ok(String(r.result))
       r.readAsText(blobs[0])
     })
-    expect(csv).toContain('Date,PV (kWh),Consumption (kWh),Grid import (kWh),Battery charged (kWh),Battery discharged (kWh),PV coverage (%)')
-    expect(csv).toContain('2026-08-28,41.289,14.192,1.064,31.852,7.459,92.5')
-    expect(csv).toContain('2026-08-29,,,,,,')
+    expect(csv).toContain('Date,PV (kWh),Consumption (kWh),Grid import (kWh),Grid export (kWh),Battery charged (kWh),Battery discharged (kWh),PV coverage (%)')
+    expect(csv).toContain('2026-08-28,41.289,14.192,1.064,20.500,31.852,7.459,92.5')
+    expect(csv).toContain('2026-08-29,,,,,,,')
 
     fireEvent.click(screen.getByRole('button', { name: /Export/ }))
     fireEvent.click(screen.getByRole('menuitem', { name: /PDF/ }))
