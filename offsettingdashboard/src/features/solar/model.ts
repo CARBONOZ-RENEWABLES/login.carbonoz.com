@@ -44,14 +44,23 @@ const KNOWN: Record<string, Omit<MetricMeta, 'label'>> = {
   cell_voltage_max_id: { group: 'cells' },
   frequency_hz: { group: 'electrical' },
   grid_frequency_hz: { group: 'electrical' },
+  grid_voltage_v: { group: 'electrical' },
+  load_percentage: { group: 'power' },
+  temperature_mos_c: { group: 'temperature' },
+  temperature_env_c: { group: 'temperature' },
+  cell_temperature_max_c: { group: 'temperature' },
+  cell_temperature_avg_c: { group: 'temperature' },
+  cell_temperature_min_c: { group: 'temperature' },
+  load_power_non_essential_w: { group: 'power' },
+  generator_power_w: { group: 'power' },
 }
 
-const UNIT_SUFFIX = /_(kwh|wh|kw|w|mv|v|ma|ah|a|c|pct|hz|s)$/
+const UNIT_SUFFIX = /_(kwh|wh|kw|w|mv|v|ma|ah|a|c|pct|percentage|percent|hz|s)$/
 
 export function unitOf(key: string, fallback?: string | null): string | undefined {
   if (fallback) return fallback
   const m = key.match(UNIT_SUFFIX)?.[1]
-  return m ? ({ kwh: 'kWh', wh: 'Wh', kw: 'kW', w: 'W', mv: 'mV', v: 'V', ma: 'mA', ah: 'Ah', a: 'A', c: '°C', pct: '%', hz: 'Hz', s: 's' } as Record<string, string>)[m] : undefined
+  return m ? ({ kwh: 'kWh', wh: 'Wh', kw: 'kW', w: 'W', mv: 'mV', v: 'V', ma: 'mA', ah: 'Ah', a: 'A', c: '°C', pct: '%', percentage: '%', percent: '%', hz: 'Hz', s: 's' } as Record<string, string>)[m] : undefined
 }
 
 export function metricMeta(key: string): MetricMeta {
@@ -232,7 +241,10 @@ export function headline(site: SiteModel) {
   return {
     pv: sum(systems, 'pv_power_w') ?? sum(inverters, 'pv_power_w'),
     load: sum(systems, 'load_power_w'),
-    grid: sum(systems, 'grid_power_w'),
+    // One inverter's grid reading is the site's; several parallel inverters may share one meter, so no sum.
+    grid: sum(systems, 'grid_power_w') ?? (inverters.length === 1 ? sum(inverters, 'grid_power_w') : undefined),
+    gridVoltage: avg([...systems, ...inverters].map((d) => num(d.latest?.metrics.grid_voltage_v))),
+    gridFrequency: avg([...systems, ...inverters].map((d) => num(d.latest?.metrics.grid_frequency_hz))),
     battery: sum(systems, 'battery_power_w') ?? sum(batteries, 'power_w', 'battery_power_w'),
     soc: avg(systems.map((d) => num(d.latest?.metrics.soc_pct))) ?? avg(batteries.map((b) => num(b.latest?.metrics.soc_pct))),
     /** Every reading is delayed: the values are the last known ones. */

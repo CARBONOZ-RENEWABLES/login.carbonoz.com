@@ -251,6 +251,7 @@ describe('helpers', () => {
     expect(unitFor('battery_power_w')).toBe('W');
     expect(unitFor('cell_voltage_spread_mv')).toBe('mV');
     expect(unitFor('status')).toBeUndefined();
+    expect(unitFor('load_percentage')).toBe('%');
   });
   it('parses plain number cells', () => {
     expect(parseCells([3.3, 'x', 3.31])).toEqual([

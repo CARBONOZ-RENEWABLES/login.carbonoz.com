@@ -1,4 +1,5 @@
 import type { SolarDevice } from './api'
+import { KEYS, pick, pickText, settingsOf } from './fields'
 import { num, statusTone } from './model'
 
 const IDLE_W = 20
@@ -30,7 +31,17 @@ export function inverterFigures(d: SolarDevice) {
   const pvInput = first(m, ['pv_power_w', 'pv_input_power_w', 'dc_power_w', 'input_power_w'])
   const acVoltage = first(m, ['ac_voltage_v', 'output_voltage_v', 'ac_output_voltage_v', 'grid_voltage_v'])
   const frequency = first(m, ['ac_frequency_hz', 'frequency_hz', 'ac_output_frequency_hz', 'grid_frequency_hz', 'output_frequency_hz'])
-  const temperature = first(m, ['temperature_c', 'inverter_temperature_c', 'heatsink_temperature_c', 'internal_temperature_c'])
+  const temperature = first(m, ['temperature_highest_c', 'temperature_max_c', 'temperature_c', 'inverter_temperature_c', 'heatsink_temperature_c', 'internal_temperature_c'])
+  const temperatureAc = pick(m, KEYS.temperatureAc)
+  const temperatureDc = pick(m, KEYS.temperatureDc)
+  const deviceMode = pickText(m, KEYS.deviceMode)
+  const gridPower = pick(m, KEYS.gridPower)
+  const gridVoltage = pick(m, KEYS.gridVoltage)
+  const gridFrequency = pick(m, KEYS.gridFrequency)
+  const generator = pick(m, KEYS.generator)
+  const loadEssential = pick(m, KEYS.loadEssential)
+  const loadNonEssential = pick(m, KEYS.loadNonEssential)
+  const settings = settingsOf(m).filter(([k]) => k !== deviceMode?.key)
   const yieldToday = first(m, ['daily_yield_kwh', 'daily_energy_kwh', 'today_energy_kwh', 'energy_today_kwh'])
   const yieldTotal = first(m, ['total_yield_kwh', 'total_energy_kwh', 'lifetime_energy_kwh', 'energy_total_kwh'])
   const rated = first(m, ['rated_power_w', 'nominal_power_w', 'max_power_w'])
@@ -56,9 +67,10 @@ export function inverterFigures(d: SolarDevice) {
   const efficiency = out != null && pvInput && pvInput.value > IDLE_W && out > IDLE_W ? Math.min(100, (out / pvInput.value) * 100) : undefined
 
   const used = new Set(
-    [output, pvInput, acVoltage, frequency, temperature, yieldToday, yieldTotal, rated, loadPct, homeLoad, battery].filter(Boolean).map((x) => x!.key),
+    [output, pvInput, acVoltage, frequency, temperature, temperatureAc, temperatureDc, deviceMode, gridPower, gridVoltage, gridFrequency, generator, loadEssential, loadNonEssential, yieldToday, yieldTotal, rated, loadPct, homeLoad, battery].filter(Boolean).map((x) => x!.key),
   )
   for (const k of Object.keys(m)) if (STRING_KEY.test(k)) used.add(k)
+  for (const [k] of settings) used.add(k)
 
   return {
     output: out,
@@ -66,6 +78,16 @@ export function inverterFigures(d: SolarDevice) {
     acVoltage: acVoltage?.value,
     frequency: frequency?.value,
     temperature: temperature?.value,
+    temperatureAc: temperatureAc?.value,
+    temperatureDc: temperatureDc?.value,
+    /** Inverter's own operating mode text, e.g. "Discharge above 30%". */
+    deviceMode: deviceMode?.value,
+    grid: gridPower || gridVoltage || gridFrequency ? { power: gridPower?.value, voltage: gridVoltage?.value, frequency: gridFrequency?.value } : undefined,
+    generator: generator?.value,
+    loadEssential: loadEssential?.value,
+    loadNonEssential: loadNonEssential?.value,
+    /** Read-only settings (energy pattern, timer, automations, clock). */
+    settings,
     yieldToday: yieldToday?.value,
     yieldTotal: yieldTotal?.value,
     rated: rated?.value,

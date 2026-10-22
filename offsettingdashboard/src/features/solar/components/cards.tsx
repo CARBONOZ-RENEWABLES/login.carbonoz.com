@@ -5,6 +5,7 @@ import { Card, CardHeader, cn, EmptyState, Skeleton, StatusBadge } from '../../.
 import { relativeTime } from '../../../layout/ShellContext'
 import { CellDrift, DeviceKind, MetricValue, PackDrift, SolarDevice } from '../api'
 import { deviceTitle, formatMetric, metricMeta, orderedMetrics, statusTone } from '../model'
+import { KEYS } from '../fields'
 import { CellDriftPanel } from './CellDriftPanel'
 import { CellVoltageTable } from './CellVoltageTable'
 
@@ -90,6 +91,9 @@ export function DeviceHeader({ d, icon, title, showStatus = true }: { d: SolarDe
 
 const CELL_KEYS = ['cell_count', 'cell_voltage_min_v', 'cell_voltage_max_v', 'cell_voltage_avg_v', 'cell_voltage_spread_mv', 'cell_voltage_min_id', 'cell_voltage_max_id']
 
+/** Pack values shown as tiles when reported (alternatives per value, first found wins). */
+const PACK_KEYS = [['voltage_v'], ['current_a'], ['power_w'], ['soc_pct'], KEYS.soh, KEYS.cycles, ['temperature_c'], KEYS.mosTemp, KEYS.envTemp, KEYS.cellTempMax, KEYS.cellTempAvg, KEYS.cellTempMin]
+
 /** Cell history for a BMS card: loading, or the site's drift result and this pack's part of it. */
 export type BmsDriftProp = 'loading' | { data: CellDrift; pack?: PackDrift }
 
@@ -97,7 +101,9 @@ export function BMSCard({ d, unitOf, battery, title, drift, anchor }: { d: Solar
   const m = d.latest?.metrics ?? {}
   const cells = d.latest?.cells ?? []
   const stat = (k: string) => formatMetric(k, m[k], unitOf('BMS', k))
-  const summary = CELL_KEYS.slice(1, 5).filter((k) => m[k] != null)
+  // Pack health first (when the BMS reports it), then the cell summary.
+  const health = PACK_KEYS.map((keys) => keys.find((k) => m[k] != null)).filter((k): k is string => !!k)
+  const summary = [...health, ...CELL_KEYS.slice(1, 5).filter((k) => m[k] != null)]
   return (
     <Card className='scroll-mt-20 p-4' id={anchor}>
       <DeviceHeader d={d} title={title} icon={<Activity size={16} />} />
@@ -134,7 +140,7 @@ export function BMSCard({ d, unitOf, battery, title, drift, anchor }: { d: Solar
       <details className='mt-4 border-t border-line pt-3'>
         <summary className='cursor-pointer text-[12.5px] font-medium text-fg-2 hover:text-fg'>{t('solar.allBmsValues')}</summary>
         <div className='mt-3'>
-          <MetricList metrics={m} unitOf={unitOf} kind='BMS' exclude={CELL_KEYS} />
+          <MetricList metrics={m} unitOf={unitOf} kind='BMS' exclude={[...CELL_KEYS, ...summary]} />
         </div>
       </details>
     </Card>

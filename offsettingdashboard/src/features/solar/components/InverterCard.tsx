@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, BatteryCharging, CalendarDays, Cpu, Gauge, Home, Moon, Percent, Sigma, Sun, Thermometer, Waves, Zap } from 'lucide-react'
+import { AlertTriangle, ArrowRight, BatteryCharging, CalendarDays, Cpu, Fuel, Gauge, Home, Moon, Percent, Settings2, Sigma, Sun, Thermometer, UtilityPole, Waves, Zap } from 'lucide-react'
 import { ReactNode, useId } from 'react'
 import { Card, cn, StatusBadge, Tone } from '../../../design'
 import { formatFixed, translate as t } from '../../../i18n'
@@ -82,7 +82,7 @@ function FlowStrip({ pvInput, output, acVoltage, frequency, active }: { pvInput?
   )
 }
 
-function Tile({ icon, label, value, unit, tone }: { icon: ReactNode; label: string; value: string; unit?: string; tone?: 'warning' | 'good' }) {
+function Tile({ icon, label, value, unit, sub, tone }: { icon: ReactNode; label: string; value: string; unit?: string; sub?: string; tone?: 'warning' | 'good' }) {
   return (
     <div className='flex min-w-0 items-center gap-3 bg-panel px-4 py-3'>
       <span className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-lg', tone === 'warning' ? 'bg-gridp/10 text-gridp' : tone === 'good' ? 'bg-batt/10 text-batt' : 'bg-panel-3 text-fg-2')}>{icon}</span>
@@ -92,6 +92,7 @@ function Tile({ icon, label, value, unit, tone }: { icon: ReactNode; label: stri
           {value}
           {unit && <span className='ml-1 text-[12px] font-normal text-fg-2'>{unit}</span>}
         </span>
+        {sub && <span className='tabular block truncate text-[11px] text-muted'>{sub}</span>}
       </span>
     </div>
   )
@@ -107,17 +108,36 @@ function batteryTile(w: number | undefined) {
 }
 
 /** Premium inverter card: output ring, live state, DC → AC flow, key figures, string inputs, every other value. */
-export function InverterCard({ d, unitOf, title }: { d: SolarDevice; unitOf: (kind: DeviceKind, key: string) => string | undefined; title?: string }) {
+export function InverterCard({ d, unitOf, title, compact = false }: { d: SolarDevice; unitOf: (kind: DeviceKind, key: string) => string | undefined; title?: string; /** Narrow column (Overview): one-column head, two-column tiles. */ compact?: boolean }) {
   const f = inverterFigures(d)
   const stale = !!d.latest?.stale
   const others = Object.fromEntries(Object.entries(d.latest?.metrics ?? {}).filter(([k]) => !f.used.has(k)))
   const tiles = [
-    f.homeLoad != null && <Tile key='ld' icon={<Home size={15} />} label={t('solar.inverterCard.load')} value={powerText(Math.abs(f.homeLoad))} />,
+    f.homeLoad != null && (
+      <Tile
+        key='ld'
+        icon={<Home size={15} />}
+        label={t('solar.inverterCard.load')}
+        value={powerText(Math.abs(f.homeLoad))}
+        sub={f.loadNonEssential != null ? t('solar.inverterCard.loadSplit', { other: powerText(Math.abs(f.loadNonEssential)) }) : undefined}
+      />
+    ),
+    f.grid && (
+      <Tile
+        key='gr'
+        icon={<UtilityPole size={15} />}
+        label={t('solar.inverterCard.grid')}
+        value={f.grid.power != null ? powerText(Math.abs(f.grid.power)) : f.grid.voltage != null ? formatFixed(f.grid.voltage, 0) : '—'}
+        unit={f.grid.power == null && f.grid.voltage != null ? 'V' : undefined}
+        sub={[f.grid.power != null && f.grid.voltage != null && `${formatFixed(f.grid.voltage, 0)} V`, f.grid.frequency != null && `${formatFixed(f.grid.frequency, 2)} Hz`].filter(Boolean).join(' · ') || undefined}
+      />
+    ),
+    f.generator != null && <Tile key='gen' icon={<Fuel size={15} />} label={t('solar.inverterCard.generator')} value={powerText(Math.abs(f.generator))} />,
     batteryTile(f.battery),
     f.yieldToday != null && <Tile key='yt' icon={<CalendarDays size={15} />} label={t('solar.inverterCard.yieldToday')} value={formatFixed(f.yieldToday, 1)} unit='kWh' />,
     f.yieldTotal != null && <Tile key='yT' icon={<Sigma size={15} />} label={t('solar.inverterCard.yieldTotal')} value={formatFixed(f.yieldTotal, f.yieldTotal >= 1000 ? 0 : 1)} unit='kWh' />,
     f.efficiency != null && <Tile key='ef' icon={<Percent size={15} />} label={t('solar.inverterCard.efficiency')} value={formatFixed(f.efficiency, 1)} unit='%' tone={f.efficiency >= 90 ? 'good' : undefined} />,
-    f.temperature != null && <Tile key='t' icon={<Thermometer size={15} />} label={t('solar.inverterCard.temperature')} value={formatFixed(f.temperature, 1)} unit='°C' tone={f.temperature >= 60 ? 'warning' : undefined} />,
+    f.temperature != null && <Tile key='t' icon={<Thermometer size={15} />} label={t('solar.inverterCard.temperature')} value={formatFixed(f.temperature, 1)} unit='°C' sub={[f.temperatureAc != null && `AC ${formatFixed(f.temperatureAc, 1)}`, f.temperatureDc != null && `DC ${formatFixed(f.temperatureDc, 1)}`].filter(Boolean).join(' · ') || undefined} tone={f.temperature >= 60 ? 'warning' : undefined} />,
     f.frequency != null && <Tile key='hz' icon={<Waves size={15} />} label={t('solar.inverterCard.frequency')} value={formatFixed(f.frequency, 2)} unit='Hz' tone={Math.abs(f.frequency - 50) > 0.2 && Math.abs(f.frequency - 60) > 0.2 ? 'warning' : undefined} />,
     f.acVoltage != null && <Tile key='v' icon={<Gauge size={15} />} label={t('solar.inverterCard.acVoltage')} value={formatFixed(f.acVoltage, 0)} unit='V' />,
   ].filter(Boolean)
@@ -132,7 +152,7 @@ export function InverterCard({ d, unitOf, title }: { d: SolarDevice; unitOf: (ki
         <p className='px-4 py-6 text-[12.5px] text-muted'>{t('solar.empty.noRecent')}</p>
       ) : (
         <>
-          <div className={cn('grid items-center gap-5 px-4 py-5 sm:grid-cols-[auto_minmax(0,1fr)]', stale && 'opacity-75')}>
+          <div className={cn('grid items-center gap-5 px-4 py-5', !compact && 'sm:grid-cols-[auto_minmax(0,1fr)]', compact && 'justify-items-center [&>*:last-child]:w-full', stale && 'opacity-75')}>
             <PowerRing output={f.output} load={f.load} state={f.state} />
             <div className='flex min-w-0 flex-col gap-3'>
               <div className='flex flex-wrap items-center gap-2'>
@@ -142,6 +162,12 @@ export function InverterCard({ d, unitOf, title }: { d: SolarDevice; unitOf: (ki
                   {/* The inverter's own status text, when it says more than the state. */}
                   {d.latest?.status && d.latest.status.toLowerCase() !== t(`solar.inverterCard.${f.state}`).toLowerCase() && <span className='font-normal opacity-80'>· {d.latest.status}</span>}
                 </StatusBadge>
+                {f.deviceMode && (
+                  <StatusBadge tone='neutral'>
+                    <Settings2 size={12} className='-ml-0.5' />
+                    {f.deviceMode}
+                  </StatusBadge>
+                )}
                 {f.load != null && f.rated != null && (
                   <span className='text-[12.5px] text-fg-2'>
                     {t('solar.inverterCard.ofRated', { pct: formatFixed(f.load * 100, 0), rated: powerText(f.rated) })}
@@ -153,12 +179,12 @@ export function InverterCard({ d, unitOf, title }: { d: SolarDevice; unitOf: (ki
             </div>
           </div>
 
-          {tiles.length > 0 && <div className={cn('grid grid-cols-2 gap-px border-t border-line bg-line', tiles.length >= 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2', tiles.length % 2 === 1 && '[&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1')}>{tiles}</div>}
+          {tiles.length > 0 && <div className={cn('grid grid-cols-2 gap-px border-t border-line bg-line', compact ? '' : tiles.length >= 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2', tiles.length % 2 === 1 && (compact ? '[&>*:last-child]:col-span-2' : '[&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1'))}>{tiles}</div>}
 
           {f.strings.length > 0 && (
             <div className='border-t border-line px-4 py-3'>
               <p className='mb-2 text-[12px] font-medium text-fg-2'>{t('solar.inverterCard.strings')}</p>
-              <div className='grid gap-2 sm:grid-cols-2'>
+              <div className={cn('grid gap-2', !compact && 'sm:grid-cols-2')}>
                 {f.strings.map((s) => (
                   <div key={s.id} className='flex items-center justify-between gap-3 rounded-lg bg-panel-2 px-3 py-2 text-[12px]'>
                     <span className='font-medium text-fg'>{t('solar.inverterCard.string', { n: s.id })}</span>
@@ -168,6 +194,16 @@ export function InverterCard({ d, unitOf, title }: { d: SolarDevice; unitOf: (ki
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {f.settings.length > 0 && (
+            <div className='border-t border-line px-4 py-3'>
+              <p className='mb-2 flex items-center gap-1.5 text-[12px] font-medium text-fg-2'>
+                <Settings2 size={13} />
+                {t('solar.inverterCard.settings')}
+              </p>
+              <MetricList metrics={Object.fromEntries(f.settings)} unitOf={unitOf} kind='INVERTER' />
             </div>
           )}
 

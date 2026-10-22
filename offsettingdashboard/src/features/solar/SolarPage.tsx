@@ -4,9 +4,10 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Card, CardHeader, EmptyState, ErrorState, inputClass, PageSkeleton, Segmented, StatusBadge, TabItem, Tabs } from '../../design'
 import { relativeTime, useShell } from '../../layout/ShellContext'
 import { RangeId } from '../../services/energyFlow'
-import { DeviceKind, MetricValue, SiteSummary, SolarDevice, SolarOverview, useGetSitesQuery, useGetSolarCellDriftQuery, useGetSolarEnergyQuery, useGetSolarEventsQuery, useGetSolarForecastQuery, useGetSolarOverviewQuery } from './api'
+import { DeviceKind, MetricValue, SiteSummary, SolarDevice, SolarOverview, useGetSitesQuery, useGetSolarCellDriftQuery, useGetSolarHistoryQuery, useGetSolarEnergyQuery, useGetSolarEventsQuery, useGetSolarForecastQuery, useGetSolarOverviewQuery } from './api'
 import { BMSCard, BmsDriftProp, MetricCard, MetricList, StatusCard } from './components/cards'
 import { CellHealthCard } from './components/CellHealthCard'
+import { isHostMetric, settingsOf, socRatePerHour } from './fields'
 import { DriftRange, DRIFT_MS } from './cellDrift'
 import { ICONS } from './components/icons'
 import { ForecastChart, HistoryChart, LazyChart } from './components/charts'
@@ -16,7 +17,7 @@ import { energyFlowState } from './flowState'
 import { useLiveDevices, useLiveStatus, withLive } from './live'
 import { liveText } from './flowText'
 import { EnergyFlowCard } from '../dashboard/EnergyFlow'
-import { formatDate, translate as t } from '../../i18n'
+import { formatDate, formatFixed, translate as t } from '../../i18n'
 import { EnergyHistory } from './components/EnergyHistory'
 import { LiveEnergy } from './components/LiveEnergy'
 import { BatteryCard } from './components/BatteryCard'
@@ -164,12 +165,16 @@ function OverviewTab({ siteId, o, site, onTab, basePath }: { siteId: string; o: 
   const lastSeen = (o.stale || h.allStale) && o.updatedAt ? t('solar.lastReading', { when: relativeTime(Date.parse(o.updatedAt)) }) : null
   const staleTone = lastSeen ? 'text-gridp' : undefined
   const flow = useMemo(() => energyFlowState(h), [h.pv, h.load, h.grid, h.battery, h.soc]) // eslint-disable-line react-hooks/exhaustive-deps
+  const socRate = useSocRate(siteId, h.soc != null, o.updatedAt)
+  const rateText = socRate != null && Math.abs(socRate) >= 0.1 ? t('solar.socRate', { rate: `${socRate > 0 ? '+' : '−'}${formatFixed(Math.abs(socRate), 1)}` }) : null
   const cards = [
     h.pv != null && <MetricCard key='pv' icon={ICONS.pv} label={t('solar.cards.solar')} {...metricCardProps('pv_power_w', h.pv)} hint={lastSeen ?? (h.pv > 20 ? t('solar.hints.producing') : t('solar.hints.idle'))} tone={staleTone ?? (h.pv > 20 ? 'text-batt' : undefined)} />,
     h.load != null && <MetricCard key='load' icon={ICONS.load} label={t('solar.cards.homeUsage')} {...metricCardProps('load_power_w', h.load)} hint={lastSeen} tone={staleTone} />,
-    h.battery != null && <MetricCard key='batt' icon={ICONS.battery(h.soc)} label={t('solar.cards.battery')} {...metricCardProps('battery_power_w', h.battery)} hint={lastSeen ?? [h.soc != null && `${Math.round(h.soc)}%`, batteryHint(h.battery)].filter(Boolean).join(' · ')} tone={staleTone} />,
+    h.battery != null && <MetricCard key='batt' icon={ICONS.battery(h.soc)} label={t('solar.cards.battery')} {...metricCardProps('battery_power_w', h.battery)} hint={lastSeen ?? [h.soc != null && `${Math.round(h.soc)}%`, batteryHint(h.battery), rateText].filter(Boolean).join(' · ')} tone={staleTone} />,
     h.battery == null && h.soc != null && <MetricCard key='soc' icon={ICONS.battery(h.soc)} label={t('solar.cards.battery')} value={String(Math.round(h.soc))} unit='%' hint={lastSeen} tone={staleTone} />,
-    h.grid != null && <MetricCard key='grid' icon={ICONS.grid} label={t('solar.cards.grid')} {...metricCardProps('grid_power_w', h.grid)} hint={lastSeen ?? gridHint(h.grid)} tone={staleTone} />,
+    h.grid != null && <MetricCard key='grid' icon={ICONS.grid} label={t('solar.cards.grid')} {...metricCardProps('grid_power_w', h.grid)} hint={lastSeen ?? ([gridHint(h.grid), h.gridVoltage != null && `${formatFixed(h.gridVoltage, 0)} V`].filter(Boolean).join(' · ') || undefined)} tone={staleTone} />,
+    // Grid power not reported, but the grid itself is: show it like a status (voltage, frequency).
+    h.grid == null && h.gridVoltage != null && <MetricCard key='gridv' icon={ICONS.grid} label={t('solar.cards.grid')} value={formatFixed(h.gridVoltage, 0)} unit='V' hint={lastSeen ?? (h.gridFrequency != null ? `${formatFixed(h.gridFrequency, 2)} Hz` : undefined)} tone={staleTone} />,
   ].filter(Boolean)
 
   return (
@@ -211,11 +216,48 @@ function OverviewTab({ siteId, o, site, onTab, basePath }: { siteId: string; o: 
         </div>
         <div className='grid content-start gap-3'>
           {site.inverters.slice(0, 1).map((d) => (
-            <InverterCard key={deviceKey(d)} d={d} unitOf={site.unitOf} title={site.labelOf(d)} />
+            <InverterCard key={deviceKey(d)} d={d} unitOf={site.unitOf} title={site.labelOf(d)} compact />
           ))}
         </div>
       </div>
       {o.activeAlarms > 0 && <ActiveAlarms siteId={siteId} onMore={() => onTab('events')} />}
+    </div>
+  )
+}
+
+/** SoC trend of the last hour (%/h) for the battery card, refreshed about every 10 minutes. */
+function useSocRate(siteId: string, enabled: boolean, updatedAt: string | null | undefined) {
+  const slot = updatedAt?.slice(0, 15) ?? ''
+  const q = useMemo(() => {
+    const now = Date.now()
+    return { siteId, metric: 'soc_pct', kind: 'SYSTEM' as DeviceKind, from: new Date(now - 3600e3).toISOString(), to: new Date(now).toISOString() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteId, slot])
+  const r = useGetSolarHistoryQuery(q, { skip: !enabled })
+  return useMemo(() => {
+    const byT = new Map<number, number[]>()
+    for (const s of r.data?.data.series ?? []) for (const p of s.points) byT.set(p.t, [...(byT.get(p.t) ?? []), p.avg])
+    const pts = [...byT].sort(([a], [b]) => a - b).map(([t, v]) => ({ t, v: v.reduce((x, y) => x + y, 0) / v.length }))
+    return socRatePerHour(pts)
+  }, [r.data])
+}
+
+/** Read-only inverter settings (work mode, energy pattern, timers, automations, clock) of every device that reports them. */
+function SettingsCard({ site }: { site: SiteModel }) {
+  const rows = [...site.systems, ...site.inverters].flatMap((d) => settingsOf(d.latest?.metrics ?? {}).map(([key, value]) => ({ d, key, value })))
+  if (!rows.length) return null
+  return (
+    <div>
+      <p className='mb-2 text-[15px] font-semibold text-fg'>{t('solar.settingsTitle')}</p>
+      <DataTable
+        rows={rows}
+        rowKey={(r) => `${deviceKey(r.d)}:${r.key}`}
+        columns={[
+          { title: t('solar.table.device'), key: 'device', render: (_, r) => <span className='text-fg-2'>{site.labelOf(r.d)}</span> },
+          { title: t('solar.table.value'), key: 'label', render: (_, r) => <span className='font-medium text-fg'>{metricMeta(r.key).label}</span> },
+          { title: t('solar.table.current'), key: 'v', render: (_, r) => <span className='whitespace-pre-wrap text-fg'>{formatMetric(r.key, r.value).value}</span> },
+        ]}
+      />
     </div>
   )
 }
@@ -369,7 +411,8 @@ function HistoryTab({ siteId, o, site }: { siteId: string; o: SolarOverview; sit
   const [range, setRange] = useState<RangeId>('24h')
   const { refreshKey } = useShell()
   const groups = useMemo(() => {
-    const numeric = o.metrics.filter((m) => m.valueType === 'number' && !m.key.startsWith('forecast_'))
+    // The Raspberry's own health (CPU, memory, storage) is not charted.
+    const numeric = o.metrics.filter((m) => m.valueType === 'number' && !m.key.startsWith('forecast_') && !isHostMetric(m.key))
     return HISTORY_KINDS.map((kind) => {
       const keys = numeric.filter((m) => m.deviceKind === kind).map((m) => m.key)
       // Same order as the cards: main quantities first, then alphabetical.
@@ -469,6 +512,7 @@ function SystemTab({ siteId, o, site }: { siteId: string; o: SolarOverview; site
         .map((d) => (
           <StatusCardFromDevice key={deviceKey(d)} title={site.systems.length > 1 ? `${t('solar.allSystemValues')} · ${site.labelOf(d)}` : t('solar.allSystemValues')} d={d} site={site} />
         ))}
+      <SettingsCard site={site} />
       <div>
         <p className='mb-2 text-[15px] font-semibold text-fg'>{t('solar.devices')}</p>
         <DataTable<SolarDevice>

@@ -167,6 +167,7 @@ const UNIT_SUFFIXES: Array<[RegExp, string]> = [
   [/_a$/, 'A'],
   [/_c$/, '°C'],
   [/_pct$/, '%'],
+  [/_(percentage|percent)$/, '%'],
   [/_hz$/, 'Hz'],
   [/_s$/, 's'],
 ];
