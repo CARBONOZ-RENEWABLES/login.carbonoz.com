@@ -54,6 +54,8 @@ export async function startApi(
     SOLAR_STREAM_MAXLEN: '100000',
     SOLAR_RECLAIM_IDLE_MS: '60000',
     SOLAR_MAX_DELIVERIES: '5',
+    // Rollups run only where a test drives them (solar-rollup.e2e-spec).
+    SOLAR_ROLLUP_ENABLED: 'false',
     ...overrides,
   };
   Object.assign(process.env, env);
