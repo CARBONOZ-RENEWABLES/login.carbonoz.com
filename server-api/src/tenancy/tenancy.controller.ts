@@ -49,6 +49,7 @@ import {
 import { CurrentSite, SiteAccessGuard } from './site-access.guard';
 import { isObjectId, TenancyService } from './tenancy.service';
 import { findUserByEmail } from 'src/__shared__/utils/email';
+import { prepareSsoUser, ssoEnabled } from 'src/auth/oidc/sso-users';
 import {
   containsFilter,
   queryEnum,
@@ -338,11 +339,15 @@ export class AdminTenancyController {
     // MongoDB has no foreign keys: check the customer exists before linking to it.
     if (!(await this.prisma.customer.findUnique({ where: { id: customerId } })))
       throw new NotFoundException('Customer not found');
-    const user = dto.userId
+    let user = dto.userId
       ? await this.prisma.user.findUnique({ where: { id: dto.userId } })
       : dto.email
       ? await findUserByEmail(this.prisma, dto.email)
       : null;
+    // With SSO the person exists in Keycloak, maybe not here yet: prepare the
+    // account so access is ready at their first sign-in.
+    if (!user && dto.email && !dto.userId && ssoEnabled())
+      user = (await prepareSsoUser(this.prisma, dto.email)).user;
     if (!user) throw new NotFoundException('User not found');
     const data = await this.prisma.customerMember.upsert({
       where: { customerId_userId: { customerId, userId: user.id } },
