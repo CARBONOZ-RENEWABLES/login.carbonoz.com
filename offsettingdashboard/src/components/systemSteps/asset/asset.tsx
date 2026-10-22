@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Col, Form, Row } from 'antd'
 import { FC, ReactElement, useEffect, useMemo } from 'react'
 import countryList from 'react-select-country-list'
