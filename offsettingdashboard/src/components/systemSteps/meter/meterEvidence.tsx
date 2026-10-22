@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Col, Form, Row } from 'antd'
-import { FC, ReactElement, useEffect, useState } from 'react'
+import { FC, ReactElement, useEffect } from 'react'
 
 import { FieldGuide } from '../../../design'
 import CustomInput from '../../common/input/customInput'
@@ -9,16 +9,15 @@ import {
   useAddMeterMutation,
   useGetMeterQuery,
 } from '../../../lib/api/user/userEndPoints'
-import { ESystemSteps } from '../../../config/constant'
 import handleAPIRequests from '../../../helpers/handleApiRequest'
-import CustomImage from '../../common/image/customImage'
 
 interface props {
-  makeStep: () => unknown
   setLoadingAction: (state: boolean) => void
+  onSaved?: () => void
 }
 
-const MeterInfo: FC<props> = ({ setLoadingAction, makeStep }): ReactElement => {
+/** Production meter for carbon offsetting; every field is optional. */
+const MeterInfo: FC<props> = ({ setLoadingAction, onSaved }): ReactElement => {
   const [form] = Form.useForm()
 
   const [addMeter] = useAddMeterMutation()
@@ -31,26 +30,9 @@ const MeterInfo: FC<props> = ({ setLoadingAction, makeStep }): ReactElement => {
     }
   }, [data, form])
 
-  const onAddSucess = () => {}
-
-  const [, setMeteringEvidencePhotoUpload] =
-    useState<File[]>([])
-
-  function onChangeMeteringEvidencePhotoUpload(e: any) {
-    setMeteringEvidencePhotoUpload(e)
-  }
-
   const onSuccess = () => {
     setLoadingAction(false)
-    const data = {
-      step: ESystemSteps.PROJECT,
-    }
-    handleAPIRequests({
-      request: makeStep,
-      ...data,
-      onSuccess: onAddSucess,
-      notify: true,
-    })
+    onSaved?.()
   }
 
   useEffect(() => {
@@ -59,8 +41,6 @@ const MeterInfo: FC<props> = ({ setLoadingAction, makeStep }): ReactElement => {
 
   const onFinish = async (values: MeterDTO) => {
     setLoadingAction(true)
-    values.meteringEvidencePhotoUpload = data?.data?.meteringEvidencePhotoUpload || 'placeholder'
-    
     handleAPIRequests({
       request: addMeter,
       ...values,
@@ -84,11 +64,6 @@ const MeterInfo: FC<props> = ({ setLoadingAction, makeStep }): ReactElement => {
           <li>
             <strong>Meter Type:</strong> The type or model of the meter (e.g.,
             Smart meter, Analog meter) (optional).
-          </li>
-          <li>
-            <strong>Metering Evidence Photo Upload:</strong> Upload a photo
-            showing evidence of the meter installation or reading. This field is
-            required.
           </li>
         </ul>
       </FieldGuide>
@@ -123,27 +98,6 @@ const MeterInfo: FC<props> = ({ setLoadingAction, makeStep }): ReactElement => {
               inputType='text'
               name='meterType'
             />
-          </Col>
-          <Col className='gutter-row' xs={24} md={12}>
-            {data?.data ? (
-              <div>
-                <p className='mb-1.5 text-[12px] font-medium text-muted'>
-                  Metering Evidence Photo Upload
-                </p>
-                <CustomImage
-                  src={data.data.meteringEvidencePhotoUpload}
-                  width={120}
-                />
-              </div>
-            ) : (
-              <CustomInput
-                placeholder='Metering Evidence Photo Upload'
-                label='Metering Evidence Photo Upload (Optional)'
-                inputType='file'
-                onChange={onChangeMeteringEvidencePhotoUpload}
-                name='meteringEvidencePhotoUpload'
-              />
-            )}
           </Col>
         </Row>
       </Form>

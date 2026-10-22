@@ -8,12 +8,18 @@ export class MeterService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async addMeter(dto: MeterDto, user: User): Promise<MeteringEvidence> {
-    return await this.prismaService.meteringEvidence.create({
-      data: {
-        ...dto,
-        userId: user.id,
-      },
+    const existing = await this.prismaService.meteringEvidence.findFirst({
+      where: { userId: user.id },
+      select: { id: true },
     });
+    return existing
+      ? this.prismaService.meteringEvidence.update({
+          where: { id: existing.id },
+          data: dto,
+        })
+      : this.prismaService.meteringEvidence.create({
+          data: { ...dto, userId: user.id },
+        });
   }
 
   async getMeter(user: User): Promise<MeteringEvidence> {

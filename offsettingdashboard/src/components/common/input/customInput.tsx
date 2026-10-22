@@ -21,6 +21,15 @@ interface CustomInputProps {
   selectDefaultValue?: string | number
 }
 
+/**
+ * Form.Item gives value/onChange/id to its DIRECT child. The text input sits
+ * inside a wrapper (for the password toggle), so this passes them through —
+ * otherwise saved values never show when a form is opened again.
+ */
+function Bound({ value, onChange, id, render }: { value?: unknown; onChange?: (e: unknown) => void; id?: string; render: (f: { value?: unknown; onChange?: (e: unknown) => void; id?: string }) => ReactNode }) {
+  return <>{render({ value, onChange, id })}</>
+}
+
 const CustomInput: FC<CustomInputProps> = ({
   label = '',
   customlabel,
@@ -53,9 +62,11 @@ const CustomInput: FC<CustomInputProps> = ({
       )}
 
       <Form.Item name={name} rules={rules} label={customlabel} className='mb-0'>
+        <Bound render={(f) => (
         <div className="relative">
           <Input
-            value={value as string}
+            id={f.id}
+            value={(f.value ?? value) as string}
             type={actualInputType}
             placeholder={placeholder || ''}
             onFocus={() => setIsFocused(true)}
@@ -64,9 +75,10 @@ const CustomInput: FC<CustomInputProps> = ({
             data-focused={isFocused || undefined}
             size='large'
             disabled={(inputType === 'file' && isLoading) || disabled}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+              f.onChange?.(e)
               onChange(inputType === 'file' ? e?.target?.files : e?.target?.value)
-            }
+            }}
           />
           {isPasswordField && (
             <button
@@ -79,6 +91,7 @@ const CustomInput: FC<CustomInputProps> = ({
             </button>
           )}
         </div>
+        )} />
       </Form.Item>
     </div>
   )

@@ -14,11 +14,14 @@ import CustomInput from '../../common/input/customInput'
 
 interface Props {
   makeStep: () => unknown
+  /** After the step is recorded: go on to the optional details. */
+  onSaved?: () => void
   setLoadingAction: (state: boolean) => void
 }
 
 const UserInformation: FC<Props> = ({
   makeStep,
+  onSaved,
   setLoadingAction,
 }): ReactElement => {
   const [form] = useForm()
@@ -36,7 +39,7 @@ const UserInformation: FC<Props> = ({
     refetch()
   }, [refetch])
 
-  const onAddSucess = () => {}
+  const onAddSucess = () => onSaved?.()
 
   const onSuccess = () => {
     setLoadingAction(false)
@@ -130,12 +133,11 @@ const UserInformation: FC<Props> = ({
               placeholder='Street'
               customlabel={
                 <span className='text-[12px] font-medium text-muted'>
-                  Street<span className='text-danger'>*</span>
+                  Street <span className='font-normal text-subtle'>(optional)</span>
                 </span>
               }
               inputType='text'
               name='street'
-              rules={requiredField('Street')}
             />
           </Col>
           <Col className='gutter-row' xs={24} md={12}>
@@ -143,12 +145,11 @@ const UserInformation: FC<Props> = ({
               placeholder='City'
               customlabel={
                 <span className='text-[12px] font-medium text-muted'>
-                  City<span className='text-danger'>*</span>
+                  City <span className='font-normal text-subtle'>(optional)</span>
                 </span>
               }
               inputType='text'
               name='city'
-              rules={requiredField('City')}
             />
           </Col>
           <Col className='gutter-row' xs={24} md={12}>
@@ -156,12 +157,11 @@ const UserInformation: FC<Props> = ({
               placeholder='Telephone'
               customlabel={
                 <span className='text-[12px] font-medium text-muted'>
-                  Telephone<span className='text-danger'>*</span>
+                  Telephone <span className='font-normal text-subtle'>(optional)</span>
                 </span>
               }
               inputType='number'
               name='telephone'
-              rules={requiredField('Telephone')}
             />
           </Col>
           <Col className='gutter-row' xs={24} md={12}>

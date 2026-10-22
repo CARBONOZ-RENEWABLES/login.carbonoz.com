@@ -7,18 +7,15 @@ import {
   useAddProjectMutation,
   useGetProjectQuery,
 } from '../../../lib/api/user/userEndPoints'
-import { ESystemSteps } from '../../../config/constant'
 import handleAPIRequests from '../../../helpers/handleApiRequest'
 
 interface props {
-  makeStep: () => unknown
   setLoadingAction: (state: boolean) => void
+  onSaved?: () => void
 }
 
-const ProjectInfo: FC<props> = ({
-  makeStep,
-  setLoadingAction,
-}): ReactElement => {
+/** Project texts for carbon offsetting; every field is optional. */
+const ProjectInfo: FC<props> = ({ setLoadingAction, onSaved }): ReactElement => {
   const [form] = Form.useForm()
 
   const { data, refetch } = useGetProjectQuery()
@@ -34,19 +31,9 @@ const ProjectInfo: FC<props> = ({
     refetch()
   }, [refetch])
 
-  const onAddSucess = () => {}
-
   const onSuccess = () => {
     setLoadingAction(false)
-    const data = {
-      step: ESystemSteps.CERTIFICATION,
-    }
-    handleAPIRequests({
-      request: makeStep,
-      ...data,
-      onSuccess: onAddSucess,
-      notify: true,
-    })
+    onSaved?.()
   }
 
   const onFinish = (values: ProjectDTO) => {
@@ -55,6 +42,7 @@ const ProjectInfo: FC<props> = ({
       request: addProject,
       ...values,
       onSuccess: onSuccess,
+      onError: () => setLoadingAction(false),
     })
   }
 

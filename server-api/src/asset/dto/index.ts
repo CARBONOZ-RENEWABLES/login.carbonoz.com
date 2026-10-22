@@ -4,125 +4,125 @@ import {
   IsDateString,
   IsEnum,
   IsInt,
-  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
 } from 'class-validator';
 
+/** Offsetting details: all optional, saved as far as the customer fills them in. */
 export class RegisterUserAssetsDto {
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'BBox',
   })
-  assetName: string;
+  assetName?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'Carbonoz',
   })
-  assetOwner: string;
+  assetOwner?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsEnum(EFuelType)
-  @ApiProperty({ required: true, enum: EFuelType })
-  fuelType: EFuelType;
+  @ApiProperty({ required: false, enum: EFuelType })
+  fuelType?: EFuelType;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'Rwanda',
   })
-  country: string;
+  country?: string;
 
   @IsNumber()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: Number,
-    required: true,
+    required: false,
     default: -1.2921,
   })
-  latitude: number;
+  latitude?: number;
 
   @IsNumber()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: Number,
-    required: true,
+    required: false,
     default: 36.8219,
   })
-  longitude: number;
+  longitude?: number;
 
   @IsNumber()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: Number,
-    required: true,
+    required: false,
     default: 24.0,
   })
-  capacityKwp: number;
+  capacityKwp?: number;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'Service',
   })
-  service: string;
+  service?: string;
 
   @IsDateString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: '2024-01-01T00:00:00Z',
   })
-  codDate: Date;
+  codDate?: Date;
 
   @IsInt()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: Number,
-    required: true,
+    required: false,
     default: 10,
   })
-  amountOfInverters: number;
+  amountOfInverters?: number;
 
   @IsInt()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: Number,
-    required: true,
+    required: false,
     default: 20,
   })
-  amountOfPanels: number;
+  amountOfPanels?: number;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'BrandX',
   })
-  panelBrand: string;
+  panelBrand?: string;
 
   @IsInt()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: Number,
-    required: true,
+    required: false,
     default: 300,
   })
-  panelPower: number;
+  panelPower?: number;
 
   @ApiPropertyOptional({
     type: Number,
@@ -152,119 +152,119 @@ export class RegisterUserAssetsDto {
   batteryModel?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'ModelX',
   })
-  inverterModel: string;
+  inverterModel?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'MonitoringSystemX',
   })
-  monitoringSystemName: string;
+  monitoringSystemName?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'http://example.com',
   })
-  monitoringSystemURL: string;
+  monitoringSystemURL?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'path/to/building/photo',
   })
-  buildingPhotoUpload: string;
+  buildingPhotoUpload?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'path/to/inverter/setup/photo',
   })
-  inverterSetupPhotoUpload: string;
+  inverterSetupPhotoUpload?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'path/to/solar/panels/photo',
   })
-  solarPanelsPhotoUpload: string;
+  solarPanelsPhotoUpload?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'SolarTx',
   })
-  inverterBrand: string;
+  inverterBrand?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'SerialNumber1',
   })
-  BatterySerialNumber1: string;
+  BatterySerialNumber1?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'SerialNumber2',
   })
-  BatterySerialNumber2: string;
+  BatterySerialNumber2?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'SerialNumber3',
   })
-  BatterySerialNumber3: string;
+  BatterySerialNumber3?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'SerialNumber1',
   })
-  InverterSerialnumber1: string;
+  InverterSerialnumber1?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'SerialNumber2',
   })
-  InverterSerialnumber2: string;
+  InverterSerialnumber2?: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     default: 'SerialNumber3',
   })
-  InverterSerialnumber3: string;
+  InverterSerialnumber3?: string;
 }

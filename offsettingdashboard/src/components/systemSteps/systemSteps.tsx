@@ -1,176 +1,153 @@
-import {
-  FC,
-  ReactElement,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react'
+import { FC, ReactElement, ReactNode, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Award, FileText, Gauge, SolarPanel, User } from 'lucide-react'
-import {
-  useGetSystemStepsQuery,
-  useMakeSystemStepMutation,
-} from '../../lib/api/systemSteps/systemSteps'
-import {
-  useGetAdditionalInfoQuery,
-  useGetAssetsQuery,
-  useGetMeterQuery,
-} from '../../lib/api/user/userEndPoints'
+import { ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, FileText, Gauge, Leaf, SolarPanel, User } from 'lucide-react'
+import { ESystemSteps } from '../../config/constant'
+import { useGetSystemStepsQuery, useMakeSystemStepMutation } from '../../lib/api/systemSteps/systemSteps'
+import { useGetAdditionalInfoQuery, useGetAssetsQuery, useGetMeterQuery, useGetProjectQuery } from '../../lib/api/user/userEndPoints'
 import CustomButton from '../common/button/button'
+import Notify from '../common/notification/notification'
 import { StepWizard, WizardStep } from '../../layout/onboarding/StepWizard'
-import AgreementInfo from './aggreement/aggreement'
 import Assets from './asset/asset'
 import MeterInfo from './meter/meterEvidence'
 import ProjectInfo from './project/projectInfo'
 import UserInformation from './userinfo/userInformation'
 
-const SystemUserSteps: FC = (): ReactElement | boolean => {
-  const { data, refetch: refetchUserInfo } = useGetAdditionalInfoQuery()
+/**
+ * One optional section: closed until the customer opens it, saved on its own,
+ * never blocking the way to the dashboard.
+ */
+function OptionalSection({ icon, title, hint, done, formId, children }: { icon: ReactNode; title: string; hint: string; done: boolean; formId: string; children: (saving: (s: boolean) => void) => ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  return (
+    <section className='rounded-xl border border-line bg-panel'>
+      <button type='button' className='flex w-full items-center gap-3 px-4 py-3 text-left' aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <span className='grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-panel-3 text-fg-2'>{icon}</span>
+        <span className='min-w-0 flex-1'>
+          <span className='flex items-center gap-2 text-[14px] font-semibold text-fg'>
+            {title}
+            {done && <CheckCircle2 size={15} className='text-batt' aria-label='Saved' />}
+          </span>
+          <span className='block text-[12.5px] text-muted'>{hint}</span>
+        </span>
+        <ChevronDown size={18} className={`shrink-0 text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className='border-t border-line px-4 pb-4 pt-3'>
+          {children(setSaving)}
+          <div className='mt-2 flex justify-end'>
+            <CustomButton type='primary' form={formId} htmlType='submit' loading={saving} variant='secondary'>
+              Save {title.toLowerCase()}
+            </CustomButton>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+/**
+ * Onboarding after sign-up: the essentials (name, language, time zone), then
+ * the details a carbon-offsetting partner needs (system, meter, project) as
+ * optional sections that stay closed unless the customer opens them.
+ */
+const SystemUserSteps: FC = (): ReactElement => {
   const navigate = useNavigate()
+  const { data, refetch: refetchUserInfo } = useGetAdditionalInfoQuery()
   const { data: stepsData, isFetching, refetch } = useGetSystemStepsQuery()
   const [makeStep, { isLoading }] = useMakeSystemStepMutation()
-  const { data: assetData, refetch: refetchAsset } = useGetAssetsQuery()
-  const { data: MeterData, refetch: refetchMeter } = useGetMeterQuery()
+  const asset = useGetAssetsQuery()
+  const meter = useGetMeterQuery()
+  const project = useGetProjectQuery()
+  const [loadingAction, setLoadingAction] = useState(false)
 
-  const initialStepIndex = useMemo(() => {
-    const stepMapping: { [key: string]: number } = {
-      USER_INFORMATION: 0,
-      ASSET: 1,
-      METERING_EVIDENCE: 2,
-      PROJECT: 3,
-      CERTIFICATION: 4,
-    }
-    return stepsData?.data && stepsData.data.length > 0
-      ? stepMapping[stepsData.data[0].step] ?? 0
-      : 0
+  // Anything after the user information (including old step names) is step 2.
+  const initialStep = useMemo(() => {
+    const s = stepsData?.data?.[0]?.step
+    return !s || s === ESystemSteps.USER_INFORMATION ? 0 : 1
   }, [stepsData])
-
-  const [current, setCurrent] = useState<number>(initialStepIndex)
-  const [loadingAction, setLoadingAction] = useState<boolean>(false)
+  const [current, setCurrent] = useState(initialStep)
+  useEffect(() => setCurrent(initialStep), [initialStep])
 
   useEffect(() => {
     refetch()
     refetchUserInfo()
-    refetchAsset()
-    refetchMeter()
-  }, [refetch, refetchUserInfo, refetchAsset, refetchMeter])
+  }, [refetch, refetchUserInfo])
 
   useEffect(() => {
-    setCurrent(initialStepIndex)
-  }, [initialStepIndex])
-
-  useEffect(() => {
-    if (
-      stepsData?.data &&
-      stepsData.data.length > 0 &&
-      stepsData.data[0].status === true
-    ) {
-      navigate('/ds')
-    }
+    if (stepsData?.data?.[0]?.status === true) navigate('/ds')
   }, [stepsData, navigate])
 
-  const steps = useMemo(
-    () => [
-      {
-        title: 'User Information',
-        content: (
-          <UserInformation
-            makeStep={makeStep as () => unknown}
-            setLoadingAction={setLoadingAction}
-          />
-        ),
-        formId: 'user-info-form',
-      },
-      {
-        title: 'Asset Information',
-        content: (
-          <Assets
-            makeStep={makeStep as () => unknown}
-            setLoadingAction={setLoadingAction}
-          />
-        ),
-        formId: 'asset-info-form',
-      },
-      {
-        title: 'Meter Information',
-        content: (
-          <MeterInfo
-            makeStep={makeStep as () => unknown}
-            setLoadingAction={setLoadingAction}
-          />
-        ),
-        formId: 'meter-info-form',
-      },
-      {
-        title: 'Project Information',
-        content: (
-          <ProjectInfo
-            makeStep={makeStep as () => unknown}
-            setLoadingAction={setLoadingAction}
-          />
-        ),
-        formId: 'project-info-form',
-      },
-      {
-        title: 'Certificate Information',
-        content: (
-          <AgreementInfo
-            makeStep={makeStep as () => unknown}
-            setLoadingAction={setLoadingAction}
-          />
-        ),
-        formId: 'agreement-info-form',
-      },
-    ],
-    [makeStep]
-  )
+  const finish = async () => {
+    try {
+      await makeStep({ step: ESystemSteps.LAST_STEP } as never).unwrap()
+      navigate('/ds')
+    } catch {
+      Notify({ type: 'error', message: 'Could not finish the setup', description: 'Please try again.' })
+    }
+  }
 
-  const next = useCallback(() => setCurrent((prev) => prev + 1), [])
-  const prev = useCallback(() => setCurrent((prev) => prev - 1), [])
-  const getCurrentFormId = useCallback(
-    () => steps[current].formId,
-    [current, steps]
-  )
+  const saved = (what: string, refresh: () => unknown) => () => {
+    refresh()
+    Notify({ message: `${what} saved`, description: 'You can add more later from your profile, or continue to your dashboard.' })
+  }
 
   const wizardSteps: WizardStep[] = [
-    { title: 'User information', description: 'Your name, address and contact details.', icon: User },
-    { title: 'Asset information', description: 'Your solar installation, inverters and batteries.', icon: SolarPanel },
-    { title: 'Meter information', description: 'The meter that measures your production.', icon: Gauge },
-    { title: 'Project information', description: 'Background and impact of your project (optional).', icon: FileText },
-    { title: 'Certificates', description: 'Agreements and certificates for your system.', icon: Award },
+    { title: 'About you', description: 'Your name, language and time zone.', icon: User },
+    { title: 'Carbon offsetting (optional)', description: 'Details for certificates. Skip if you only want monitoring.', icon: Leaf },
   ]
-
-  const canSkip = !((current === 0 && !data?.data) || (current === 1 && !assetData?.data) || (current === 2 && !MeterData?.data))
 
   return (
     <StepWizard
-      flowTitle='Set up your system'
-      flowDescription='Tell us about you and your solar installation so CARBONOZ can monitor it and issue certificates.'
+      flowTitle='Set up your account'
+      flowDescription='Two quick steps. Only your name, language and time zone are required.'
       steps={wizardSteps}
       current={current}
       firstName={data?.data?.firstName}
       lastName={data?.data?.lastName}
       loading={isFetching}
       actions={
-        <>
-          {current > 0 && (
-            <CustomButton onClick={prev} variant='secondary' className='lg:min-w-[120px]'>
+        current === 0 ? (
+          <>
+            {data?.data?.firstName && (
+              <CustomButton onClick={() => setCurrent(1)} variant='secondary' className='lg:min-w-[120px]'>
+                Next <ArrowRight size={15} />
+              </CustomButton>
+            )}
+            <CustomButton type='primary' form='user-info-form' htmlType='submit' loading={loadingAction} variant='primary' className='lg:min-w-[160px]'>
+              Save & continue
+            </CustomButton>
+          </>
+        ) : (
+          <>
+            <CustomButton onClick={() => setCurrent(0)} variant='secondary' className='lg:min-w-[120px]'>
               <ArrowLeft size={15} /> Previous
             </CustomButton>
-          )}
-          {canSkip && current < steps.length - 1 && (
-            <CustomButton onClick={next} variant='secondary' className='lg:min-w-[120px]'>
-              Next <ArrowRight size={15} />
+            <CustomButton type='primary' onClick={finish} loading={isLoading} variant='primary' className='lg:min-w-[180px]'>
+              Finish and open my dashboard
             </CustomButton>
-          )}
-          <CustomButton type='primary' form={getCurrentFormId()} htmlType='submit' loading={loadingAction || isLoading} variant='primary' className='lg:min-w-[160px]'>
-            {current === steps.length - 1 ? 'Submit' : 'Save & continue'}
-          </CustomButton>
-        </>
+          </>
+        )
       }
     >
-      {steps[current].content}
+      {current === 0 ? (
+        <UserInformation makeStep={makeStep as () => unknown} setLoadingAction={setLoadingAction} onSaved={() => setCurrent(1)} />
+      ) : (
+        <div className='flex flex-col gap-3'>
+          <p className='rounded-xl border border-line bg-panel-2 px-4 py-3 text-[13px] leading-relaxed text-fg-2'>
+            If you want CARBONOZ to issue carbon certificates for your solar production, our offsetting partner needs a few details about your system. <strong className='text-fg'>All of them are optional</strong> — open a section to fill it in now, or finish and add them later.
+          </p>
+          <OptionalSection icon={<SolarPanel size={17} />} title='Solar system' hint='Capacity, commissioning date, panels, inverters, batteries, serial numbers.' done={!!asset.data?.data} formId='asset-info-form'>
+            {(saving) => <Assets setLoadingAction={saving} onSaved={saved('Solar system', asset.refetch)} />}
+          </OptionalSection>
+          <OptionalSection icon={<Gauge size={17} />} title='Meter' hint='The meter that measures your production.' done={!!meter.data?.data} formId='meter-info-form'>
+            {(saving) => <MeterInfo setLoadingAction={saving} onSaved={saved('Meter', meter.refetch)} />}
+          </OptionalSection>
+          <OptionalSection icon={<FileText size={17} />} title='Project' hint='Background, description and impact of your project.' done={!!project.data?.data} formId='project-info-form'>
+            {(saving) => <ProjectInfo setLoadingAction={saving} onSaved={saved('Project', project.refetch)} />}
+          </OptionalSection>
+        </div>
+      )}
     </StepWizard>
   )
 }
