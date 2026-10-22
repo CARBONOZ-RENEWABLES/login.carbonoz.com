@@ -15,6 +15,7 @@ import {
 import CustomButton from './legacy/LegacyButton'
 import CustomImage from '../common/image/customImage'
 import CustomInput from './legacy/LegacyInput'
+import { WebsiteLinks } from './WebsiteLinks'
 import Notify from '../common/notification/notification'
 
 const Login: FC = (): ReactElement => {
@@ -165,7 +166,7 @@ const Login: FC = (): ReactElement => {
           </Form>
         </div>
 
-
+        <WebsiteLinks onDark className='mt-5' />
       </div>
     </div>
   )

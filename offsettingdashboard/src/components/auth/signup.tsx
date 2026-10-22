@@ -13,6 +13,7 @@ import {
 } from '../../lib/api/Auth/authEndpoints'
 import CustomButton from './legacy/LegacyButton'
 import CustomInput from './legacy/LegacyInput'
+import { WebsiteLinks } from './WebsiteLinks'
 import Notify from '../common/notification/notification'
 import CustomImage from '../common/image/customImage'
 import logo from '../../assets/1.jpg'
@@ -197,7 +198,7 @@ const Signup: FC = (): ReactElement => {
           </Form>
         </div>
 
-
+        <WebsiteLinks onDark className='mt-5' />
       </div>
     </div>
   )

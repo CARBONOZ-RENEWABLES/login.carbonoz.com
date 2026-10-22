@@ -11,6 +11,7 @@ import {
 import CustomButton from './legacy/LegacyButton'
 import CustomImage from '../common/image/customImage'
 import CustomInput from './legacy/LegacyInput'
+import { WebsiteLinks } from './WebsiteLinks'
 import Notify from '../common/notification/notification'
 
 const ForgotPassword = () => {
@@ -124,6 +125,8 @@ const ForgotPassword = () => {
             </div>
           </Form>
         </div>
+
+        <WebsiteLinks onDark className='mt-5' />
       </div>
     </div>
   )
