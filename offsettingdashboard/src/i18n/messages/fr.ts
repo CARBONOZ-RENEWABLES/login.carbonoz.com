@@ -131,6 +131,8 @@ export const fr: Catalogue = {
     sections: 'Sections solaires',
     site: 'Site',
     metric: 'Mesure',
+    historyGroups: 'Groupes de graphiques',
+    chartsCount: { one: '{count} graphique', other: '{count} graphiques' },
     timeRange: 'Période',
     eventFilter: "Filtre d'événements",
     lastReading: 'Dernière mesure {when}',

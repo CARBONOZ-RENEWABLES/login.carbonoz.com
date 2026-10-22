@@ -9,9 +9,9 @@ import { BMSCard, BmsDriftProp, MetricCard, MetricList, StatusCard } from './com
 import { CellHealthCard } from './components/CellHealthCard'
 import { DriftRange, DRIFT_MS } from './cellDrift'
 import { ICONS } from './components/icons'
-import { ForecastChart, HistoryChart } from './components/charts'
+import { ForecastChart, HistoryChart, LazyChart } from './components/charts'
 import { DataTable, EventTable } from './components/tables'
-import { allMetricRows, batteryHint, buildSite, deviceKey, formatMetric, MetricRow, freshness, gridHint, headline, metricCardProps, metricMeta, seriesKey, SiteModel } from './model'
+import { allMetricRows, batteryHint, buildSite, deviceKey, formatMetric, MetricRow, freshness, gridHint, headline, metricCardProps, metricMeta, orderedMetrics, seriesKey, SiteModel } from './model'
 import { energyFlowState } from './flowState'
 import { useLiveDevices, useLiveStatus, withLive } from './live'
 import { liveText } from './flowText'
@@ -360,38 +360,57 @@ function InvertersTab({ site }: { site: SiteModel }) {
 const kindLabel = (k: DeviceKind) => t(`solar.kinds.${k}`)
 
 /** Any numeric metric in the catalogue can be charted — including ones added later. */
+const HISTORY_KINDS: DeviceKind[] = ['SYSTEM', 'INVERTER', 'BATTERY', 'BMS']
+/** Group titles: plural where there are usually several devices. */
+const groupLabel = (k: DeviceKind) => (k === 'INVERTER' ? t('solar.status.inverters') : k === 'BATTERY' ? t('solar.status.batteries') : kindLabel(k))
+
+/** Every numeric metric as its own chart, grouped by device type, one range for all: scroll instead of picking. */
 function HistoryTab({ siteId, o, site }: { siteId: string; o: SolarOverview; site: SiteModel }) {
-  const numeric = o.metrics.filter((m) => m.valueType === 'number' && !m.key.startsWith('forecast_'))
-  const [sel, setSel] = useState(() => {
-    const d = numeric.find((m) => m.deviceKind === 'SYSTEM' && m.key === 'pv_power_w') ?? numeric[0]
-    return d ? `${d.deviceKind}:${d.key}` : ''
-  })
   const [range, setRange] = useState<RangeId>('24h')
   const { refreshKey } = useShell()
-  if (!numeric.length) return <EmptyState title={t('solar.empty.noHistory')} description={t('solar.empty.noHistoryHint')} />
-  const [kind, metric] = sel.split(':') as [DeviceKind, string]
-  const labels = Object.fromEntries(o.devices.map((d) => [seriesKey(d.installationId, d.externalId), site.labelOf(d)]))
+  const groups = useMemo(() => {
+    const numeric = o.metrics.filter((m) => m.valueType === 'number' && !m.key.startsWith('forecast_'))
+    return HISTORY_KINDS.map((kind) => {
+      const keys = numeric.filter((m) => m.deviceKind === kind).map((m) => m.key)
+      // Same order as the cards: main quantities first, then alphabetical.
+      return { kind, keys: orderedMetrics(Object.fromEntries(keys.map((k) => [k, 0]))).map(([k]) => k) }
+    }).filter((g) => g.keys.length)
+  }, [o.metrics])
+  const labels = useMemo(() => Object.fromEntries(o.devices.map((d) => [seriesKey(d.installationId, d.externalId), site.labelOf(d)])), [o.devices, site])
+  if (!groups.length) return <EmptyState title={t('solar.empty.noHistory')} description={t('solar.empty.noHistoryHint')} />
+  const anchor = (k: DeviceKind) => `history-${k.toLowerCase()}`
   return (
-    <div className='flex flex-col gap-3'>
-      <div className='flex flex-wrap items-center justify-between gap-3'>
-        <select aria-label={t('solar.metric')} className={`${inputClass} w-auto max-w-full sm:min-w-[280px]`} value={sel} onChange={(e) => setSel(e.target.value)}>
-          {(['SYSTEM', 'INVERTER', 'BATTERY', 'BMS'] as DeviceKind[]).map((k) => {
-            const opts = numeric.filter((m) => m.deviceKind === k)
-            return opts.length ? (
-              <optgroup key={k} label={kindLabel(k)}>
-                {opts.map((m) => (
-                  <option key={m.key} value={`${k}:${m.key}`}>
-                    {metricMeta(m.key).label}
-                    {m.unit ? ` (${m.unit})` : ''}
-                  </option>
-                ))}
-              </optgroup>
-            ) : null
-          })}
-        </select>
+    <div className='flex flex-col gap-5'>
+      {/* Stays on top while scrolling: jump to a group, one range for every chart. */}
+      <div className='sticky top-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-3 bg-app/90 px-1 py-2 backdrop-blur'>
+        <nav className='flex flex-wrap gap-1.5' aria-label={t('solar.historyGroups')}>
+          {groups.map((g) => (
+            <button
+              key={g.kind}
+              type='button'
+              className='rounded-full border border-line bg-panel px-3 py-1 text-[12.5px] font-medium text-fg-2 hover:border-line-strong hover:text-fg'
+              onClick={() => document.getElementById(anchor(g.kind))?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            >
+              {groupLabel(g.kind)} <span className='tabular text-muted'>{g.keys.length}</span>
+            </button>
+          ))}
+        </nav>
         <RangePicker value={range} onChange={setRange} />
       </div>
-      <HistoryChart siteId={siteId} metric={metric} kind={kind} range={range} refreshKey={refreshKey} labels={labels} />
+      {groups.map((g) => (
+        <section key={g.kind} id={anchor(g.kind)} className='scroll-mt-16' aria-label={groupLabel(g.kind)}>
+          <h2 className='mb-2 text-[14px] font-semibold text-fg'>
+            {groupLabel(g.kind)} <span className='tabular text-[12.5px] font-normal text-muted'>· {t('solar.chartsCount', { count: g.keys.length })}</span>
+          </h2>
+          <div className='grid min-w-0 gap-3 xl:grid-cols-2 [&>*]:min-w-0'>
+            {g.keys.map((key) => (
+              <LazyChart key={key}>
+                <HistoryChart siteId={siteId} metric={key} kind={g.kind} range={range} refreshKey={refreshKey} labels={labels} />
+              </LazyChart>
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   )
 }
