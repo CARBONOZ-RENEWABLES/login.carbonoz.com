@@ -4,8 +4,8 @@ import { FormEvent, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Notify from '../../../components/common/notification/notification'
 import { Button, Dialog, inputClass, LinkButton, StatusBadge } from '../../../design'
-import { SiteRow, useCreateSiteMutation, useGetAdminCustomersQuery, useUpdateSiteTimeZoneMutation } from '../api'
-import { apiError, knownTimeZone, timeZoneOptions, utcOffset } from '../model'
+import { SiteRow, useCreateSiteMutation, useGetAdminCustomersQuery, useUpdateSiteLocationMutation, useUpdateSiteTimeZoneMutation } from '../api'
+import { apiError, knownTimeZone, parseLatLon, timeZoneOptions, utcOffset } from '../model'
 import { FormField, Mono } from '../ui'
 
 const TZ_HINT = 'IANA name. Calendar of this site’s energy history (DST included) for viewers without a Customer Timezone in their profile.'
@@ -103,6 +103,62 @@ function EditTimeZoneDialog({ site, onClose }: { site: Pick<SiteRow, 'id' | 'nam
         <p className='rounded-lg border border-line bg-panel-2 px-3 py-2.5 text-[12px] text-fg-2'>
           Stored readings are not changed. Daily, monthly and yearly energy is recalculated from them in the new time zone.
         </p>
+      </form>
+    </Dialog>
+  )
+}
+
+/** Location of a site (weather and solar forecast), with an edit action. */
+export function SiteLocation({ site }: { site: Pick<SiteRow, 'id' | 'name' | 'latitude' | 'longitude'> }) {
+  const [editing, setEditing] = useState(false)
+  const set = site.latitude != null && site.longitude != null
+  return (
+    <div className='flex min-w-[150px] flex-col items-start gap-0.5' data-testid={`site-location-${site.id}`}>
+      {set ? <Mono className='text-fg'>{`${site.latitude!.toFixed(4)}, ${site.longitude!.toFixed(4)}`}</Mono> : <StatusBadge tone='warning'>Not set · no weather</StatusBadge>}
+      <LinkButton onClick={() => setEditing(true)}>{set ? 'Change' : 'Set location'}</LinkButton>
+      {editing && <EditLocationDialog site={site} onClose={() => setEditing(false)} />}
+    </div>
+  )
+}
+
+function EditLocationDialog({ site, onClose }: { site: Pick<SiteRow, 'id' | 'name' | 'latitude' | 'longitude'>; onClose: () => void }) {
+  const [text, setText] = useState(site.latitude != null && site.longitude != null ? `${site.latitude}, ${site.longitude}` : '')
+  const [update, { isLoading }] = useUpdateSiteLocationMutation()
+  const parsed = parseLatLon(text)
+  const clearing = !text.trim() && site.latitude != null
+  const save = async (e: FormEvent) => {
+    e.preventDefault()
+    try {
+      await update({ siteId: site.id, latitude: parsed?.latitude ?? null, longitude: parsed?.longitude ?? null }).unwrap()
+      Notify({ message: 'Location saved', description: parsed ? `${site.name}: weather and solar forecast use this location.` : `${site.name}: location removed.` })
+      onClose()
+    } catch (err) {
+      Notify({ type: 'error', message: 'Location not saved', description: apiError(err) })
+    }
+  }
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title='Site location'
+      description={site.name}
+      footer={
+        <>
+          <Button variant='ghost' onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant='primary' type='submit' form='edit-location' loading={isLoading} disabled={!parsed && !clearing}>
+            <MapPin size={15} /> Save location
+          </Button>
+        </>
+      }
+    >
+      <form id='edit-location' onSubmit={save} className='space-y-4'>
+        <FormField label='Latitude, longitude' hint='Decimal degrees, as copied from a map (right-click the installation in Google Maps). Leave empty to remove.'>
+          <input className={inputClass} value={text} onChange={(e) => setText(e.target.value)} placeholder='-20.1609, 57.4989' inputMode='decimal' aria-invalid={!!text.trim() && !parsed} />
+        </FormField>
+        {!!text.trim() && !parsed && <p className='text-[12px] text-danger'>Enter two numbers: latitude (−90…90), longitude (−180…180).</p>}
+        <p className='rounded-lg border border-line bg-panel-2 px-3 py-2.5 text-[12px] text-fg-2'>Used for the weather and the solar forecast of this site. The coordinates are sent to the weather service (Open-Meteo), nothing else.</p>
       </form>
     </Dialog>
   )

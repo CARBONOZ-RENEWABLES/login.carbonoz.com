@@ -68,6 +68,7 @@ import {
 } from './dto';
 import { SolarIngestService } from './ingest/solar-ingest.service';
 import { SolarReadService } from './read/solar-read.service';
+import { SolarWeatherService } from './read/solar-weather.service';
 import { SolarStoreService } from './store/solar-store.service';
 
 /** Customer read API. Site access is checked server-side for every route. */
@@ -83,6 +84,7 @@ export class SolarController {
     private readonly energy: SolarEnergyHistoryService,
     private readonly prisma: PrismaService,
     private readonly live: SolarLiveService,
+    private readonly weather: SolarWeatherService,
   ) {}
 
   @ApiOperation({
@@ -196,6 +198,18 @@ export class SolarController {
     return new GenericResponse(
       'solar-cell-drift',
       await this.read.cellDrift(site, q),
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      "Weather for the site's location (yesterday to tomorrow, hourly) and PV predicted from it, calibrated on the site's own generation",
+  })
+  @Get('weather')
+  async weatherForecast(@CurrentSite() site: Site) {
+    return new GenericResponse(
+      'solar-weather',
+      await this.weather.forSite(site),
     );
   }
 

@@ -389,16 +389,26 @@ export class AdminTenancyController {
    * new zone's days from the readings; rows of the old zone stay correct for
    * it (backfill invalidation ignores the zone) and are reused if it returns.
    */
-  @ApiOkResponse({ description: 'Site time zone changed' })
+  @ApiOkResponse({ description: 'Site time zone and/or location changed' })
   @Patch('sites/:siteId')
   async updateSite(
     @Param('siteId') siteId: string,
     @Body() dto: UpdateSiteDto,
   ) {
     this.id(siteId, 'Site');
+    const data = {
+      ...(dto.timezone !== undefined && { timezone: dto.timezone }),
+      ...(dto.latitude !== undefined && { latitude: dto.latitude }),
+      ...(dto.longitude !== undefined && { longitude: dto.longitude }),
+    };
+    if (!Object.keys(data).length)
+      throw new BadRequestException('Nothing to change');
+    // A location is a pair: both set, or both cleared.
+    if ((dto.latitude === undefined) !== (dto.longitude === undefined))
+      throw new BadRequestException('latitude and longitude go together');
     const { count } = await this.prisma.site.updateMany({
       where: { id: siteId },
-      data: { timezone: dto.timezone },
+      data,
     });
     if (!count) throw new NotFoundException('Site not found');
     return new GenericResponse(

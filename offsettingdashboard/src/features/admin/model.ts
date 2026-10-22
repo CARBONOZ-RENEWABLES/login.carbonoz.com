@@ -116,3 +116,12 @@ export function utcOffset(tz: string, at = new Date()): string {
     return ''
   }
 }
+
+/** "-20.1609, 57.4989" (as copied from a map) → coordinates; null when not a valid pair. */
+export function parseLatLon(text: string): { latitude: number; longitude: number } | null {
+  const m = text.trim().match(/^(-?\d{1,2}(?:\.\d+)?)\s*[,; ]\s*(-?\d{1,3}(?:\.\d+)?)$/)
+  if (!m) return null
+  const latitude = Number(m[1])
+  const longitude = Number(m[2])
+  return Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 ? { latitude, longitude } : null
+}

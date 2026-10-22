@@ -117,6 +117,37 @@ export interface CellDrift {
   packs: PackDrift[]
 }
 
+/** Weather for the site's location and PV predicted from it (GET …/weather). */
+export interface WeatherHour {
+  t: number
+  temperatureC: number | null
+  cloudCoverPct: number | null
+  windSpeedKmh: number | null
+  irradianceWm2: number | null
+  precipitationMm: number | null
+  /** Measured PV (mean W of the hour), up to now. */
+  pvW: number | null
+  /** Predicted PV (mean W of the hour). */
+  predictedW: number | null
+}
+export interface DayPv {
+  generatedKwh: number | null
+  predictedKwh: number | null
+  remainingKwh: number | null
+}
+export type SiteWeather =
+  | { available: false; reason: 'disabled' | 'no_location' | 'unavailable' }
+  | {
+      available: true
+      source: string
+      timezone: string
+      location: { latitude: number; longitude: number }
+      calibration: { factor: number; hours: number } | null
+      now: string
+      hourly: WeatherHour[]
+      days: { yesterday: DayPv; today: DayPv; tomorrow: DayPv }
+    }
+
 export type EnergyRange = '30d' | '1y' | '10y'
 /** Calendar of the energy buckets: the site's time zone or the viewer's own. */
 export type EnergyTz = 'site' | 'profile'
@@ -176,6 +207,7 @@ export const solarApi = baseAPI.injectEndpoints({
     getSolarCellDrift: b.query<Envelope<CellDrift>, { siteId: string; from: string; to: string }>({
       query: ({ siteId, ...q }) => ({ url: `/solar/sites/${siteId}/cells/drift`, params: q }),
     }),
+    getSolarWeather: b.query<Envelope<SiteWeather>, string>({ query: (siteId) => `/solar/sites/${siteId}/weather` }),
     getSolarForecast: b.query<Envelope<Forecast | null>, string>({ query: (siteId) => `/solar/sites/${siteId}/forecast` }),
     getSolarEnergy: b.query<Envelope<EnergyHistory>, { siteId: string; range: EnergyRange; anchor?: string; tz?: EnergyTz }>({
       query: ({ siteId, range, anchor, tz }) => ({ url: `/solar/sites/${siteId}/energy`, params: { range, ...(anchor && { anchor }), ...(tz && { tz }) } }),
@@ -184,4 +216,4 @@ export const solarApi = baseAPI.injectEndpoints({
   }),
 })
 
-export const { useGetSitesQuery, useGetSolarOverviewQuery, useGetSolarHistoryQuery, useGetSolarEventsQuery, useGetSolarForecastQuery, useGetSolarEnergyQuery, useGetSolarCellDriftQuery } = solarApi
+export const { useGetSitesQuery, useGetSolarOverviewQuery, useGetSolarHistoryQuery, useGetSolarEventsQuery, useGetSolarForecastQuery, useGetSolarEnergyQuery, useGetSolarCellDriftQuery, useGetSolarWeatherQuery } = solarApi
