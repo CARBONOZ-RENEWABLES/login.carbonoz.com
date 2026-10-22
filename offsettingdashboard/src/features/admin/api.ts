@@ -269,6 +269,12 @@ const adminApi = baseAPI.injectEndpoints({
       invalidatesTags: (_r, _e, { siteId }) => [TENANCY, { type: 'Solar-Site', id: siteId }, { type: 'Solar-Site', id: 'LIST' }],
     }),
 
+    // The location drives the site's weather and solar forecast.
+    updateSiteLocation: b.mutation<Envelope<SiteDetail>, { siteId: string; latitude: number | null; longitude: number | null }>({
+      query: ({ siteId, ...body }) => ({ url: `/admin/sites/${siteId}`, method: 'PATCH', body }),
+      invalidatesTags: (_r, _e, { siteId }) => [TENANCY, { type: 'Solar-Site', id: siteId }],
+    }),
+
     // ── Installations and machine credentials ──────────────────────────────
     getAdminInstallations: b.query<Envelope<InstallationRow[]>, { q?: string; siteId?: string; customerId?: string }>({
       query: (q) => ({ url: '/admin/installations', params: params(q) }),
@@ -343,7 +349,7 @@ export const {
   useRemoveMemberMutation,
   useGetAdminSitesQuery,
   useCreateSiteMutation,
-  useUpdateSiteTimeZoneMutation,
+  useUpdateSiteTimeZoneMutation, useUpdateSiteLocationMutation,
   useGetAdminInstallationsQuery,
   useCreateInstallationMutation,
   useUpdateInstallationMutation,

@@ -14,7 +14,10 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
+  ValidateIf,
 } from 'class-validator';
 import { IsIanaTimeZone } from 'src/__shared__/utils/timezone';
 
@@ -75,11 +78,15 @@ export class CreateSiteDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
+  @Min(-90)
+  @Max(90)
   latitude?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
+  @Min(-180)
+  @Max(180)
   longitude?: number;
 
   @ApiProperty({
@@ -91,11 +98,27 @@ export class CreateSiteDto {
   timezone: string;
 }
 
-/** Only the time zone is editable after creation. */
+/** Time zone and location (weather and solar forecast) are editable after creation. */
 export class UpdateSiteDto {
-  @ApiProperty({ example: 'Africa/Kigali' })
+  @ApiPropertyOptional({ example: 'Africa/Kigali' })
+  // Left out = unchanged; null or invalid = 400 (a site always has a zone).
+  @ValidateIf((_, v) => v !== undefined)
   @IsIanaTimeZone()
-  timezone: string;
+  timezone?: string;
+
+  @ApiPropertyOptional({ example: -20.16, description: 'null clears it' })
+  @ValidateIf((_, v) => v !== undefined && v !== null)
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  latitude?: number | null;
+
+  @ApiPropertyOptional({ example: 57.5, description: 'null clears it' })
+  @ValidateIf((_, v) => v !== undefined && v !== null)
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  longitude?: number | null;
 }
 
 export class CreateInstallationDto {

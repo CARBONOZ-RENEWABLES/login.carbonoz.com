@@ -6,13 +6,15 @@ export interface SeriesDef {
   key: string
   name: string
   color: string
+  /** Dashed line (e.g. a prediction next to the measured value). */
+  dashed?: boolean
 }
 
 export interface PanelDef {
   id: string
   title: string
   /** Display unit; power panels convert device watts to kW. */
-  unit: 'kW' | '%' | 'V' | 'A' | '°C'
+  unit: 'kW' | '%' | 'V' | 'A' | '°C' | 'km/h' | 'W/m²' | 'mm'
   kind: PanelKind
   series: SeriesDef[]
   stats: StatKind[]

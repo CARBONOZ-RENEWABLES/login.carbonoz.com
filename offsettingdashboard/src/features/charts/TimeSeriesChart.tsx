@@ -94,9 +94,12 @@ export interface TimeSeriesChartProps {
   curve?: 'smooth' | 'linear'
   showGrid?: boolean
   large?: boolean
+  /** Vertical marker, e.g. "now" on a forecast (epoch ms). */
+  marker?: number
+  markerLabel?: string
 }
 
-export const TimeSeriesChart = memo(function TimeSeriesChart({ panel, data, range, curve = 'smooth', showGrid = true, large }: TimeSeriesChartProps) {
+export const TimeSeriesChart = memo(function TimeSeriesChart({ panel, data, range, curve = 'smooth', showGrid = true, large, marker, markerLabel }: TimeSeriesChartProps) {
   const theme = useChartTheme()
   const gid = useId().replace(/:/g, '')
   const div = scaleOf(panel)
@@ -172,6 +175,7 @@ export const TimeSeriesChart = memo(function TimeSeriesChart({ panel, data, rang
       content={(p: TooltipProps) => <ChartTooltip {...p} panel={panel} range={range} theme={theme} />}
       isAnimationActive={false}
     />,
+    marker != null && <ReferenceLine key='marker' x={marker} stroke='rgb(var(--c-danger))' strokeDasharray='3 3' strokeWidth={1.2} label={markerLabel ? { value: markerLabel, position: 'insideTopRight', fill: theme.axis, fontSize } : undefined} />,
   ]
   const anim = { isAnimationActive: true, animationDuration: 650, animationEasing: 'ease-out' as const }
 
@@ -190,7 +194,7 @@ export const TimeSeriesChart = memo(function TimeSeriesChart({ panel, data, rang
       <LineChart {...common}>
         {axes}
         {panel.series.map((s) => (
-          <Line key={s.key} type={type} dataKey={s.key} stroke={s.color} strokeWidth={large ? 2 : 1.5} dot={false} connectNulls activeDot={{ r: 4, strokeWidth: 2, stroke: theme.tooltipBg }} {...anim} />
+          <Line key={s.key} type={type} dataKey={s.key} stroke={s.color} strokeWidth={large ? 2 : 1.5} strokeDasharray={s.dashed ? '5 4' : undefined} dot={false} connectNulls activeDot={{ r: 4, strokeWidth: 2, stroke: theme.tooltipBg }} {...anim} />
         ))}
       </LineChart>
     )

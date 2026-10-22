@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ago, apiError, count, credentialStatus, CREDENTIAL_BADGE, formatDate, INGEST_BADGE, LIVE_BADGE, personName, prettyJson } from './model'
+import { parseLatLon, ago, apiError, count, credentialStatus, CREDENTIAL_BADGE, formatDate, INGEST_BADGE, LIVE_BADGE, personName, prettyJson } from './model'
 
 describe('admin model', () => {
   it('matches the server rule for credential status', () => {
@@ -42,5 +42,15 @@ describe('admin model', () => {
     const circular: Record<string, unknown> = {}
     circular.self = circular
     expect(() => prettyJson(circular)).not.toThrow()
+  })
+})
+
+describe('site location input', () => {
+  it('reads "lat, lon" as copied from a map; refuses anything else', () => {
+    expect(parseLatLon('-20.1609, 57.4989')).toEqual({ latitude: -20.1609, longitude: 57.4989 })
+    expect(parseLatLon(' 52.52 13.405 ')).toEqual({ latitude: 52.52, longitude: 13.405 })
+    expect(parseLatLon('95, 10')).toBeNull()
+    expect(parseLatLon('Port Louis')).toBeNull()
+    expect(parseLatLon('-20.16')).toBeNull()
   })
 })

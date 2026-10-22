@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Card, CardHeader, EmptyState, ErrorState, inputClass, PageSkeleton, Segmented, StatusBadge, TabItem, Tabs } from '../../design'
 import { relativeTime, useShell } from '../../layout/ShellContext'
-import { DeviceKind, MetricValue, SiteSummary, SolarDevice, SolarOverview, useGetSitesQuery, useGetSolarCellDriftQuery, useGetSolarHistoryQuery, useGetSolarEnergyQuery, useGetSolarEventsQuery, useGetSolarForecastQuery, useGetSolarOverviewQuery } from './api'
+import { DeviceKind, MetricValue, SiteSummary, SolarDevice, SolarOverview, useGetSitesQuery, useGetSolarCellDriftQuery, useGetSolarHistoryQuery, useGetSolarWeatherQuery, useGetSolarEnergyQuery, useGetSolarEventsQuery, useGetSolarForecastQuery, useGetSolarOverviewQuery } from './api'
 import { BMSCard, BmsDriftProp, MetricCard, MetricList, StatusCard } from './components/cards'
 import { CellHealthCard } from './components/CellHealthCard'
 import { isHostMetric, settingsOf, socRatePerHour } from './fields'
@@ -11,6 +11,7 @@ import { DriftRange, DRIFT_MS } from './cellDrift'
 import { ICONS } from './components/icons'
 import { ForecastChart, HistoryChart, LazyChart } from './components/charts'
 import { WindowPicker } from './components/WindowPicker'
+import { PvTodayCard, WeatherCharts, WeatherUnavailable } from './components/WeatherForecast'
 import { TimeWindow } from './timeWindow'
 import { DataTable, EventTable } from './components/tables'
 import { allMetricRows, batteryHint, buildSite, deviceKey, formatMetric, MetricRow, freshness, gridHint, headline, metricCardProps, metricMeta, orderedMetrics, seriesKey, SiteModel } from './model'
@@ -165,6 +166,7 @@ function OverviewTab({ siteId, o, site, onTab, basePath }: { siteId: string; o: 
   const staleTone = lastSeen ? 'text-gridp' : undefined
   const flow = useMemo(() => energyFlowState(h), [h.pv, h.load, h.grid, h.battery, h.soc]) // eslint-disable-line react-hooks/exhaustive-deps
   const socRate = useSocRate(siteId, h.soc != null, o.updatedAt)
+  const weather = useGetSolarWeatherQuery(siteId).data?.data
   const rateText = socRate != null && Math.abs(socRate) >= 0.1 ? t('solar.socRate', { rate: `${socRate > 0 ? '+' : '−'}${formatFixed(Math.abs(socRate), 1)}` }) : null
   const cards = [
     h.pv != null && <MetricCard key='pv' icon={ICONS.pv} label={t('solar.cards.solar')} {...metricCardProps('pv_power_w', h.pv)} hint={lastSeen ?? (h.pv > 20 ? t('solar.hints.producing') : t('solar.hints.idle'))} tone={staleTone ?? (h.pv > 20 ? 'text-batt' : undefined)} />,
@@ -201,7 +203,7 @@ function OverviewTab({ siteId, o, site, onTab, basePath }: { siteId: string; o: 
             { label: t('solar.status.bms'), value: site.allBms.length },
             { label: t('solar.status.cells'), value: site.allBms.reduce((n, b) => n + (b.latest?.cells?.length ?? 0), 0) },
             { label: t('solar.status.data'), value: o.source === 'none' ? t('solar.fresh.none') : o.stale ? t('solar.fresh.delayed') : t('solar.fresh.live') },
-            { label: t('solar.status.forecast'), value: o.hasForecast ? t('solar.status.available') : t('common.notProvided') },
+            { label: t('solar.status.forecast'), value: o.hasForecast || weather?.available ? t('solar.status.available') : t('common.notProvided') },
           ]}
         />
       </div>
@@ -214,6 +216,7 @@ function OverviewTab({ siteId, o, site, onTab, basePath }: { siteId: string; o: 
             site.systems.filter((d) => d.latest).map((d) => <StatusCardFromDevice key={deviceKey(d)} title={site.systems.length > 1 ? site.labelOf(d) : t('solar.systemValues')} d={d} site={site} />)}
         </div>
         <div className='grid content-start gap-3'>
+          {weather?.available && <PvTodayCard w={weather} compact />}
           {site.inverters.slice(0, 1).map((d) => (
             <InverterCard key={deviceKey(d)} d={d} unitOf={site.unitOf} title={site.labelOf(d)} compact />
           ))}
@@ -453,15 +456,27 @@ function HistoryTab({ siteId, o, site }: { siteId: string; o: SolarOverview; sit
   )
 }
 
+/** Weather and PV forecast for the site's location, then anything the SolarBMS itself forecasts. */
 function ForecastTab({ siteId }: { siteId: string }) {
   const f = useGetSolarForecastQuery(siteId)
-  if (f.isLoading) return <PageSkeleton variant='list' />
+  const wq = useGetSolarWeatherQuery(siteId)
+  if (f.isLoading || wq.isLoading) return <PageSkeleton variant='list' />
   if (f.isError) return <ErrorState title={t('solar.errors.forecast')} onRetry={f.refetch} />
   const fc = f.data?.data
+  const w = wq.data?.data
   const keys = fc ? [...new Set(fc.points.flatMap((p) => Object.keys(p).filter((k) => k !== 'ts')))] : []
+  const deviceForecast = !!fc?.points.length
   return (
     <div className='flex flex-col gap-3'>
-      <ForecastChart forecast={fc} loading={f.isLoading} />
+      {w?.available ? (
+        <>
+          <PvTodayCard w={w} />
+          <WeatherCharts w={w} />
+        </>
+      ) : (
+        <WeatherUnavailable reason={w && 'reason' in w ? w.reason : 'unavailable'} />
+      )}
+      {(deviceForecast || !w?.available) && <ForecastChart forecast={fc} loading={f.isLoading} />}
       {fc && fc.points.length > 0 && (
         <DataTable
           rows={fc.points}
