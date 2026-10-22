@@ -59,6 +59,7 @@ import { SolarKeys } from './solar.keys';
 import { CurrentSite, SiteAccessGuard } from 'src/tenancy/site-access.guard';
 import { isObjectId } from 'src/tenancy/tenancy.service';
 import {
+  CellDriftQueryDto,
   CellsQueryDto,
   DeviceKindQueryDto,
   EventsQueryDto,
@@ -181,6 +182,18 @@ export class SolarController {
     return new GenericResponse(
       'solar-cells',
       await this.read.cells(site, q.bmsId),
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Cell drift per BMS: each cell vs its pack average over time, and how often it is the highest/lowest cell (up to 31 days)',
+  })
+  @Get('cells/drift')
+  async cellDrift(@CurrentSite() site: Site, @Query() q: CellDriftQueryDto) {
+    return new GenericResponse(
+      'solar-cell-drift',
+      await this.read.cellDrift(site, q),
     );
   }
 

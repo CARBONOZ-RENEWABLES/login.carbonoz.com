@@ -4,6 +4,7 @@ import { cn, StatusBadge } from '../../../design'
 import { Cell } from '../api'
 import { formatMetric, metricMeta } from '../model'
 import { DataTable } from './tables'
+import { CELL_LOW_CHIP, voltageWindow } from '../cellDrift'
 
 const BASE_KEYS = new Set(['id', 'voltage', 'temperature', 'balancing', 'ts'])
 /** Per-cell values beyond the basics, in first-seen order across all cells. */
@@ -32,6 +33,7 @@ export function CellVoltageTable({ cells, minId, maxId }: { cells: Cell[]; minId
   const low = minId ?? sorted.find((c) => c.voltage === min)?.id
   const high = maxId ?? sorted.find((c) => c.voltage === max)?.id
   const span = max - min
+  const win = voltageWindow(max)
 
   return (
     <div>
@@ -39,42 +41,38 @@ export function CellVoltageTable({ cells, minId, maxId }: { cells: Cell[]; minId
         <p className='text-[12.5px] font-medium text-fg-2'>{t('solar.cells.voltages')}</p>
         <span className='text-[11.5px] text-muted'>{t('solar.cells.count', { count: cells.length })}</span>
       </div>
-      <ul className='grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8' aria-label={t('solar.cells.voltages')}>
+      {/* Bars like a BMS app: fill = voltage in the chemistry's window, text = voltage and distance from the pack average. */}
+      <ol className='grid gap-1.5 sm:grid-flow-col' style={{ gridTemplateRows: `repeat(${Math.ceil(sorted.length / (sorted.length > 8 ? 2 : 1))}, minmax(0, auto))` }} aria-label={t('solar.cells.voltages')}>
         {sorted.map((c) => {
-          const isLow = c.id === low
+          const isLow = c.id === low && span > 0
           const isHigh = c.id === high && span > 0
           const dev = c.voltage == null ? null : Math.round((c.voltage - avg) * 1000)
-          const pos = c.voltage == null || span === 0 ? 50 : ((c.voltage - min) / span) * 100
+          const fill = c.voltage == null ? 0 : Math.max(2, Math.min(100, ((c.voltage - win.lo) / (win.hi - win.lo)) * 100))
           return (
-            <li key={c.id} className={cn('rounded-lg border bg-panel-2 px-2.5 py-2', isLow ? 'border-accent/40' : isHigh ? 'border-gridp/40' : 'border-line')}>
-              <div className='flex h-5 items-center justify-between gap-1'>
-                <span className='text-[11px] text-muted'>{t('solar.cells.cell', { id: c.id })}</span>
-                {isLow && <StatusBadge tone='info'>{t('solar.cells.min')}</StatusBadge>}
-                {isHigh && <StatusBadge tone='warning'>{t('solar.cells.max')}</StatusBadge>}
+            <li
+              key={c.id}
+              title={`${t('solar.cells.cell', { id: c.id })}${isHigh ? ` · ${t('solar.cells.max')}` : isLow ? ` · ${t('solar.cells.min')}` : ''}`}
+              className={cn(
+                'relative h-8 overflow-hidden rounded-md border bg-gradient-to-r from-[rgb(var(--c-cell-low)/0.10)] via-panel-2 to-[rgb(var(--c-cell-high)/0.14)]',
+                isHigh ? 'border-[rgb(var(--c-cell-high))] shadow-[0_0_10px_rgb(var(--c-cell-high)/0.45)]' : isLow ? 'border-[rgb(var(--c-cell-low))] shadow-[0_0_10px_rgb(var(--c-cell-low)/0.45)]' : 'border-line',
+              )}
+            >
+              <div className='absolute inset-y-0 left-0 rounded-r-md bg-gradient-to-r from-[rgb(var(--c-cell-low)/0.25)] to-[rgb(var(--c-cell-low)/0.55)] transition-[width] duration-700' style={{ width: `${fill}%` }} />
+              <div className='relative flex h-full items-center gap-2 px-2'>
+                <span className='grid h-5 min-w-[22px] place-items-center rounded bg-panel/80 px-1 text-[11px] font-semibold text-fg'>{c.id}</span>
+                <span className='tabular text-[12.5px] font-semibold text-fg'>{c.voltage == null ? '—' : `${formatFixed(c.voltage, 3)} V`}</span>
+                <span className='tabular ml-auto text-[11px] text-fg-2'>
+                  {dev == null ? '' : `${dev > 0 ? '+' : dev < 0 ? '−' : '±'}${Math.abs(dev)} mV`}
+                  {c.temperature != null && ` · ${formatFixed(c.temperature, 1)} °C`}
+                  {c.balancing && ` · ${t('solar.cells.balancing')}`}
+                </span>
+                {isHigh && <StatusBadge tone='critical'>{t('solar.cells.max')}</StatusBadge>}
+                {isLow && <StatusBadge tone='info' className={CELL_LOW_CHIP}>{t('solar.cells.min')}</StatusBadge>}
               </div>
-              <p className='tabular mt-0.5 text-[14px] font-semibold text-fg'>{c.voltage == null ? '—' : `${formatFixed(c.voltage, 3)} V`}</p>
-              <div className='mt-1.5 h-1 overflow-hidden rounded-full bg-panel-3'>
-                <div className={cn('h-full rounded-full', isLow ? 'bg-accent' : isHigh ? 'bg-gridp' : 'bg-batt')} style={{ width: `${Math.max(6, pos)}%` }} />
-              </div>
-              <p className='tabular mt-1 text-[10.5px] text-muted'>
-                {dev == null ? '' : `${dev > 0 ? '+' : dev < 0 ? '−' : '±'}${Math.abs(dev)} mV`}
-                {c.temperature != null && ` · ${formatFixed(c.temperature, 1)} °C`}
-                {c.balancing && ` · ${t('solar.cells.balancing')}`}
-              </p>
-              {extras.slice(0, 2).map((k) => {
-                if (c[k] == null) return null
-                const f = formatMetric(k, c[k])
-                return (
-                  <p key={k} className='tabular truncate text-[10.5px] text-muted' title={metricMeta(k).label}>
-                    {metricMeta(k).label} {f.value}
-                    {f.unit && ` ${f.unit}`}
-                  </p>
-                )
-              })}
             </li>
           )
         })}
-      </ul>
+      </ol>
       <details className='mt-3'>
         <summary className='cursor-pointer text-[12.5px] font-medium text-fg-2 hover:text-fg'>{t('solar.cells.all')}</summary>
         <div className='mt-2'>
