@@ -144,6 +144,8 @@ export const en = {
     site: 'Site',
     metric: 'Metric',
     historyGroups: 'Chart groups',
+    olderValues: { one: '{count} value no longer reported', other: '{count} values no longer reported' },
+    olderValuesHint: 'data only for earlier periods',
     socRate: '{rate} %/h',
     settingsTitle: 'Inverter settings (read-only)',
     chartsCount: { one: '{count} chart', other: '{count} charts' },

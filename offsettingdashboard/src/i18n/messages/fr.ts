@@ -133,6 +133,8 @@ export const fr: Catalogue = {
     site: 'Site',
     metric: 'Mesure',
     historyGroups: 'Groupes de graphiques',
+    olderValues: { one: '{count} valeur plus transmise', other: '{count} valeurs plus transmises' },
+    olderValuesHint: 'données seulement pour des périodes antérieures',
     socRate: '{rate} %/h',
     settingsTitle: 'Paramètres de l’onduleur (lecture seule)',
     chartsCount: { one: '{count} graphique', other: '{count} graphiques' },
