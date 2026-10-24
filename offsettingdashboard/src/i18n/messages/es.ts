@@ -133,6 +133,8 @@ export const es: Catalogue = {
     site: 'Emplazamiento',
     metric: 'Medida',
     historyGroups: 'Grupos de gráficos',
+    olderValues: { one: '{count} valor ya no enviado', other: '{count} valores ya no enviados' },
+    olderValuesHint: 'datos solo de periodos anteriores',
     socRate: '{rate} %/h',
     settingsTitle: 'Ajustes del inversor (solo lectura)',
     chartsCount: { one: '{count} gráfico', other: '{count} gráficos' },

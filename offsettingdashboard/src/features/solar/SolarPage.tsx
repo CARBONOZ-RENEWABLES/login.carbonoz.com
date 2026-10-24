@@ -411,12 +411,19 @@ function HistoryTab({ siteId, o, site }: { siteId: string; o: SolarOverview; sit
   const groups = useMemo(() => {
     // The Raspberry's own health (CPU, memory, storage) is not charted.
     const numeric = o.metrics.filter((m) => m.valueType === 'number' && !m.key.startsWith('forecast_') && !isHostMetric(m.key))
+    const order = (keys: string[]) => orderedMetrics(Object.fromEntries(keys.map((k) => [k, 0]))).map(([k]) => k)
     return HISTORY_KINDS.map((kind) => {
       const keys = numeric.filter((m) => m.deviceKind === kind).map((m) => m.key)
+      // The catalogue keeps every name ever reported. Values a device of this
+      // kind reports NOW come first; names it stopped sending (e.g. after the
+      // sender changed its format) are kept, collapsed, for older periods.
+      const reported = new Set(o.devices.filter((d) => d.kind === kind).flatMap((d) => Object.keys(d.latest?.metrics ?? {})))
+      const current = reported.size ? keys.filter((k) => reported.has(k)) : keys
+      const older = reported.size ? keys.filter((k) => !reported.has(k)) : []
       // Same order as the cards: main quantities first, then alphabetical.
-      return { kind, keys: orderedMetrics(Object.fromEntries(keys.map((k) => [k, 0]))).map(([k]) => k) }
-    }).filter((g) => g.keys.length)
-  }, [o.metrics])
+      return { kind, keys: order(current), older: order(older) }
+    }).filter((g) => g.keys.length || g.older.length)
+  }, [o.metrics, o.devices])
   const labels = useMemo(() => Object.fromEntries(o.devices.map((d) => [seriesKey(d.installationId, d.externalId), site.labelOf(d)])), [o.devices, site])
   if (!groups.length) return <EmptyState title={t('solar.empty.noHistory')} description={t('solar.empty.noHistoryHint')} />
   const anchor = (k: DeviceKind) => `history-${k.toLowerCase()}`
@@ -450,9 +457,35 @@ function HistoryTab({ siteId, o, site }: { siteId: string; o: SolarOverview; sit
               </LazyChart>
             ))}
           </div>
+          {g.older.length > 0 && <OlderValues siteId={siteId} kind={g.kind} keys={g.older} range={range} refreshKey={refreshKey} labels={labels} />}
         </section>
       ))}
     </div>
+  )
+}
+
+/**
+ * Names this kind of device reported in the past but not any more: their
+ * charts only have data for older periods, so they stay closed (and are not
+ * fetched) until someone opens them.
+ */
+function OlderValues({ siteId, kind, keys, range, refreshKey, labels }: { siteId: string; kind: DeviceKind; keys: string[]; range: TimeWindow; refreshKey: number; labels: Record<string, string> }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <details className='mt-3 rounded-xl border border-line bg-panel px-4 py-3' onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+      <summary className='cursor-pointer text-[13px] font-medium text-fg-2 hover:text-fg'>
+        {t('solar.olderValues', { count: keys.length })} <span className='font-normal text-muted'>· {t('solar.olderValuesHint')}</span>
+      </summary>
+      {open && (
+        <div className='mt-3 grid min-w-0 gap-3 xl:grid-cols-2 [&>*]:min-w-0'>
+          {keys.map((key) => (
+            <LazyChart key={key}>
+              <HistoryChart siteId={siteId} metric={key} kind={kind} window={range} refreshKey={refreshKey} labels={labels} />
+            </LazyChart>
+          ))}
+        </div>
+      )}
+    </details>
   )
 }
 

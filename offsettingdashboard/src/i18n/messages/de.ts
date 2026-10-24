@@ -133,6 +133,8 @@ export const de: Catalogue = {
     site: 'Standort',
     metric: 'Messwert',
     historyGroups: 'Diagrammgruppen',
+    olderValues: { one: '{count} Wert nicht mehr gemeldet', other: '{count} Werte nicht mehr gemeldet' },
+    olderValuesHint: 'Daten nur für frühere Zeiträume',
     socRate: '{rate} %/h',
     settingsTitle: 'Wechselrichter-Einstellungen (nur lesen)',
     chartsCount: { one: '{count} Diagramm', other: '{count} Diagramme' },
