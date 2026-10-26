@@ -25,6 +25,7 @@ import { UserModule } from './user/user.module';
 import { RedisModule } from './redis/redis.module';
 import { MachineAuthModule } from './machine-auth/machine-auth.module';
 import { SolarModule } from './solar/solar.module';
+import { TelegramModule } from './telegram/telegram.module';
 import { TenancyModule } from './tenancy/tenancy.module';
 
 @Module({
@@ -54,6 +55,7 @@ import { TenancyModule } from './tenancy/tenancy.module';
     MachineAuthModule,
     TenancyModule,
     SolarModule,
+    TelegramModule,
   ],
   controllers: [],
   providers: [

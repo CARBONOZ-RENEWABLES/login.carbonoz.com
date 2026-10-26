@@ -133,6 +133,7 @@ export const en = {
     themeHint: 'Dark is easier on the eyes for wall-mounted displays.',
     light: 'Light',
     dark: 'Dark',
+    telegram: { title: 'Telegram', description: 'Ask your site status in Telegram and get alerts when something needs attention.', linked: 'Linked', notLinked: 'Not linked', notificationsOff: 'Alerts are not switched on yet on this server; the bot already answers /status and /battery.', connect: 'Connect Telegram', connectHint: 'Creates a code that works once, for 10 minutes.', createCode: 'Create link code', newCode: 'New code', openBot: 'Open the Carbonoz bot in Telegram', orSend: 'or send this to the bot:', expires: 'Valid until {time}.', notify: 'Alerts', notifyHint: 'Turn all Telegram alerts on or off.', kinds: { notifyLowSoc: 'Low battery', notifyOffline: 'Site offline', notifyStale: 'Delayed data', notifyAlarms: 'System alarms', notifyRecovery: 'Back to normal' }, lowSoc: 'Low battery threshold (%)', lowSocHint: 'Alert when the state of charge is at or below this value (5–95).', sites: 'Sites', sitesHint: 'None selected means all your sites.', sitesAdminHint: 'Choose the sites you want alerts for.', saveFailed: 'Could not save. Please try again.', unlink: 'Disconnect Telegram' },
   },
   solar: {
     tabs: { overview: 'Overview', energy: 'Energy', power: 'Power curves', battery: 'Battery', bms: 'BMS & Cells', inverters: 'Inverters', history: 'History', forecast: 'Forecast', events: 'Events', system: 'System' },
