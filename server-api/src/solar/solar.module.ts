@@ -31,6 +31,6 @@ import { SolarStoreService } from './store/solar-store.service';
     SolarRollupService,
     SolarWeatherService,
   ],
-  exports: [SolarEnergyService],
+  exports: [SolarEnergyService, SolarReadService],
 })
 export class SolarModule {}

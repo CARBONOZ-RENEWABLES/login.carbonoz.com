@@ -2,6 +2,7 @@ import { FC, ReactElement } from 'react'
 import { FormRow, FormSection, Segmented } from '../../../design'
 import { useTheme } from '../../../lib/hooks/useTheme'
 import { useT } from '../../../i18n'
+import { TelegramSettings } from './TelegramSettings'
 
 const Settings: FC = (): ReactElement => {
   const { isDark, toggle } = useTheme()
@@ -21,6 +22,7 @@ const Settings: FC = (): ReactElement => {
           />
         </FormRow>
       </FormSection>
+      <TelegramSettings />
     </div>
   )
 }
