@@ -124,6 +124,39 @@ describe('energy history view', () => {
     expect(body.getByText('September 2026')).toBeTruthy()
   })
 
+  it('daily "All energy" card: load, solar and grid areas and the days newest first, gaps as "—"', async () => {
+    const calls = stubApi(() => ({ body: { data: history('30d', DAYS) } }))
+    mount()
+    const table = await screen.findByRole('table', { name: 'All energy (daily)' })
+    const head = within(table.querySelector('thead')!)
+    for (const h of ['Consumption', 'PV', 'Battery charged', 'Battery discharged', 'Grid import', 'Grid export']) expect(head.getByText(h)).toBeTruthy()
+    const rows = table.querySelectorAll('tbody tr')
+    expect(rows).toHaveLength(3)
+    // Newest first: 30 Aug (half a day), 29 Aug (nothing), 28 Aug.
+    expect([...rows[0].querySelectorAll('td')].map((c) => c.textContent)).toEqual(['6.0 kWh', '12.0 kWh', '—', '—', '—', '—'])
+    expect(rows[0].className).toContain('text-muted') // incomplete day
+    expect([...rows[1].querySelectorAll('td')].every((c) => c.textContent === '—')).toBe(true)
+    expect([...rows[2].querySelectorAll('td')].map((c) => c.textContent)).toEqual(['14.2 kWh', '41.3 kWh', '31.9 kWh', '7.5 kWh', '1.1 kWh', '20.5 kWh'])
+
+    // Its arrows move the period like the buttons above; "later" is off at the newest period.
+    const earlier = screen.getAllByRole('button', { name: 'Earlier period' })
+    const later = screen.getAllByRole('button', { name: 'Later period' })
+    expect(earlier).toHaveLength(2)
+    expect((later[1] as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(earlier[1])
+    await waitFor(() => expect(calls.some((c) => c.url.includes('anchor=2026-08-31'))).toBe(true))
+  })
+
+  it('the monthly view keeps its "All energy" bar chart (no day table)', async () => {
+    stubApi((c) => ({ body: { data: c.url.includes('range=1y') ? history('1y', MONTHS) : history('30d', DAYS) } }))
+    mount()
+    await screen.findByRole('table', { name: 'All energy (daily)' })
+    fireEvent.click(screen.getByRole('radio', { name: '1 year' }))
+    await waitFor(() => expect(screen.getByText('All energy (monthly)')).toBeTruthy())
+    expect(screen.queryByRole('table', { name: 'All energy (daily)' })).toBeNull()
+    expect(screen.queryByRole('table', { name: 'All energy (monthly)' })).toBeNull()
+  })
+
   it('renders English labels and the 10-year view', async () => {
     stubApi((c) => ({ body: { data: c.url.includes('range=10y') ? history('10y', [day('2025', { pvKwh: 9000, loadKwh: 4000, gridPositiveKwh: 800, gridNegativeKwh: 3000 }), day('2026', { pvKwh: 7000 })]) : history('30d', DAYS) } }))
     mount()
