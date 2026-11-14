@@ -335,6 +335,50 @@ Disable: set `INGEST_BRIDGE_ENABLED=false`, `pm2 restart carbonoz-api`. Nothing 
 
 The bridge never uses `XGROUP CREATE/DESTROY`, `XDEL`, `XTRIM`, `DEL` or configuration commands.
 
+### Ingest stream retention (on the Redis host, owned by the Redis admin)
+
+`XACK` does not delete stream entries and `XADD` does not trim, so without this job `ingest:readings` grows until Redis reaches `maxmemory`. With `noeviction` every write is then refused: ingestion answers 503 and the Pi stops (production, 5–14 Nov 2026). The trim job runs on the Redis host, under its own trim-only account, so the bridge account stays without `XTRIM`.
+
+`ops/redis/ingest-stream-trim.sh` (hourly systemd timer):
+
+- For each consumer group, entries before its oldest pending entry (or up to its `last-delivered-id` when nothing is pending) are processed. The bridge acknowledges an entry only after it is stored in MongoDB or dead-lettered.
+- The trim point is the lowest of these over **all** groups (`XTRIM … MINID`). A stopped group holds everything back, and unprocessed entries are never trimmed, however old.
+- Processed entries are kept `RETENTION_DAYS` (7). At `PRESSURE_PCT` (70 %) of `maxmemory`, every processed entry is trimmed regardless of age.
+- Refuses (exit 2) when the stream, any group, or a group in `EXPECT_GROUPS` is missing. Exit 3 when memory is still above the threshold after trimming (the backlog is unprocessed: the bridge is down or stuck). Either way the unit shows as failed (`systemctl --failed`).
+- Logs one line per run: `journalctl -u ingest-stream-trim`.
+
+Install (Redis admin; password generated on the host, typed only into the root-owned files):
+
+```bash
+# 1. Trim-only ACL user. Only the SHA-256 of the password reaches Redis (`#<hex>`), so the
+#    password is never in a command line, history or `ps`. Persist with ACL SAVE or CONFIG REWRITE.
+read -rsp 'new trim password: ' P; echo
+H=$(printf %s "$P" | sha256sum | cut -d' ' -f1)
+redis-cli --user <admin> --askpass ACL SETUSER ingest-trim on "#$H" \
+  resetkeys '~ingest:readings' resetchannels -@all +ping +info +xlen '+xinfo|groups' +xpending +xtrim
+unset H P
+# 2. Script, env (root:root 0600) and timer
+sudo install -m 0755 ops/redis/ingest-stream-trim.sh /usr/local/bin/ingest-stream-trim
+sudo install -m 0600 -o root -g root ops/redis/ingest-stream-trim.env.example /etc/ingest-stream-trim.env
+sudo nano /etc/ingest-stream-trim.env          # type the same password after REDISCLI_AUTH=
+sudo install -m 0644 ops/redis/ingest-stream-trim.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload
+# 3. Dry run first, then enable
+sudo systemd-run --wait --pipe -p EnvironmentFile=/etc/ingest-stream-trim.env -E DRY_RUN=1 /usr/local/bin/ingest-stream-trim
+sudo systemctl enable --now ingest-stream-trim.timer
+systemctl list-timers ingest-stream-trim.timer; journalctl -u ingest-stream-trim -n 5 --no-pager
+```
+
+Monitoring: alert on a failed `ingest-stream-trim.service`, on `used_memory` above 70 % of `maxmemory`, and on `groupLag`/`groupPending` from the health endpoint growing for more than an hour.
+
+### If Redis fills up again (ingestion 503, `OOM command not allowed`)
+
+1. Look first, change nothing: `INFO memory`, `XLEN ingest:readings`, `XINFO GROUPS ingest:readings`, the largest keys (`redis-cli --bigkeys`, or `MEMORY USAGE` per key). Redis is shared (`solar:*` live state, other services' keys), so do not assume the stream is the cause.
+2. If the stream is the cause and the bridge is running: `sudo systemctl start ingest-stream-trim` (it trims all processed entries above 70 %). `XTRIM` and `DEL` are allowed while Redis is full.
+3. Exit 3 (still full): the backlog is unprocessed. Bring the bridge back (`pm2 status`, `pm2 logs carbonoz-api`, section 6) and let it drain; do not trim past the group position, and never `FLUSHALL`/`FLUSHDB`.
+4. Stuck `409 in_progress` at the Pi: idempotency markers written before the refused `XADD`. Inspect each one (`GET`, `TTL`), back up its value, and delete it individually; never a wildcard `DEL`.
+5. Readings refused while Redis was full exist only on the Pi (outbox); they arrive again when the Pi resumes, unless the outbox was cleared.
+
 ## 7. Moving the application database to 192.168.160.150 (separate approval)
 
 Not a configuration change alone. Preconditions: authentication enabled on .150 and a dedicated least-privilege user for Carbonoz (`readWrite` on its database), network access limited to the app server, backups configured, and an inventory of what .150 already holds (do not write into an existing database).
