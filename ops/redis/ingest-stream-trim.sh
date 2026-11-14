@@ -59,17 +59,21 @@ done
 CLI=(redis-cli --raw --no-auth-warning -h "$REDIS_HOST" -p "$REDIS_PORT")
 [ -n "${REDIS_USER:-}" ] && CLI+=(--user "$REDIS_USER")
 
-# One command; output on stdout. Redis error replies (also printed with exit
-# status 0 by some redis-cli versions) become exit 1, or 2 for a missing key.
+# One command; output on stdout. Redis error replies and failed logins
+# (printed with exit status 0 by some redis-cli versions, e.g. "AUTH failed:
+# WRONGPASS ..." followed by "NOAUTH ...") become exit 1, or 2 for a missing
+# key. Every line is checked: only metadata is read, never entry payloads.
+ERR_RE='^(\(error\) )?(ERR|NOPERM|NOAUTH|WRONGPASS|WRONGTYPE|NOGROUP|OOM|LOADING|BUSY|MISCONF|READONLY|MASTERDOWN)( |$)|^AUTH failed'
 r() {
-  local out
+  local out err
   if ! out=$("${CLI[@]}" "$@" 2>&1); then
     die 1 "error: redis-cli $1 failed: $(head -n1 <<<"$out")"
   fi
-  if [[ $(head -n1 <<<"$out") =~ ^(\(error\)\ )?(ERR|NOPERM|NOAUTH|WRONGPASS|WRONGTYPE|NOGROUP|OOM|LOADING|BUSY|MISCONF|READONLY|MASTERDOWN)\  ]]; then
-    case $out in
+  err=$(grep -E -m1 "$ERR_RE" <<<"$out" || true)
+  if [ -n "$err" ]; then
+    case $err in
       *"no such key"*) die 2 "refused: stream does not exist" ;;
-      *) die 1 "error: $1: $(head -n1 <<<"$out")" ;;
+      *) die 1 "error: $1: $err" ;;
     esac
   fi
   printf '%s\n' "$out"
