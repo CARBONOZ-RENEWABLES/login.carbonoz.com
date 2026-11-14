@@ -41,8 +41,18 @@ const json = (v: unknown) => v as Prisma.InputJsonValue;
 export const DERIVE_LEASE_MS = 120_000;
 
 /**
- * MongoDB unreachable/slow (retry forever — the stream is the buffer) versus a
- * permanent failure of this message (retry a few times, then dead-letter).
+ * Main-Redis refusals that say nothing about the message: memory full under
+ * `noeviction` (OOM), loading, busy, failover/read-only, snapshot failing
+ * (MISCONF), or the client being closed. Seen in production 5–7 Nov 2026:
+ * an OOM reply from an alarm/catalogue write marked 92 readings FAILED.
+ */
+const REDIS_TRANSIENT =
+  /^(OOM|LOADING|BUSY|MASTERDOWN|READONLY|TRYAGAIN|CLUSTERDOWN|NOREPLICAS|MISCONF)\b|client is closed|socket closed unexpectedly/i;
+
+/**
+ * MongoDB or main Redis unreachable/refusing (retry forever — the stream is
+ * the buffer) versus a permanent failure of this message (retry a few times,
+ * then dead-letter).
  */
 export function isTransient(e: unknown): boolean {
   if (
@@ -55,8 +65,12 @@ export function isTransient(e: unknown): boolean {
     ['P1001', 'P1002', 'P1008', 'P1017', 'P2024', 'P2034'].includes(e.code)
   )
     return true;
-  return /server selection|timed out|timeout|ECONNREFUSED|ECONNRESET|connection (closed|refused)|not connected|topology/i.test(
-    String((e as Error)?.message ?? e),
+  const message = String((e as Error)?.message ?? e);
+  return (
+    REDIS_TRANSIENT.test(message) ||
+    /server selection|timed out|timeout|ECONNREFUSED|ECONNRESET|connection (closed|refused)|not connected|topology/i.test(
+      message,
+    )
   );
 }
 

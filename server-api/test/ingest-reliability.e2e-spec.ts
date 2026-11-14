@@ -109,6 +109,38 @@ describe('transient MongoDB failure during normalization', () => {
     expect(row.payload).toBeTruthy();
   });
 
+  // Production 5–7 Nov 2026: main Redis full (noeviction) refused the catalogue
+  // and alarm writes; 92 readings were marked FAILED instead of being retried.
+  it('a main-Redis OOM during normalization is retried, not FAILED', async () => {
+    const m = message();
+    const raw = (
+      store as unknown as { redis: { raw: Record<string, unknown> } }
+    ).redis.raw as { smIsMember: () => Promise<unknown> };
+    const spy = jest
+      .spyOn(raw, 'smIsMember')
+      .mockRejectedValueOnce(
+        new Error("OOM command not allowed when used memory > 'maxmemory'."),
+      );
+    try {
+      const first = await store.processStreamMessage(m);
+      expect(first).toMatchObject({ stored: false, transient: true });
+      const row = await prisma.solarIngest.findFirst({
+        where: { messageId: m.messageId },
+      });
+      expect(row.status).toBe('QUEUED'); // not FAILED
+      expect(row.leaseOwner ?? null).toBeNull(); // lease released
+    } finally {
+      spy.mockRestore();
+    }
+    // Redis has room again: the retry stores it once.
+    expect(await store.processStreamMessage(m)).toEqual({ stored: true });
+    const row = await prisma.solarIngest.findFirst({
+      where: { messageId: m.messageId },
+    });
+    expect(row.status).toBe('PROCESSED');
+    expect(await samplesOf(m.messageId)).toBeGreaterThan(0);
+  });
+
   it('a main-Redis error in the live view does not fail the durable store', async () => {
     const m = message();
     const raw = (
