@@ -1,0 +1,86 @@
+// Telegram integration (off unless TELEGRAM_ENABLED=true). Access to sites is
+// never stored here: it is derived on every use from Customer/Site membership.
+
+// Single-use, short-lived code that links a Telegram chat to a signed-in user.
+// Only its SHA-256 is stored.
+model TelegramLinkCode {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  codeHash  String    @unique
+  userId    String    @db.ObjectId
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([userId])
+}
+
+// One Telegram chat per user and one user per chat while active.
+model TelegramLink {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String    @db.ObjectId
+  chatId         String
+  telegramUserId String
+  linkedAt       DateTime  @default(now())
+  revokedAt      DateTime?
+  // "user" | "admin" | "telegram" (/unlink) | "blocked" (user blocked the bot) | "relinked"
+  revokedBy      String?
+  // Notification preferences.
+  notify         Boolean   @default(true)
+  lowSocPct      Int       @default(20)
+  notifyLowSoc   Boolean   @default(true)
+  notifyOffline  Boolean   @default(true)
+  notifyStale    Boolean   @default(true)
+  notifyAlarms   Boolean   @default(true)
+  notifyRecovery Boolean   @default(true)
+  // Sites chosen for alerts (empty = every authorised site; admins must choose).
+  siteIds        String[]  @db.ObjectId
+  // Site the bot commands use by default; re-authorised on every use.
+  defaultSiteId  String?   @db.ObjectId
+
+  @@index([userId, revokedAt])
+  @@index([chatId, revokedAt])
+}
+
+// An open (or resolved) condition for one link and one site. `key` is unique
+// per link while open, so the same unresolved incident is never announced twice.
+model TelegramIncident {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  linkId     String    @db.ObjectId
+  siteId     String    @db.ObjectId
+  // LOW_SOC | STALE | OFFLINE | UNAVAILABLE | ALARM
+  kind       String
+  // linkId:siteId:kind[:ref]
+  key        String
+  openedAt   DateTime  @default(now())
+  resolvedAt DateTime?
+  detail     Json?
+
+  @@index([linkId, resolvedAt])
+  @@index([key, resolvedAt])
+}
+
+// Outbox: notification generation writes here, delivery sends from here.
+model TelegramMessage {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  linkId        String    @db.ObjectId
+  chatId        String
+  // Site the message is about; re-authorised before every send. Null: account notice.
+  siteId        String?   @db.ObjectId
+  // The incident it opens or resolves (null for notices), and which: open | resolved | notice.
+  incidentId    String?   @db.ObjectId
+  kind          String?
+  // incident id + "open" | "recovered", or a unique id for one-off messages
+  dedupeKey     String    @unique
+  text          String
+  // PENDING | SENDING | SENT | DEAD | DROPPED
+  status        String    @default("PENDING")
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now())
+  leaseUntil    DateTime?
+  sentAt        DateTime?
+  lastError     String?
+  createdAt     DateTime  @default(now())
+
+  @@index([status, nextAttemptAt])
+  @@index([linkId, createdAt])
+}
