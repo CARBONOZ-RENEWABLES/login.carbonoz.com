@@ -82,6 +82,18 @@ describe('ingest-stream-trim', () => {
     expect(r.status).toBe(2);
   });
 
+  // Production 14 Nov 2026: a wrong password was reported as "no consumer
+  // group". A failed login must stop the run as an error, naming the cause.
+  it('stops with an error, not a misleading refusal, when the login fails', () => {
+    const s = stream([10 * DAY]);
+    consume(s.key, 'carbonoz-bridge', 1, 1);
+    const r = trim(s.key, { REDIS_USER: 'nobody', REDISCLI_AUTH: 'wrong' });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/WRONGPASS|AUTH failed/);
+    expect(r.stderr).not.toMatch(/no consumer group/);
+    expect(ids(s.key)).toEqual(s.ids);
+  });
+
   it('refuses when an expected group is missing', () => {
     const s = stream([10 * DAY]);
     consume(s.key, 'other', 1, 1);
