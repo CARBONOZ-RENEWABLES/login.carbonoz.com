@@ -1,6 +1,6 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
 import { ReactNode, useMemo, useState } from 'react'
-import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Button, Card, CardHeader, EmptyState, ErrorState, Segmented, useChartTheme } from '../../../design'
 import { formatNumber, useT } from '../../../i18n'
 import { EnergyRange, EnergyTz, useGetSolarEnergyQuery } from '../api'
@@ -89,7 +89,7 @@ export function EnergyHistory({ siteId, siteName }: { siteId: string; siteName?:
         <EmptyState title={t('energy.empty')} description={data.firstDataAt ? t('energy.emptyPeriod') : t('energy.emptyNever')} />
       ) : (
         <div className={q.isFetching ? 'opacity-70 transition-opacity' : undefined}>
-          <Charts rows={rows} res={res} />
+          <Charts rows={rows} res={res} nav={{ earlier: () => go(data.previousAnchor), later: data.nextAnchor ? () => go(data.nextAnchor) : undefined }} />
           <EnergyTable siteId={siteId} siteName={siteName ?? ''} timezone={data.timezone} timezoneLabel={tzLabel} chartRows={rows} chartRes={res} />
           <p className='mt-2 text-[11.5px] leading-relaxed text-subtle'>{t('energy.method')}</p>
         </div>
@@ -101,7 +101,10 @@ export function EnergyHistory({ siteId, siteName }: { siteId: string; siteName?:
 /** Chart point: missing values stay `null`, so Recharts draws no bar and no line segment. */
 type Point = EnergyRow & { label: string }
 
-function Charts({ rows, res }: { rows: EnergyRow[]; res: Resolution }) {
+/** Earlier / later period, the same as the buttons above the charts. */
+type Nav = { earlier: () => void; later?: () => void }
+
+function Charts({ rows, res, nav }: { rows: EnergyRow[]; res: Resolution; nav: Nav }) {
   const t = useT()
   const points: Point[] = rows.map((r) => ({ ...r, label: bucketLabel(r.key, res) }))
   // Every series side by side, like the inverter app's totals: the one chart to compare days or months.
@@ -109,7 +112,7 @@ function Charts({ rows, res }: { rows: EnergyRow[]; res: Resolution }) {
   if (res === 'day') {
     return (
       <div className='mb-3 grid gap-3 lg:grid-cols-2'>
-        {all}
+        <DailyEnergyCard title={t('energy.charts.all.day')} points={points} nav={nav} />
         <BatteryFlowChart title={t('energy.charts.batteryDaily')} points={points} res={res} className='lg:col-span-2' />
         <GrafanaChart
           title={t('energy.charts.pvVsConsumption')}
@@ -239,6 +242,110 @@ function EnergyBars({ title, points, series, res, labels, wide }: { title: strin
       )}
       <Legend series={series} />
     </ChartCard>
+  )
+}
+
+/** Areas of the daily chart, back to front: load behind, solar over it, grid in front. */
+const AREAS: Series[] = ['consumption', 'pv', 'gridImport']
+/** Columns of the card's day table, as the chart's tooltip. */
+const DAY_COLUMNS: Series[] = ['consumption', 'pv', 'batteryCharged', 'batteryDischarged', 'gridImport', 'gridExport']
+
+/**
+ * All energy per day: load, solar and grid as overlapping areas, and below
+ * them the same days as a compact table, newest first. Missing days stay gaps
+ * (no line, "—"), never zeros; days still running are shown lighter.
+ */
+function DailyEnergyCard({ title, points, nav }: { title: string; points: Point[]; nav: Nav }) {
+  const t = useT()
+  const { grid, tick } = useAxes()
+  const has = points.some((p) => AREAS.some((s) => p[s] != null))
+  const sum = totals(points)
+  const summary = DAY_COLUMNS.map((s) => `${t(SERIES_LABEL[s])}: ${formatKwh(sum[s], 'day')}`).join(', ')
+  const newestFirst = [...points].reverse()
+  return (
+    <Card className='flex min-w-0 flex-col p-0 lg:col-span-2'>
+      <div className='flex items-center justify-between gap-3 px-4 pt-4'>
+        <CardHeader title={title} subtitle='kWh' />
+        <div className='flex shrink-0 items-center gap-1'>
+          <Button size='icon-sm' variant='ghost' aria-label={t('energy.earlier')} title={t('energy.earlier')} onClick={nav.earlier}>
+            <ArrowLeft size={16} />
+          </Button>
+          <Button size='icon-sm' variant='ghost' aria-label={t('energy.later')} title={t('energy.later')} disabled={!nav.later} onClick={nav.later}>
+            <ArrowRight size={16} />
+          </Button>
+        </div>
+      </div>
+      <figure className='mt-3 h-[300px] min-w-0 px-4' aria-label={`${title}. ${summary}`}>
+        {!has ? (
+          <EmptyState title={t('energy.noDataSeries')} className='h-full' />
+        ) : (
+          <ResponsiveContainer width='100%' height='100%'>
+            <AreaChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} accessibilityLayer>
+              <defs>
+                {AREAS.map((s) => (
+                  <linearGradient key={s} id={`daily-${s}`} x1='0' y1='0' x2='0' y2='1'>
+                    <stop offset='0%' stopColor={COLORS[s]} stopOpacity={0.35} />
+                    <stop offset='100%' stopColor={COLORS[s]} stopOpacity={0.04} />
+                  </linearGradient>
+                ))}
+              </defs>
+              {grid}
+              <XAxis dataKey='label' tick={tick} tickLine={false} axisLine={false} interval='preserveStartEnd' minTickGap={12} />
+              <YAxis tick={tick} tickLine={false} axisLine={false} width={48} tickFormatter={axisKwh} />
+              <Tooltip cursor={<DashedCursor />} content={<EnergyTooltip res='day' series={DAY_COLUMNS} />} />
+              {AREAS.map((s) => (
+                <Area
+                  key={s}
+                  type='linear'
+                  dataKey={s}
+                  name={t(SERIES_LABEL[s])}
+                  stroke={COLORS[s]}
+                  strokeWidth={1.6}
+                  fill={`url(#daily-${s})`}
+                  dot={false}
+                  activeDot={{ r: 3.5, strokeWidth: 0, fill: COLORS[s] }}
+                  isAnimationActive={false}
+                />
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </figure>
+      <div className='px-4 pb-1'>
+        <Legend series={AREAS} />
+      </div>
+      <div className='mt-3 max-h-[232px] overflow-auto border-t border-line'>
+        <table className='w-full min-w-[640px] text-[12.5px]'>
+          <caption className='sr-only'>{title}</caption>
+          <thead className='sticky top-0 bg-panel-2 text-fg-2'>
+            <tr>
+              <th scope='col' className='px-4 py-2 text-left font-medium'>
+                <span className='sr-only'>{t('energy.table.date')}</span>
+              </th>
+              {DAY_COLUMNS.map((s) => (
+                <th key={s} scope='col' className='px-4 py-2 text-right font-medium'>
+                  {t(SERIES_LABEL[s])}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {newestFirst.map((p) => (
+              <tr key={p.key} className={`border-t border-line ${p.incomplete ? 'text-muted' : 'text-fg'}`} title={p.inProgress ? t('energy.inProgress') : undefined}>
+                <th scope='row' className='whitespace-nowrap px-4 py-1.5 text-left font-semibold'>
+                  {bucketLabel(p.key, 'day', 'medium')}
+                </th>
+                {DAY_COLUMNS.map((s) => (
+                  <td key={s} className='tabular whitespace-nowrap px-4 py-1.5 text-right'>
+                    {formatKwh(p[s], 'month')}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   )
 }
 
