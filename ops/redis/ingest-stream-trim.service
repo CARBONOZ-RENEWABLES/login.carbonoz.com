@@ -1,0 +1,15 @@
+# Install on the Redis host (see docs/deployment-runbook.md, "Ingest stream retention").
+[Unit]
+Description=Trim processed entries of the ingest Redis stream
+After=redis-server.service
+
+[Service]
+Type=oneshot
+# REDIS_USER, REDISCLI_AUTH (trim-only ACL user), EXPECT_GROUPS, ...; root:root 0600.
+EnvironmentFile=/etc/ingest-stream-trim.env
+ExecStart=/usr/local/bin/ingest-stream-trim
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
