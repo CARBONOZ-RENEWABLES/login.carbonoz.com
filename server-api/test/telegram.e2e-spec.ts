@@ -787,6 +787,27 @@ describe('notifications', () => {
     ).toEqual(expect.any(Number)); // saved again
   });
 
+  it('L1b: same as L1 when the newer state is computed in the same millisecond as the saved one', async () => {
+    const redis = t.app.get(RedisService);
+    const now = new Date();
+    fleet.mockResolvedValue(fleetOf(10, 1));
+    expect((await notifier().platformStatus(now, DEFAULT_T)).phase).toBe(
+      'healthy',
+    ); // saved, updatedAt = now
+    const set = jest
+      .spyOn(redis, 'set')
+      .mockRejectedValueOnce(new Error('synthetic Redis failure'));
+    fleet.mockResolvedValue(fleetOf(10, 30));
+    expect((await notifier().platformStatus(now, DEFAULT_T)).phase).toBe(
+      'outage',
+    ); // newer, not saved, same updatedAt as the copy in Redis
+    set.mockRestore();
+    fleet.mockResolvedValue(fleetOf(10, 0, 90));
+    expect((await notifier().platformStatus(new Date(), DEFAULT_T)).phase).toBe(
+      'catching_up',
+    ); // memory wins the tie
+  });
+
   it('A / G: the real fleet query tells stored time from measured time, and skips inactive and old installations', async () => {
     fleet.mockRestore();
     const c = await customer('tg-fleet', null);

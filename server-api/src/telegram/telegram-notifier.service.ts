@@ -177,7 +177,10 @@ export class TelegramNotifierService implements OnModuleInit, OnModuleDestroy {
   /**
    * The newer of the saved (Redis) and in-memory state: after a failed save
    * the copy in Redis is older and must not win; after a restart memory is
-   * empty and Redis wins.
+   * empty (updatedAt 0) and Redis wins. A tie goes to memory: this process
+   * sets memory before it writes Redis, and only the lock holder writes, so
+   * an equal timestamp means the save of the newer state failed within the
+   * same millisecond (seen in CI, 14 Nov 2026).
    */
   private async loadFleet(): Promise<FleetState> {
     let saved: FleetState | null = null;
@@ -187,9 +190,7 @@ export class TelegramNotifierService implements OnModuleInit, OnModuleDestroy {
     } catch (e) {
       this.logger.warn(`fleet state not read: ${e.message}`);
     }
-    return saved && saved.updatedAt >= this.fleet.updatedAt
-      ? saved
-      : this.fleet;
+    return saved && saved.updatedAt > this.fleet.updatedAt ? saved : this.fleet;
   }
 
   private async saveFleet(state: FleetState) {
