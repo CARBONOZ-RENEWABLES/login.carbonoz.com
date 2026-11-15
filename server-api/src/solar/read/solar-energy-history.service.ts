@@ -251,13 +251,16 @@ export class SolarEnergyHistoryService {
       else stale.add(c.day);
     }
 
-    const missing = needed.filter((d) => !out.has(d));
-    if (!missing.length) return out;
+    // Recomputed: days not cached, and days cached by another method. Stale
+    // days are never put in `out` above; they are listed explicitly anyway so
+    // the recomputation can't depend on that.
+    const recompute = needed.filter((d) => stale.has(d) || !out.has(d));
+    if (!recompute.length) return out;
     const markBefore = await this.dirtyMark(siteId);
-    const computed = await this.compute(siteId, tz, missing);
+    const computed = await this.compute(siteId, tz, recompute);
     const settleBefore = now.getTime() - SETTLE_MS;
     const settled: Prisma.SolarEnergyDayCreateManyInput[] = [];
-    for (const d of missing) {
+    for (const d of recompute) {
       const v = computed.get(d) ?? { ...EMPTY };
       out.set(d, v);
       if (localMidnight(addDays(d, 1), tz).getTime() <= settleBefore)

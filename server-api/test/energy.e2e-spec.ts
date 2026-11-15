@@ -242,58 +242,103 @@ describe('daily energy (30 days)', () => {
     });
   });
 
-  it('recomputes a day cached by the previous method, replacing only the cached totals', async () => {
+  it('recomputes days cached by the previous method in place, keeps current ones, caches new ones', async () => {
     const s = await site();
-    const day = localDay(new Date(Date.now() - 6 * 24 * H), TZ);
-    await s.samples([
-      { at: at(day, 9, 0), metrics: { battery_power_w: 2000 } },
-      { at: at(day, 9, 30), metrics: { battery_power_w: -2000 } },
-    ]);
-    const where = { siteId: s.p.site.id, timezone: TZ, day };
-    // As method 1 cached it: the opposite flows cancelled, no method marker.
+    // Three settled days (> 48 h ago), each with charge and discharge in one hour.
+    const current = localDay(new Date(Date.now() - 8 * 24 * H), TZ);
+    const stale = addDays(current, 1);
+    const uncached = addDays(current, 2);
+    for (const d of [current, stale, uncached])
+      await s.samples([
+        { at: at(d, 9, 0), metrics: { battery_power_w: 2000 } },
+        { at: at(d, 9, 30), metrics: { battery_power_w: -2000 } },
+      ]);
+    const key = (day: string) => ({ siteId: s.p.site.id, timezone: TZ, day });
+    const values = (batteryPositiveWh: number, batteryNegativeWh: number) => ({
+      pvWh: 0,
+      pvHours: 0,
+      loadWh: 0,
+      loadHours: 0,
+      gridPositiveWh: 0,
+      gridNegativeWh: 0,
+      gridHours: 0,
+      batteryPositiveWh,
+      batteryNegativeWh,
+      batteryHours: 1,
+    });
+    // Cached by the current method, with a sentinel the readings can't produce.
     await prisma.solarEnergyDay.create({
       data: {
-        ...where,
-        start: localMidnight(day, TZ),
-        values: {
-          pvWh: 0,
-          pvHours: 0,
-          loadWh: 0,
-          loadHours: 0,
-          gridPositiveWh: 0,
-          gridNegativeWh: 0,
-          gridHours: 0,
-          batteryPositiveWh: 0,
-          batteryNegativeWh: 0,
-          batteryHours: 1,
-        },
+        ...key(current),
+        start: localMidnight(current, TZ),
+        values: { ...values(7000, 6000), method: ENERGY_METHOD },
       },
     });
-    expect(bucket(await s.energy('?range=30d'), day)).toMatchObject({
+    // Cached by method 1 (no marker): the opposite flows cancelled.
+    const old = await prisma.solarEnergyDay.create({
+      data: {
+        ...key(stale),
+        start: localMidnight(stale, TZ),
+        values: values(0, 0),
+        computedAt: new Date(Date.now() - 24 * H),
+      },
+    });
+
+    const r = await s.energy('?range=30d');
+    // Current method: served from the cache, not recomputed.
+    expect(bucket(r, current)).toMatchObject({
+      batteryPositiveKwh: 7,
+      batteryNegativeKwh: 6,
+    });
+    // Previous method: recomputed from the readings, not the cached 0 / 0.
+    expect(bucket(r, stale)).toMatchObject({
       batteryPositiveKwh: 1,
       batteryNegativeKwh: 1,
     });
-    const rows = await prisma.solarEnergyDay.findMany({ where });
-    expect(rows).toHaveLength(1); // replaced in place, no duplicate
-    expect(rows[0].values).toMatchObject({
+    // Not cached: computed and cached by the current method.
+    expect(bucket(r, uncached)).toMatchObject({
+      batteryPositiveKwh: 1,
+      batteryNegativeKwh: 1,
+    });
+
+    // The stale row was updated in place: same document, new totals and time.
+    const rows = await prisma.solarEnergyDay.findMany({
+      where: { siteId: s.p.site.id, timezone: TZ },
+    });
+    // One row per day (empty settled days after the readings are cached too).
+    expect(new Set(rows.map((x) => x.day)).size).toBe(rows.length);
+    expect(rows.map((x) => x.day)).toEqual(
+      expect.arrayContaining([current, stale, uncached]),
+    );
+    const replaced = rows.find((x) => x.day === stale);
+    expect(replaced.id).toBe(old.id);
+    expect(replaced.computedAt.getTime()).toBeGreaterThan(
+      old.computedAt.getTime(),
+    );
+    expect(replaced.values).toMatchObject({
       method: ENERGY_METHOD,
       batteryPositiveWh: 1000,
       batteryNegativeWh: 1000,
     });
+    expect(rows.find((x) => x.day === uncached).values).toMatchObject({
+      method: ENERGY_METHOD,
+      batteryPositiveWh: 1000,
+    });
+    expect(rows.find((x) => x.day === current).values).toMatchObject({
+      batteryPositiveWh: 7000,
+    });
+
+    // Next request: everything served from the cache, rows unchanged.
+    const again = await s.energy('?range=30d');
+    expect(bucket(again, stale)).toMatchObject({ batteryPositiveKwh: 1 });
+    const after = await prisma.solarEnergyDay.findUnique({
+      where: { id: old.id },
+    });
+    expect(after.computedAt.getTime()).toBe(replaced.computedAt.getTime());
     // The readings are only read.
     expect(
       await prisma.solarSample.count({ where: { siteId: s.p.site.id } }),
-    ).toBe(2);
-    // A day cached by the current method is served from the cache.
-    await prisma.solarEnergyDay.update({
-      where: { id: rows[0].id },
-      data: {
-        values: { ...(rows[0].values as object), batteryPositiveWh: 7000 },
-      },
-    });
-    expect(bucket(await s.energy('?range=30d'), day).batteryPositiveKwh).toBe(
-      7,
-    );
+    ).toBe(6);
   });
 
   it('navigates to earlier 30-day ranges and validates parameters', async () => {
