@@ -243,6 +243,9 @@ export class SolarEnergyHistoryService {
     // Days cached by another calculation method are recomputed (below) and
     // their cached values replaced; the readings themselves are only read.
     const stale = new Set<string>();
+    // MUTATION (do not merge): every cached row goes into `out` first.
+    for (const c of cached)
+      out.set(c.day, { ...EMPTY, ...(c.values as unknown as DayValues) });
     for (const c of cached) {
       const { method, ...v } = (c.values ?? {}) as unknown as DayValues & {
         method?: number;
@@ -254,7 +257,7 @@ export class SolarEnergyHistoryService {
     // Recomputed: days not cached, and days cached by another method. Stale
     // days are never put in `out` above; they are listed explicitly anyway so
     // the recomputation can't depend on that.
-    const recompute = needed.filter((d) => stale.has(d) || !out.has(d));
+    const recompute = needed.filter((d) => !out.has(d));
     if (!recompute.length) return out;
     const markBefore = await this.dirtyMark(siteId);
     const computed = await this.compute(siteId, tz, recompute);
