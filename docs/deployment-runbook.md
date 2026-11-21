@@ -1,6 +1,17 @@
 # Deployment runbook — login.carbonoz.com (SolarBMS platform)
 
-For the server that runs the app: `localadmin@carbonoz-api` (192.168.160.190), checkout `~/login.carbonoz.com`, processes from `ecosystem.config.js` under pm2 (`carbonoz-api` = `server-api/dist/src/main.js` on :3000, `carbonoz-frontend` = `vite preview` on :5174), nginx in front (`/api` → :3000, `/` → :5174). The API reads `server-api/.env` (pm2 `cwd`).
+**Where things run (verified 14 Nov 2026):**
+
+| Host | Role | Checkout (`$APP` below) | pm2 | Reads |
+|---|---|---|---|---|
+| **192.168.160.95** (`api2`) | API (`carbonoz-api`, `server-api/dist/src/main.js`, :3000) and the ingest bridge; also Felix's `ingest-api` (systemd, not ours) | `/var/www/login.carbonoz.com` | `pm2-localadmin` enabled at boot | `server-api/.env` |
+| **192.168.160.190** (hostname `carbonoz-api`, despite the name: **frontend only**) | Frontend (`carbonoz-frontend` = `npx vite preview --host 0.0.0.0 --port 5174`) and nginx | `/home/localadmin/login.carbonoz.com` | `pm2-localadmin` enabled at boot | `offsettingdashboard/.env.production` (tracked) + `.env.production.local` (git-ignored, overrides) |
+| 192.168.160.155 | Redis (main `REDIS_URL` and the ingest stream) | — | — | — |
+| 192.168.160.150 | MongoDB (`DATABASE_URL`) | — | — | — |
+
+nginx on .190 (`login.carbonoz.com`): `/api` and `/socket.io` → `192.168.160.95:3000` (path passed through), `/` → `127.0.0.1:5174`, `/grafana/` → `127.0.0.1:3002`. The same nginx also serves `auth.carbonoz.com` (Keycloak proxy), `solar.carbonoz.com` and unrelated sites: **a frontend deploy never needs an nginx change or reload.**
+
+In the commands below, `cd "$APP"` means the checkout of the host you are on (table above); `server-api` commands run on **.95** only.
 
 **Nothing in this runbook prints a secret.** Commands that need the database URL read it from `server-api/.env` inside Node and print host/database only; the backup helper masks credentials in every line of tool output.
 
@@ -38,7 +49,7 @@ Old bookmarks to the retired pages redirect to the Solar dashboard (`/admin/plan
 **Read-only checks before deploying** (on the server; record the numbers in the deployment ticket):
 
 ```bash
-cd ~/login.carbonoz.com/server-api
+cd /var/www/login.carbonoz.com/server-api
 
 # 1. Is carbonoz-unified-service still running, and is it still writing the shared database?
 pm2 status | grep -Ei 'unified|name' ; ss -ltnp 2>/dev/null | grep -E ':(8000|8086|3001)\b' || true
@@ -67,7 +78,7 @@ Act on the results **before** deploying (each is a product/owner decision, not d
 ## 1. Preflight (on the server, read-only)
 
 ```bash
-cd ~/login.carbonoz.com
+cd "$APP"
 
 # 1. What is running and is the checkout clean? (a dirty tree can make `git pull --ff-only` stop)
 git rev-parse HEAD; git log -1 --format='%h %cd %s'; git status --short
@@ -106,7 +117,7 @@ Inside the maintenance window, so nothing writes while dumping (stop the old API
 - **Permissions:** the account needs write access to `<db>_restoretest` (see below).
 
 ```bash
-cd ~/login.carbonoz.com/server-api
+cd /var/www/login.carbonoz.com/server-api
 # Size of the database (read-only; MB) and free disk, before dump and verify
 node -e 'require("dotenv").config();const{PrismaClient}=require("@prisma/client");const p=new PrismaClient();p.$runCommandRaw({dbStats:1,scale:1048576}).then(s=>console.log("db "+s.db+": data "+s.dataSize.toFixed(1)+" MB, storage "+s.storageSize.toFixed(1)+" MB, indexes "+s.indexSize.toFixed(1)+" MB")).catch(e=>{console.log("dbStats: "+e.message.split("\n").pop());process.exitCode=1}).finally(()=>p.$disconnect())'
 df -h ~ /var/lib/mongodb 2>/dev/null
@@ -115,7 +126,7 @@ df -h ~ /var/lib/mongodb 2>/dev/null
 Stop if free space is under about 3× (storage + indexes).
 
 ```bash
-cd ~/login.carbonoz.com/server-api
+cd /var/www/login.carbonoz.com/server-api
 node scripts/db-backup.js dump                      # → ~/backups/<db>-<timestamp>/ + manifest.json (live counts)
 node scripts/db-backup.js verify ~/backups/<db>-<timestamp>
 cd ..
@@ -128,7 +139,7 @@ cd ..
 Restoring for real (only to recover from damaged data, with approval): stop the API, then
 
 ```bash
-cd ~/login.carbonoz.com/server-api
+cd /var/www/login.carbonoz.com/server-api
 # URI WITHOUT the database name + --dir = the backup root; with a database name in the URI, mongorestore restores nothing and still exits 0.
 (umask 077; node -e 'require("dotenv").config();let u;try{u=new URL(process.env.DATABASE_URL)}catch{console.error("DATABASE_URL is not a valid URL (not shown)");process.exit(1)}const db=u.pathname.slice(1);u.pathname="/";if(u.username&&!u.searchParams.has("authSource"))u.searchParams.set("authSource",db);process.stdout.write(u.toString())' > ~/.restore-uri) \
   && set -o pipefail && mongorestore --uri="$(cat ~/.restore-uri)" --dir=~/backups/<db>-<timestamp> --nsInclude='<db>.*' --drop 2>&1 | sed -E 's#(mongodb(\+srv)?://)[^@/ ]*@#\1***@#g'
@@ -138,7 +149,7 @@ rm -f ~/.restore-uri
 ## 3. Deploy (bridge stays disabled)
 
 ```bash
-cd ~/login.carbonoz.com
+cd "$APP"
 bash deploy-update.sh
 ```
 
@@ -154,6 +165,8 @@ If it stopped at the duplicate check (exit 3): nothing was written to the databa
 
 ## 3b. Two hosts: backend on 192.168.160.95, frontend and Nginx on 192.168.160.190
 
+> **Done** — this is the production layout (table at the top). The preconditions and one-time setup below are kept for reference / a rebuild of .95.
+
 The backend (`carbonoz-api`) runs on **192.168.160.95**; the frontend (`carbonoz-frontend`) and Nginx stay on **192.168.160.190**, where Nginx sends `/api` to `192.168.160.95:3000` (`nginx-https.conf`, `nginx-solar.conf`). Browsers still see one site, so session cookies and CORS are unchanged.
 
 **Additional preconditions** (on top of section 0):
@@ -162,12 +175,12 @@ The backend (`carbonoz-api`) runs on **192.168.160.95**; the frontend (`carbonoz
 - [ ] Main Redis (`REDIS_URL`) and Keycloak (if used later) reachable from .95.
 - [ ] Felix agrees to the API running on .95 next to the ingestion API, and port 3000 is free there (else `API_PORT` + the Nginx `proxy_pass` port).
 - [ ] Firewall on .95: port 3000 open to 192.168.160.190 only (server owner).
-- [ ] Node 20 and pm2 on .95; the repository cloned at `~/login.carbonoz.com` with read-only GitHub access (deploy key).
+- [ ] Node 20 and pm2 on .95; the repository cloned at `/var/www/login.carbonoz.com` with read-only GitHub access (deploy key).
 
 **One-time setup on .95** (`server-api/.env` typed from the password manager, never pasted into chat):
 
 ```bash
-cd ~/login.carbonoz.com/server-api
+cd /var/www/login.carbonoz.com/server-api
 nano .env      # DATABASE_URL, REDIS_URL, JWT_SECRET, FRONTED_URL=https://login.carbonoz.com, ...
                # TRUST_PROXY=loopback,192.168.160.190   (Nginx on .190 is the proxy)
                # CLIENT_IP_HEADER=cf-connecting-ip
@@ -177,14 +190,23 @@ Then section 1 (preflight) and section 2 (backup + verify) **from .95**, since t
 
 **Rollout order** (maintenance window):
 
-1. **.95:** `cd ~/login.carbonoz.com && DEPLOY_ROLE=api bash deploy-update.sh` (schema change happens here). Check from .190: `curl -s -o /dev/null -w '%{http_code}\n' http://192.168.160.95:3000/api/v1/auth/config` → `200`.
-2. **.190:** `cd ~/login.carbonoz.com && DEPLOY_ROLE=frontend bash deploy-update.sh` (no database step; restarts only the frontend). The old API on .190 keeps running untouched.
+1. **.95:** `cd /var/www/login.carbonoz.com && DEPLOY_ROLE=api bash deploy-update.sh` (schema change happens here). Check from .190: `curl -s -o /dev/null -w '%{http_code}\n' http://192.168.160.95:3000/api/v1/auth/config` → `200`.
+2. **.190:** `cd ~/login.carbonoz.com && DEPLOY_ROLE=frontend bash deploy-update.sh` (`/home/localadmin/login.carbonoz.com`) (no database step; restarts only the frontend). The old API on .190 keeps running untouched.
 3. **.190:** install the updated Nginx site files (`/api` → .95), then `sudo nginx -t && sudo systemctl reload nginx`.
 4. Section 4 checks against `https://login.carbonoz.com`.
 
 **Rollback:** on .190 set `proxy_pass http://127.0.0.1:3000;` again and reload Nginx (the old API is still there), then roll back the frontend (section 5 on .190). The schema added from .95 stays; the old code ignores it (section 5).
 
 **Afterwards (separate approval):** stop the old API on .190 (`pm2 stop carbonoz-api && pm2 save`) once the new one has run cleanly for an agreed period.
+
+
+### Frontend deploys on .190: what happens and how long the site is down
+
+`DEPLOY_ROLE=frontend bash deploy-update.sh` runs `npm ci` (deletes and reinstalls `node_modules` under the running `vite preview`), then `npm run build` (`tsc && vite build`; `vite build` **empties `dist/` first**), then `pm2 startOrRestart … --only carbonoz-frontend` and `pm2 save`. `vite preview` serves `dist/` straight from disk on every request (sirv `dev: true`), so **the site is broken from the start of the build until it finishes** (blank page / missing assets), plus a few seconds of 502 during the pm2 restart. Expect roughly 2–4 minutes; do it at a quiet time. API, nginx and other sites are not touched.
+
+When only the build changes (a `VITE_*` setting, same commit), use the **swap** instead: build into a separate folder and replace `dist/` with two `mv` (milliseconds, no pm2 restart, instant rollback). The Keycloak switch below uses it.
+
+Frontend settings: `offsettingdashboard/.env.production` is **tracked in git** (do not edit it on the server: a dirty file can stop the next `git pull --ff-only`); server-specific values go into the git-ignored **`offsettingdashboard/.env.production.local`**, which Vite reads last and which survives deploys. `VITE_*` values are public (compiled into the JavaScript), never put secrets there. `VITE_CLAUDINARY_CLAUD_NAME`/`VITE_CLAUDINARY_PRESET` are placeholders and **unused** (no page imports `helpers/uplaodFile.ts`); nothing to configure.
 
 ## 4. Verify
 
@@ -202,7 +224,7 @@ In the browser: sign in as the admin (`ADMIN_EMAIL`), open Admin → Overview (M
 Then the database-level guard for systemIds:
 
 ```bash
-cd ~/login.carbonoz.com/server-api
+cd /var/www/login.carbonoz.com/server-api
 node scripts/installation-system-id-index.js check     # exit 0 = no duplicates
 node scripts/installation-system-id-index.js apply     # refuses while duplicates exist
 ```
@@ -212,7 +234,7 @@ node scripts/installation-system-id-index.js apply     # refuses while duplicate
 Until this version, a failed request stored its body in the `logs` collection — a failed login stored the submitted password. Count first (read-only, prints counts only):
 
 ```bash
-cd ~/login.carbonoz.com/server-api
+cd /var/www/login.carbonoz.com/server-api
 node scripts/logs-credential-audit.js check
 ```
 
@@ -257,14 +279,66 @@ KEYCLOAK_POST_LOGOUT_REDIRECT_URI=https://login.carbonoz.com/
 AUTH_RETURN_ORIGINS=https://login.carbonoz.com,https://solar.carbonoz.com
 ```
 
-Frontend on .190: build with `VITE_AUTH_MODE=keycloak` in `offsettingdashboard/.env`, then `DEPLOY_ROLE=frontend bash deploy-update.sh`. Check: `curl -s https://login.carbonoz.com/api/v1/auth/config` answers `{"data":{"sso":true}}`; the login button opens auth.carbonoz.com.
+Frontend on .190: see **Frontend switch to Keycloak** below. Check afterwards: `curl -s https://login.carbonoz.com/api/v1/auth/config` answers `{"data":{"sso":true}}`; the login page hands off to auth.carbonoz.com.
+
+### Frontend switch to Keycloak (.190, separate approval)
+
+What changes: the website's sign-in, sign-up and forgot-password pages are replaced by the hand-off to Keycloak. **The website then has no password form at all**; `LEGACY_AUTH_ENABLED=true` on the API only keeps password sign-in for API clients and for a rollback.
+
+Preconditions (all must hold):
+
+- [ ] Every active account that must keep access is linked or will link on first sign-in: ADMIN/SUB_ADMIN linked with `scripts/link-identity.js --apply` (above); USERs have a Keycloak user with the same e-mail and **Email verified** on.
+- [ ] API on .95: `KEYCLOAK_ENABLED=true`, `LEGACY_AUTH_ENABLED=true`; `curl -s https://login.carbonoz.com/api/v1/auth/config` → `{"data":{"sso":true}}`.
+- [ ] .190 checkout on the same commit as .95, clean except `offsettingdashboard/yarn.lock`, no `logs/deploy-in-progress`.
+
+Switch (on .190 as `localadmin`; same shell for all steps, the variables are reused):
+
+```bash
+cd ~/login.carbonoz.com && git status --short && git log -1 --oneline && ls logs/deploy-in-progress 2>/dev/null
+cd offsettingdashboard
+# 1. Backup: frontend settings (the current build is kept by the swap itself)
+TS=$(date +%Y%m%d-%H%M%S); B=~/backups/frontend-$TS; mkdir -p "$B" ~/frontend-builds && chmod 700 "$B"
+cp -p .env.production .env.production.local "$B"/ && ls -l "$B"
+# 2. The setting (git-ignored file: survives later deploys)
+grep -q '^VITE_AUTH_MODE=' .env.production.local \
+  && sed -i 's/^VITE_AUTH_MODE=.*/VITE_AUTH_MODE=keycloak/' .env.production.local \
+  || echo 'VITE_AUTH_MODE=keycloak' >> .env.production.local
+grep '^VITE_AUTH_MODE=' .env.production.local
+# 3. Build NEXT TO the live site (dist/ keeps serving during the build)
+npm run build -- --outDir "$HOME/frontend-builds/keycloak-$TS" --emptyOutDir
+grep -rqs 'you@carbonoz.com' "$HOME/frontend-builds/keycloak-$TS/assets" && echo "STOP: still the password build" || echo "ok: Keycloak build"
+# 4. Swap (milliseconds; vite preview reads dist/ per request, no pm2 restart)
+mv dist "$HOME/frontend-builds/password-$TS" && mv "$HOME/frontend-builds/keycloak-$TS" dist
+curl -s https://login.carbonoz.com/ | grep -oE '/assets/index-[^"]+\.js'   # new file name
+```
+
+Rollback (instant; password sign-in works again immediately, the API never changed):
+
+```bash
+cd ~/login.carbonoz.com/offsettingdashboard
+mv dist "$HOME/frontend-builds/keycloak-failed-$TS" && mv "$HOME/frontend-builds/password-$TS" dist
+cp -p "$B/.env.production.local" .env.production.local     # so the next deploy builds password mode again
+# New shell? The folders are listed by: ls ~/frontend-builds ~/backups
+```
+
+Browsers with the old page open may need a reload (old asset names are gone). After a successful test, keep `~/frontend-builds/password-$TS` until the next regular deploy, then delete it.
+
+End-to-end test (private browser window each; the person signs in, nobody else types the password):
+
+1. **User account:** open `https://login.carbonoz.com/` → hand-off page, no password form → "Sign in to Carbonoz" on auth.carbonoz.com → sign in → lands on `/ds/solar` with the user's site (Solarblick), live data. Reload: still signed in. `https://login.carbonoz.com/api/v1/auth/session` → `role: USER`. Sign out from the menu → Keycloak → back on `login.carbonoz.com/`; `/api/v1/auth/session` → 401; browser Back shows no data.
+2. **Admin account:** same, lands on `/admin`; Overview and Ingestion load (bridge connected); `/api/v1/auth/session` → `role: ADMIN`. Sign out as above.
+3. **Expected refusals:** starting sign-in twice and finishing the older tab → `?sso_error=login_state_mismatch` shown on the page (security check, not a fault); an admin account that is not linked → `privileged_link_refused`.
+4. **Server side (.95):** `pm2 logs carbonoz-api --lines 200 --nostream | grep -E 'IdentityService|OidcController'` — the sign-ins, no `SSO callback failed`; Keycloak links = number of linked accounts.
+5. **Password sign-in still enabled on the API** (not reachable from the website any more): `curl -s -X POST -H 'content-type: application/json' -H 'x-carbonoz-csrf: 1' -d '{"email":"nobody@example.invalid","password":"x"}' https://login.carbonoz.com/api/v1/auth/login` → `404 User not found` (if disabled: `410 Password sign-in is disabled`).
+
+Only after both accounts pass, and every remaining user has signed in once through Keycloak: `LEGACY_AUTH_ENABLED=false` on .95 (separate decision).
 
 **Creating users (with SSO):** people are created in Keycloak, not in Carbonoz: realm CARBONOZ → Users → Add user, e-mail, **Email verified on**, Credentials → Set password with **Temporary on**. To give them their site before the first sign-in, add the same e-mail as a member of the customer in Carbonoz Admin (or Admin → Users → Prepare): this prepares a Carbonoz account **without a password**, and their first Keycloak sign-in links to it by the verified e-mail. Admin accounts are never linked by e-mail — use `scripts/link-identity.js` as above. Keep `LEGACY_AUTH_ENABLED=true` until every existing user has signed in once through Keycloak, then set it to `false`.
 
 ## 5. Rollback
 
 ```bash
-cd ~/login.carbonoz.com
+cd "$APP"
 git checkout "$(cat logs/previous-commit)"          # detached HEAD at the version that ran before
 cd server-api && npm ci --legacy-peer-deps && npm run prisma:generate && npm run build && cd ..
 cd offsettingdashboard && npm ci && npm run build && cd ..
@@ -299,7 +373,7 @@ Preconditions — all required:
 
 ```bash
 # on the server, credentials from the password manager typed into the editor, never on the command line
-nano ~/login.carbonoz.com/server-api/.env
+nano /var/www/login.carbonoz.com/server-api/.env
 #   INGEST_BRIDGE_ENABLED=true
 #   INGEST_REDIS_URL=redis://consumer:<password>@192.168.160.155:6379
 #   INGEST_BRIDGE_MODE=xread            # or group (see Redis permissions)
