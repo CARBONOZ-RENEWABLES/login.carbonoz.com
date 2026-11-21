@@ -27,6 +27,15 @@ export const ENERGY_SOURCES = {
   battery: 'battery_power_w',
 } as const;
 
+/**
+ * Version of the daily calculation, stored with every cached day. A cached day
+ * without it (or with another) was computed differently: it is recomputed from
+ * the readings and its cached values replaced; readings are never changed.
+ * 2 = charge/discharge (grid import/export) split per reading before the
+ *     hourly average (1 = average first: opposite flows within an hour cancelled).
+ */
+export const ENERGY_METHOD = 2;
+
 /** A day is final (cached) once it ended this long ago; the Pi may still backfill before that. */
 const SETTLE_MS = 48 * 3600_000;
 const HOUR_MS = 3600_000;
@@ -231,16 +240,27 @@ export class SolarEnergyHistoryService {
       },
       select: { day: true, values: true },
     });
-    for (const c of cached)
-      out.set(c.day, { ...EMPTY, ...(c.values as unknown as DayValues) });
+    // Days cached by another calculation method are recomputed (below) and
+    // their cached values replaced; the readings themselves are only read.
+    const stale = new Set<string>();
+    for (const c of cached) {
+      const { method, ...v } = (c.values ?? {}) as unknown as DayValues & {
+        method?: number;
+      };
+      if (method === ENERGY_METHOD) out.set(c.day, { ...EMPTY, ...v });
+      else stale.add(c.day);
+    }
 
-    const missing = needed.filter((d) => !out.has(d));
-    if (!missing.length) return out;
+    // Recomputed: days not cached, and days cached by another method. Stale
+    // days are never put in `out` above; they are listed explicitly anyway so
+    // the recomputation can't depend on that.
+    const recompute = needed.filter((d) => stale.has(d) || !out.has(d));
+    if (!recompute.length) return out;
     const markBefore = await this.dirtyMark(siteId);
-    const computed = await this.compute(siteId, tz, missing);
+    const computed = await this.compute(siteId, tz, recompute);
     const settleBefore = now.getTime() - SETTLE_MS;
     const settled: Prisma.SolarEnergyDayCreateManyInput[] = [];
-    for (const d of missing) {
+    for (const d of recompute) {
       const v = computed.get(d) ?? { ...EMPTY };
       out.set(d, v);
       if (localMidnight(addDays(d, 1), tz).getTime() <= settleBefore)
@@ -249,16 +269,32 @@ export class SolarEnergyHistoryService {
           timezone: tz,
           day: d,
           start: localMidnight(d, tz),
-          values: v as unknown as Prisma.InputJsonValue,
+          values: {
+            ...v,
+            method: ENERGY_METHOD,
+          } as unknown as Prisma.InputJsonValue,
         });
     }
     if (settled.length && markBefore !== null) {
       // A concurrent request may have cached the same days; the unique index decides.
-      await this.prisma.solarEnergyDay
-        .createMany({ data: settled })
-        .catch((e) =>
-          this.logger.debug(`Energy day cache write skipped: ${e.message}`),
-        );
+      const fresh = settled.filter((r) => !stale.has(r.day));
+      if (fresh.length)
+        await this.prisma.solarEnergyDay
+          .createMany({ data: fresh })
+          .catch((e) =>
+            this.logger.debug(`Energy day cache write skipped: ${e.message}`),
+          );
+      for (const r of settled.filter((x) => stale.has(x.day)))
+        await this.prisma.solarEnergyDay
+          .update({
+            where: {
+              siteId_timezone_day: { siteId, timezone: tz, day: r.day },
+            },
+            data: { values: r.values, start: r.start, computedAt: new Date() },
+          })
+          .catch((e) =>
+            this.logger.debug(`Energy day cache update skipped: ${e.message}`),
+          );
       // The worker marks, then deletes. If it marked while we computed, our
       // rows may miss its readings: remove them (its delete may have run first).
       if ((await this.dirtyMark(siteId)) !== markBefore)
@@ -286,75 +322,11 @@ export class SolarEnergyHistoryService {
       else runs.push([d]);
     }
     const out = new Map<string, DayValues>();
-    const has = (f: string) => ({ $ne: [f, null] });
-    const pos = (f: string) => ({ $cond: [has(f), { $max: [f, 0] }, 0] });
-    const neg = (f: string) => ({
-      $cond: [has(f), { $max: [{ $multiply: [f, -1] }, 0] }, 0],
-    });
-    const hours = (f: string) => ({ $cond: [has(f), 1, 0] });
     for (const run of runs) {
       const from = localMidnight(run[0], tz);
       const to = localMidnight(addDays(run[run.length - 1], 1), tz);
       const rows = (await this.prisma.solarSample.aggregateRaw({
-        pipeline: [
-          {
-            $match: {
-              siteId: { $oid: siteId },
-              deviceKind: ENERGY_SOURCES.device,
-              ts: {
-                $gte: { $date: from.toISOString() },
-                $lt: { $date: to.toISOString() },
-              },
-            },
-          },
-          {
-            $project: {
-              _id: 0,
-              i: '$installationId',
-              // The site's local hour with its UTC offset ("2026-10-25T02+0100"):
-              // never straddles local midnight, also in +05:30 / +05:45 zones,
-              // and the repeated hour of a DST fall-back stays two hours.
-              h: {
-                $dateToString: {
-                  format: '%Y-%m-%dT%H%z',
-                  date: '$ts',
-                  timezone: tz,
-                },
-              },
-              pv: `$metrics.${ENERGY_SOURCES.pv}`,
-              load: `$metrics.${ENERGY_SOURCES.load}`,
-              grid: `$metrics.${ENERGY_SOURCES.grid}`,
-              bat: `$metrics.${ENERGY_SOURCES.battery}`,
-            },
-          },
-          // Average power per installation-hour ($avg ignores non-numbers;
-          // repeated or duplicated readings don't inflate the result)…
-          {
-            $group: {
-              _id: { i: '$i', h: '$h' },
-              pv: { $avg: '$pv' },
-              load: { $avg: '$load' },
-              grid: { $avg: '$grid' },
-              bat: { $avg: '$bat' },
-            },
-          },
-          // …× 1 h = Wh, summed per local day of the site.
-          {
-            $group: {
-              _id: { $substrBytes: ['$_id.h', 0, 10] },
-              pvWh: { $sum: pos('$pv') },
-              pvHours: { $sum: hours('$pv') },
-              loadWh: { $sum: pos('$load') },
-              loadHours: { $sum: hours('$load') },
-              gridPositiveWh: { $sum: pos('$grid') },
-              gridNegativeWh: { $sum: neg('$grid') },
-              gridHours: { $sum: hours('$grid') },
-              batteryPositiveWh: { $sum: pos('$bat') },
-              batteryNegativeWh: { $sum: neg('$bat') },
-              batteryHours: { $sum: hours('$bat') },
-            },
-          },
-        ],
+        pipeline: energyDayPipeline(siteId, tz, from, to),
         options: { maxTimeMS: 30_000 },
       })) as unknown as Array<{ _id: string } & DayValues>;
       for (const { _id, ...v } of rows) out.set(_id, { ...EMPTY, ...v });
@@ -386,6 +358,98 @@ export class SolarEnergyHistoryService {
       },
     });
   }
+}
+
+/**
+ * Daily Wh per signed part from SYSTEM power readings in [from, to), grouped
+ * by the site's local day. Exported for validation against raw readings.
+ *
+ * Per installation-hour, the average power × 1 h = Wh. Signed metrics
+ * (grid, battery) are split into their positive and negative part **per
+ * reading, before averaging**: a battery that charges and discharges within
+ * the same hour reports both flows. (Averaging first let them cancel and
+ * under-reported both, by ~5 kWh a day on a site cycling within hours.)
+ * $avg ignores readings without the metric, so a missing value is never 0,
+ * and repeated or duplicated readings don't inflate the result. Hours without
+ * readings add nothing (see `completeness`).
+ */
+export function energyDayPipeline(
+  siteId: string,
+  tz: string,
+  from: Date,
+  to: Date,
+): Prisma.InputJsonObject[] {
+  const num = (f: string) => ({ $isNumber: f });
+  const part = (f: string, sign: 1 | -1) => ({
+    $cond: [
+      num(f),
+      { $max: [sign === 1 ? f : { $multiply: [f, -1] }, 0] },
+      null,
+    ],
+  });
+  const has = (f: string) => ({ $ne: [f, null] });
+  const hours = (f: string) => ({ $cond: [has(f), 1, 0] });
+  const wh = (f: string) => ({ $ifNull: [f, 0] });
+  return [
+    {
+      $match: {
+        siteId: { $oid: siteId },
+        deviceKind: ENERGY_SOURCES.device,
+        ts: {
+          $gte: { $date: from.toISOString() },
+          $lt: { $date: to.toISOString() },
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        i: '$installationId',
+        // The site's local hour with its UTC offset ("2026-10-25T02+0100"):
+        // never straddles local midnight, also in +05:30 / +05:45 zones,
+        // and the repeated hour of a DST fall-back stays two hours.
+        h: {
+          $dateToString: {
+            format: '%Y-%m-%dT%H%z',
+            date: '$ts',
+            timezone: tz,
+          },
+        },
+        pv: `$metrics.${ENERGY_SOURCES.pv}`,
+        load: `$metrics.${ENERGY_SOURCES.load}`,
+        grid: `$metrics.${ENERGY_SOURCES.grid}`,
+        bat: `$metrics.${ENERGY_SOURCES.battery}`,
+      },
+    },
+    {
+      $group: {
+        _id: { i: '$i', h: '$h' },
+        // Never negative in practice: averaged as before (method 1), then clipped at 0.
+        pv: { $avg: '$pv' },
+        load: { $avg: '$load' },
+        gridPos: { $avg: part('$grid', 1) },
+        gridNeg: { $avg: part('$grid', -1) },
+        batPos: { $avg: part('$bat', 1) },
+        batNeg: { $avg: part('$bat', -1) },
+      },
+    },
+    // …× 1 h = Wh, summed per local day of the site.
+    {
+      $group: {
+        _id: { $substrBytes: ['$_id.h', 0, 10] },
+        pvWh: { $sum: { $max: [wh('$pv'), 0] } },
+        pvHours: { $sum: hours('$pv') },
+        loadWh: { $sum: { $max: [wh('$load'), 0] } },
+        loadHours: { $sum: hours('$load') },
+        gridPositiveWh: { $sum: wh('$gridPos') },
+        gridNegativeWh: { $sum: wh('$gridNeg') },
+        gridHours: { $sum: hours('$gridPos') },
+        batteryPositiveWh: { $sum: wh('$batPos') },
+        batteryNegativeWh: { $sum: wh('$batNeg') },
+        batteryHours: { $sum: hours('$batPos') },
+      },
+    },
+  ];
 }
 
 export const ENERGY_SETTLE_MS = SETTLE_MS;

@@ -9,6 +9,7 @@ import {
   localMidnight,
   ymd,
 } from '../src/solar/read/energy-calendar';
+import { ENERGY_METHOD } from '../src/solar/read/solar-energy-history.service';
 import { startApi, TestApi } from './support/app';
 import {
   adminToken,
@@ -210,6 +211,134 @@ describe('daily energy (30 days)', () => {
     expect((await ingest(t.api, s.p.key, m)).status).toBe(202);
     expect((await processed(prisma, m.messageId))?.status).toBe('PROCESSED');
     expect(bucket(await s.energy('?range=30d'), day).pvKwh).toBe(5);
+  });
+
+  // Production 13 Nov 2026 (Solarblick): the battery charged and discharged
+  // within the same hours; averaging first cancelled both flows (29.1/13.7 kWh
+  // instead of 33.9/18.5 integrated from the raw readings).
+  it('counts charging and discharging within the same hour (split per reading, not netted)', async () => {
+    const s = await site();
+    const day = localDay(new Date(Date.now() - 5 * 24 * H), TZ);
+    const flip = (sign: 1 | -1) => ({
+      pv_power_w: 800,
+      load_power_w: 600,
+      battery_power_w: 1000 * sign,
+      grid_power_w: 400 * sign,
+    });
+    await s.samples([
+      { at: at(day, 10, 0), metrics: flip(1) },
+      { at: at(day, 10, 15), metrics: flip(-1) },
+      { at: at(day, 10, 30), metrics: flip(1) },
+      { at: at(day, 10, 45), metrics: flip(-1) },
+    ]);
+    // Hourly average first would give 0 / 0 for battery and grid.
+    expect(bucket(await s.energy('?range=30d'), day)).toMatchObject({
+      pvKwh: 0.8,
+      loadKwh: 0.6,
+      batteryPositiveKwh: 0.5,
+      batteryNegativeKwh: 0.5,
+      gridPositiveKwh: 0.2,
+      gridNegativeKwh: 0.2,
+    });
+  });
+
+  it('recomputes days cached by the previous method in place, keeps current ones, caches new ones', async () => {
+    const s = await site();
+    // Three settled days (> 48 h ago), each with charge and discharge in one hour.
+    const current = localDay(new Date(Date.now() - 8 * 24 * H), TZ);
+    const stale = addDays(current, 1);
+    const uncached = addDays(current, 2);
+    for (const d of [current, stale, uncached])
+      await s.samples([
+        { at: at(d, 9, 0), metrics: { battery_power_w: 2000 } },
+        { at: at(d, 9, 30), metrics: { battery_power_w: -2000 } },
+      ]);
+    const key = (day: string) => ({ siteId: s.p.site.id, timezone: TZ, day });
+    const values = (batteryPositiveWh: number, batteryNegativeWh: number) => ({
+      pvWh: 0,
+      pvHours: 0,
+      loadWh: 0,
+      loadHours: 0,
+      gridPositiveWh: 0,
+      gridNegativeWh: 0,
+      gridHours: 0,
+      batteryPositiveWh,
+      batteryNegativeWh,
+      batteryHours: 1,
+    });
+    // Cached by the current method, with a sentinel the readings can't produce.
+    await prisma.solarEnergyDay.create({
+      data: {
+        ...key(current),
+        start: localMidnight(current, TZ),
+        values: { ...values(7000, 6000), method: ENERGY_METHOD },
+      },
+    });
+    // Cached by method 1 (no marker): the opposite flows cancelled.
+    const old = await prisma.solarEnergyDay.create({
+      data: {
+        ...key(stale),
+        start: localMidnight(stale, TZ),
+        values: values(0, 0),
+        computedAt: new Date(Date.now() - 24 * H),
+      },
+    });
+
+    const r = await s.energy('?range=30d');
+    // Current method: served from the cache, not recomputed.
+    expect(bucket(r, current)).toMatchObject({
+      batteryPositiveKwh: 7,
+      batteryNegativeKwh: 6,
+    });
+    // Previous method: recomputed from the readings, not the cached 0 / 0.
+    expect(bucket(r, stale)).toMatchObject({
+      batteryPositiveKwh: 1,
+      batteryNegativeKwh: 1,
+    });
+    // Not cached: computed and cached by the current method.
+    expect(bucket(r, uncached)).toMatchObject({
+      batteryPositiveKwh: 1,
+      batteryNegativeKwh: 1,
+    });
+
+    // The stale row was updated in place: same document, new totals and time.
+    const rows = await prisma.solarEnergyDay.findMany({
+      where: { siteId: s.p.site.id, timezone: TZ },
+    });
+    // One row per day (empty settled days after the readings are cached too).
+    expect(new Set(rows.map((x) => x.day)).size).toBe(rows.length);
+    expect(rows.map((x) => x.day)).toEqual(
+      expect.arrayContaining([current, stale, uncached]),
+    );
+    const replaced = rows.find((x) => x.day === stale);
+    expect(replaced.id).toBe(old.id);
+    expect(replaced.computedAt.getTime()).toBeGreaterThan(
+      old.computedAt.getTime(),
+    );
+    expect(replaced.values).toMatchObject({
+      method: ENERGY_METHOD,
+      batteryPositiveWh: 1000,
+      batteryNegativeWh: 1000,
+    });
+    expect(rows.find((x) => x.day === uncached).values).toMatchObject({
+      method: ENERGY_METHOD,
+      batteryPositiveWh: 1000,
+    });
+    expect(rows.find((x) => x.day === current).values).toMatchObject({
+      batteryPositiveWh: 7000,
+    });
+
+    // Next request: everything served from the cache, rows unchanged.
+    const again = await s.energy('?range=30d');
+    expect(bucket(again, stale)).toMatchObject({ batteryPositiveKwh: 1 });
+    const after = await prisma.solarEnergyDay.findUnique({
+      where: { id: old.id },
+    });
+    expect(after.computedAt.getTime()).toBe(replaced.computedAt.getTime());
+    // The readings are only read.
+    expect(
+      await prisma.solarSample.count({ where: { siteId: s.p.site.id } }),
+    ).toBe(6);
   });
 
   it('navigates to earlier 30-day ranges and validates parameters', async () => {
